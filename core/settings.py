@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from dotenv import load_dotenv
-from urllib.parse import urlparse
 import os
 
 # Cargar variables de entorno
@@ -87,41 +86,12 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASE_URL = os.getenv('DATABASE_URL')
-
-if DATABASE_URL:
-    parsed_url = urlparse(DATABASE_URL)
-    scheme = parsed_url.scheme.lower()
-    if scheme in ('postgres', 'postgresql'):
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': parsed_url.path.lstrip('/') or '',
-                'USER': parsed_url.username or '',
-                'PASSWORD': parsed_url.password or '',
-                'HOST': parsed_url.hostname or '',
-                'PORT': str(parsed_url.port or ''),
-            }
-        }
-    elif scheme == 'sqlite':
-        db_path = parsed_url.path.lstrip('/') or 'db.sqlite3'
-        if not os.path.isabs(db_path):
-            db_path = BASE_DIR / db_path
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': db_path,
-            }
-        }
-    else:
-        raise ValueError(f"Unsupported DATABASE_URL scheme: {parsed_url.scheme}")
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
+}
 
 
 # Password validation

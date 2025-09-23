@@ -44,6 +44,12 @@ urlpatterns = [
     # Pagos (Expensas y Multas)
     path('api/pagos/', include('core.api_urls')),
 
+    # CU05 - Gestionar Unidades Habitacionales
+    path('api/', include('core.api.viviendas.urls')),
+    
+    # Pagos (Expensas y Multas)
+    path('api/pagos/', include('core.api_urls')),
+
     # Face Recognition API
     path('', include('seguridad.urls')),
     
@@ -56,6 +62,7 @@ urlpatterns = [
 # Servir archivos media en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 
 
 
