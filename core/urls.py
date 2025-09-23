@@ -41,6 +41,9 @@ urlpatterns = [
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
+    # Pagos (Expensas y Multas)
+    path('api/pagos/', include('core.api_urls')),
+
     # Face Recognition API
     path('', include('seguridad.urls')),
     
@@ -53,3 +56,6 @@ urlpatterns = [
 # Servir archivos media en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+
