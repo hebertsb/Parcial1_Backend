@@ -29,25 +29,30 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
+print("🔍 DEBUG: Cargando core/urls.py")
+
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
+    # Authz Propietarios (Sistema de registro) - MOVER ARRIBA
+    path('api/authz/', include('authz.urls')),
+    
     # Authz Authentication (Sistema avanzado)
-    path('api/auth/', include('authz.auth_urls')),
+    # path('api/auth/', include('authz.auth_urls')),
     
     # JWT Authentication (Sistema anterior - mantener para compatibilidad)
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
-    # Face Recognition API
-    path('', include('seguridad.urls')),
-    
     # OpenAPI Schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    
+    # Face Recognition API (AL FINAL para que no interfiera)
+    path('', include('seguridad.urls')),
 ]
 
 # Servir archivos media en desarrollo

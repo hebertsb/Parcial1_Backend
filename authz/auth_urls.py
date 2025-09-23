@@ -23,4 +23,7 @@ urlpatterns = [
     path("iniciar-sesion/", login_view, name="iniciar_sesion"),
     path("renovar/", refresh_view, name="renovar"),
     path("registro/", registrar_usuario, name="registro"),
+    
+    # Registro de propietarios
+    path("propietarios/", include("authz.urls_propietario")),
 ]

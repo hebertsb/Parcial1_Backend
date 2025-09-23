@@ -327,7 +327,7 @@ class Visita(models.Model):
     estado = models.CharField(max_length=30, default='programada', choices=[('programada', 'Programada'), ('confirmada_telefono', 'Confirmada por teléfono'), ('en_curso', 'En curso'), ('finalizada', 'Finalizada'), ('cancelada', 'Cancelada'), ('no_autorizada', 'No autorizada')])
     codigo_autorizacion = models.CharField(max_length=10, default='upper(substring(md5(random()::text) from 1 for 6))')
     vehiculo_placa = models.CharField(max_length=20, null=True, blank=True)
-    guardia_recepcion = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    guardia_recepcion = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='visitas_atendidas_core')
     llamada_confirmacion_realizada = models.BooleanField(default=False)
     foto_ingreso_url = models.URLField(null=True, blank=True)
     foto_salida_url = models.URLField(null=True, blank=True)

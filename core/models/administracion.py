@@ -169,7 +169,7 @@ class Pagos(models.Model):
     numero_comprobante = models.CharField(max_length=100, null=True, blank=True)
     comprobante_archivo = models.URLField(null=True, blank=True)
     estado = models.CharField(max_length=30, default='procesado', choices=[('procesado', 'Procesado'), ('rechazado', 'Rechazado'), ('pendiente_verificacion', 'Pendiente Verificación'), ('reembolsado', 'Reembolsado')])
-    procesado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    procesado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='pagos_procesados_core')
 
     def __str__(self):
         return f"Pago {self.tipo_pago} - {self.monto}"
