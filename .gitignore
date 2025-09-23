@@ -222,8 +222,8 @@ Temporary Items
 staticfiles/
 static/
 
-# Face Recognition Models & Data
-models/
+
+ai_models/
 *.pkl
 *.model
 *.h5
