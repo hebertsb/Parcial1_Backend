@@ -125,7 +125,7 @@ class FaceEnrollView(APIView):
                 fn_bitacora_log(
                     tipo_accion='ENROLL_FACE',
                     descripcion=f'Error: No se detectó rostro para copropietario {copropietario.nombre_completo}',
-                    usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                    usuario=request.user,  # Usar directamente el usuario del nuevo sistema
                     copropietario=copropietario,
                     direccion_ip=get_client_ip(request),
                     user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -144,7 +144,7 @@ class FaceEnrollView(APIView):
                 fn_bitacora_log(
                     tipo_accion='ENROLL_FACE',
                     descripcion=f'Error de enrolamiento para copropietario {copropietario.nombre_completo}: {str(e)}',
-                    usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                    usuario=request.user,
                     copropietario=copropietario,
                     direccion_ip=get_client_ip(request),
                     user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -191,7 +191,7 @@ class FaceEnrollView(APIView):
             fn_bitacora_log(
                 tipo_accion='ENROLL_FACE',
                 descripcion=f'Enrolamiento biométrico exitoso para copropietario {copropietario.nombre_completo}',
-                usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                usuario=request.user,
                 copropietario=copropietario,
                 direccion_ip=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -223,7 +223,7 @@ class FaceEnrollView(APIView):
             fn_bitacora_log(
                 tipo_accion='SYSTEM_ERROR',
                 descripcion=f'Error del sistema en enrolamiento: {str(e)}',
-                usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                usuario=request.user,
                 direccion_ip=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT')
             )
@@ -310,7 +310,7 @@ class FaceVerifyView(APIView):
                 fn_bitacora_log(
                     tipo_accion='VERIFY_FACE',
                     descripcion=f'Error: No se detectó rostro en verificación para copropietario {copropietario.nombre_completo}',
-                    usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                    usuario=request.user,
                     copropietario=copropietario,
                     direccion_ip=get_client_ip(request),
                     user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -329,7 +329,7 @@ class FaceVerifyView(APIView):
                 fn_bitacora_log(
                     tipo_accion='VERIFY_FACE',
                     descripcion=f'Error de verificación para copropietario {copropietario.nombre_completo}: {str(e)}',
-                    usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                    usuario=request.user,
                     copropietario=copropietario,
                     direccion_ip=get_client_ip(request),
                     user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -354,7 +354,7 @@ class FaceVerifyView(APIView):
             fn_bitacora_log(
                 tipo_accion='VERIFY_FACE',
                 descripcion=f'Verificación biométrica para copropietario {copropietario.nombre_completo} ({resultado_texto}, conf={confianza:.3f})',
-                usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                usuario=request.user,
                 copropietario=copropietario,
                 direccion_ip=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -385,7 +385,7 @@ class FaceVerifyView(APIView):
             fn_bitacora_log(
                 tipo_accion='SYSTEM_ERROR',
                 descripcion=f'Error del sistema en verificación: {str(e)}',
-                usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                usuario=request.user,
                 direccion_ip=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT')
             )
@@ -445,7 +445,7 @@ class FaceDeleteView(APIView):
             fn_bitacora_log(
                 tipo_accion='DELETE_FACE',
                 descripcion=f'Baja de enrolamiento biométrico para copropietario {copropietario.nombre_completo}',
-                usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                usuario=request.user,
                 copropietario=copropietario,
                 direccion_ip=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT'),
@@ -466,7 +466,7 @@ class FaceDeleteView(APIView):
             fn_bitacora_log(
                 tipo_accion='SYSTEM_ERROR',
                 descripcion=f'Error del sistema eliminando enrolamiento: {str(e)}',
-                usuario=request.user.perfil_usuario if hasattr(request.user, 'perfil_usuario') else None,
+                usuario=request.user,
                 direccion_ip=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT')
             )

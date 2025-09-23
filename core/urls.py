@@ -33,7 +33,10 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
-    # JWT Authentication
+    # Authz Authentication (Sistema avanzado)
+    path('api/auth/', include('authz.auth_urls')),
+    
+    # JWT Authentication (Sistema anterior - mantener para compatibilidad)
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),

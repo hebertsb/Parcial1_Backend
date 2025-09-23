@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # Local apps
     'blog',
     'seguridad',
+    'authz',  # Sistema de autenticación avanzado
 ]
 
 MIDDLEWARE = [
@@ -187,6 +188,9 @@ AZURE_FACE_ENDPOINT = os.getenv('AZURE_FACE_ENDPOINT', '')
 
 # Local Face Recognition Configuration
 FACE_LOCAL_THRESHOLD = float(os.getenv('FACE_LOCAL_THRESHOLD', '0.6'))
+
+# Custom User Model - Comentado temporalmente para migración gradual
+AUTH_USER_MODEL = 'authz.Usuario'
 
 # Media Configuration for image uploads
 MEDIA_URL = '/media/'

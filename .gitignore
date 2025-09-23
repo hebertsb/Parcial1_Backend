@@ -296,3 +296,12 @@ Thumbs.db
 # secrets.json
 # local_config.py
 # custom_settings.py
+
+# Documentation and Guides (exclude from repository)
+*.md
+!README.md
+POSTMAN_*.md
+PRUEBAS_*.md
+INSTALLATION_GUIDE.md
+*_GUIDE.md
+*_TESTING.md

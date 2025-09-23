@@ -1,47 +1,17 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.utils import timezone
-
-
-class Roles(models.Model):
-    """Roles del sistema"""
-    id = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=50, unique=True)
-    descripcion = models.TextField(blank=True, null=True)
-    activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'roles'
-        verbose_name = 'Rol'
-        verbose_name_plural = 'Roles'
-
-    def __str__(self):
-        return self.nombre
-
-
-class Usuarios(models.Model):
-    """Usuarios del sistema"""
-    id = models.AutoField(primary_key=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil_usuario')
-    rol = models.ForeignKey(Roles, on_delete=models.PROTECT)
-    telefono = models.CharField(max_length=15, blank=True, null=True)
-    activo = models.BooleanField(default=True)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_modificacion = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'usuarios'
-        verbose_name = 'Usuario'
-        verbose_name_plural = 'Usuarios'
-
-    def __str__(self):
-        return f"{self.user.username} - {self.rol.nombre}"
 
 
 class Copropietarios(models.Model):
     """Copropietarios de la propiedad"""
+    TIPO_RESIDENTE_CHOICES = [
+        ('Propietario', 'Propietario'),
+        ('Inquilino', 'Inquilino'),
+        ('Familiar', 'Familiar'),
+        ('Visitante', 'Visitante Frecuente'),
+    ]
+    
     id = models.AutoField(primary_key=True)
     nombres = models.CharField(max_length=100)
     apellidos = models.CharField(max_length=100)
@@ -55,6 +25,18 @@ class Copropietarios(models.Model):
     telefono = models.CharField(max_length=15, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     unidad_residencial = models.CharField(max_length=50)  # Ej: Apto 101, Casa 23
+    tipo_residente = models.CharField(max_length=20, choices=TIPO_RESIDENTE_CHOICES, default='Propietario')
+    
+    # Relación opcional con el sistema de usuarios authz
+    usuario_sistema = models.OneToOneField(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='copropietario_perfil',
+        help_text='Usuario del sistema asociado a este copropietario'
+    )
+    
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -65,7 +47,7 @@ class Copropietarios(models.Model):
         verbose_name_plural = 'Copropietarios'
 
     def __str__(self):
-        return f"{self.nombres} {self.apellidos} - {self.unidad_residencial}"
+        return f"{self.nombres} {self.apellidos} - {self.unidad_residencial} ({self.tipo_residente})"
 
     @property
     def nombre_completo(self):
@@ -121,8 +103,9 @@ class BitacoraAcciones(models.Model):
     ]
     
     id = models.AutoField(primary_key=True)
+    # Cambiar para usar el nuevo modelo de usuario
     usuario = models.ForeignKey(
-        Usuarios, 
+        settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
@@ -154,7 +137,7 @@ class BitacoraAcciones(models.Model):
         ordering = ['-fecha_accion']
 
     def __str__(self):
-        usuario_str = f"Usuario: {self.usuario.user.username}" if self.usuario else "Usuario: Sistema"
+        usuario_str = f"Usuario: {self.usuario.email}" if self.usuario else "Usuario: Sistema"
         coprop_str = f"Copropietario: {self.copropietario.nombre_completo}" if self.copropietario else ""
         return f"{self.tipo_accion} - {usuario_str} {coprop_str} - {self.fecha_accion}"
 

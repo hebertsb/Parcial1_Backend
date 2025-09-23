@@ -1,21 +1,5 @@
 from django.contrib import admin
-from .models import Roles, Usuarios, Copropietarios, ReconocimientoFacial, BitacoraAcciones
-
-
-@admin.register(Roles)
-class RolesAdmin(admin.ModelAdmin):
-    list_display = ['nombre', 'descripcion', 'activo', 'fecha_creacion']
-    list_filter = ['activo', 'fecha_creacion']
-    search_fields = ['nombre', 'descripcion']
-    ordering = ['nombre']
-
-
-@admin.register(Usuarios)
-class UsuariosAdmin(admin.ModelAdmin):
-    list_display = ['user', 'rol', 'telefono', 'activo', 'fecha_creacion']
-    list_filter = ['rol', 'activo', 'fecha_creacion']
-    search_fields = ['user__username', 'user__email', 'telefono']
-    ordering = ['user__username']
+from .models import Copropietarios, ReconocimientoFacial, BitacoraAcciones
 
 
 @admin.register(Copropietarios)
