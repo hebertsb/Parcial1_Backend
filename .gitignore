@@ -223,9 +223,8 @@ staticfiles/
 static/
 
 
-ai_models/
+
 *.pkl
-*.model
 *.h5
 *.pb
 
