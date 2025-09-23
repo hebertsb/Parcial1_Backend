@@ -363,18 +363,24 @@ class AprobarSolicitudView(APIView):
         if serializer.is_valid():
             try:
                 with transaction.atomic():
-                    # Simulamos aprobación simple por ahora
-                    solicitud.estado = 'APROBADA'
-                    solicitud.fecha_aprobacion = timezone.now()
-                    solicitud.observaciones = serializer.validated_data.get('observaciones_aprobacion', '')
-                    solicitud.save()
+                    # Usar el método del modelo que asigna el rol de propietario
+                    usuario_creado = solicitud.aprobar_solicitud(request.user)
+                    
+                    # Actualizar observaciones si se proporcionaron
+                    observaciones = serializer.validated_data.get('observaciones_aprobacion', '')
+                    if observaciones:
+                        solicitud.observaciones = observaciones
+                        solicitud.save()
                     
                     return Response({
                         'success': True,
-                        'message': 'Solicitud aprobada exitosamente',
+                        'message': 'Solicitud aprobada exitosamente. Rol de propietario asignado.',
                         'data': {
                             'solicitud_id': solicitud.id,
-                            'nuevo_estado': solicitud.estado
+                            'nuevo_estado': solicitud.estado,
+                            'usuario_id': usuario_creado.id,
+                            'email_propietario': usuario_creado.email,
+                            'rol_asignado': 'Propietario'
                         }
                     })
                         

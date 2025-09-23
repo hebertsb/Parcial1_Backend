@@ -155,6 +155,7 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
                 'telefono': validated_data['telefono'],
                 'numero_casa': numero_casa,
                 'vivienda_validada': vivienda,
+                'usuario_creado': usuario,  # ✅ AGREGAR ESTA LÍNEA
                 'estado': 'PENDIENTE',
                 'comentarios_admin': f"Registro inicial desde formulario web - Usuario ID: {usuario.id}"
             }

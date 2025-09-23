@@ -4,7 +4,8 @@ Comando para crear datos de prueba para el sistema de registro de propietarios
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from core.models.propiedades_residentes import Vivienda, Propiedad
-from authz.models import SolicitudRegistroPropietario, FamiliarPropietario
+from authz.models import SolicitudRegistroPropietario, FamiliarPropietario, Persona
+from datetime import date
 import random
 
 class Command(BaseCommand):
@@ -101,14 +102,26 @@ class Command(BaseCommand):
             
             # Agregar algunos familiares
             if random.choice([True, False]):  # 50% probabilidad
-                FamiliarPropietario.objects.create(
-                    solicitud=solicitud,
-                    nombres=f"Familiar{i} Test",
-                    apellidos=apellido,
+                # Crear persona para el familiar
+                persona_familiar = Persona.objects.create(
+                    nombre=f"Familiar{i}",
+                    apellido=apellido,
                     documento_identidad=f"98765{i:03d}",
-                    parentesco=random.choice(['CONYUGUE', 'HIJO', 'PADRE']),
-                    telefono=f"555123{i:03d}"
+                    telefono=f"555123{i:03d}",
+                    email=f"familiar{i}.{apellido.lower()}@test.com",
+                    fecha_nacimiento=date(1995, 1, 1),
+                    genero='M' if i % 2 == 0 else 'F'
                 )
+                
+                # Crear el familiar si la solicitud fue aprobada y tiene usuario
+                if solicitud.usuario_creado:
+                    FamiliarPropietario.objects.create(
+                        propietario=solicitud.usuario_creado,
+                        persona=persona_familiar,
+                        parentesco=random.choice(['conyugue', 'hijo', 'padre']),
+                        autorizado_acceso=True,
+                        puede_autorizar_visitas=False
+                    )
             
             self.stdout.write(f'  Solicitud creada: {solicitud.nombres} {solicitud.apellidos} - {vivienda.numero_casa}')
         

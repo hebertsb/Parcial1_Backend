@@ -29,8 +29,6 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
-print("🔍 DEBUG: Cargando core/urls.py")
-
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),

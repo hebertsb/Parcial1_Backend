@@ -352,18 +352,44 @@ class SolicitudRegistroPropietario(models.Model):
             if not es_valida:
                 raise ValueError(mensaje)
             
-            # Crear persona usando el modelo de authz (centralizado)
-            persona = Persona.objects.create(
-                nombre=self.nombres,
-                apellido=self.apellidos,
+            # Crear o obtener persona usando el modelo de authz (centralizado)
+            persona, persona_created = Persona.objects.get_or_create(
                 documento_identidad=self.documento_identidad,
-                telefono=self.telefono,
-                email=self.email,
-                fecha_nacimiento=self.fecha_nacimiento,
-                tipo_persona='propietario'
+                defaults={
+                    'nombre': self.nombres,
+                    'apellido': self.apellidos,
+                    'telefono': self.telefono,
+                    'email': self.email,
+                    'fecha_nacimiento': self.fecha_nacimiento,
+                    'tipo_persona': 'propietario'
+                }
             )
             
-            # Crear usuario
+            # Verificar si ya existe un usuario con este email
+            usuario_existente = Usuario.objects.filter(email=self.email).first()
+            if usuario_existente:
+                # Si la persona ya tiene usuario, verificar si puede ser reutilizada
+                if usuario_existente.persona.documento_identidad == self.documento_identidad:
+                    # Es la misma persona, solo asignar rol si no lo tiene
+                    rol_propietario, _ = Rol.objects.get_or_create(
+                        nombre='Propietario',
+                        defaults={'descripcion': 'Propietario de vivienda'}
+                    )
+                    if not usuario_existente.roles.filter(nombre='Propietario').exists():
+                        usuario_existente.roles.add(rol_propietario)
+                    
+                    # Actualizar solicitud
+                    self.estado = 'APROBADA'
+                    self.revisado_por = revisado_por_usuario
+                    self.fecha_revision = timezone.now()
+                    self.usuario_creado = usuario_existente
+                    self.save()
+                    
+                    return usuario_existente
+                else:
+                    raise ValueError(f"Ya existe un usuario con el email {self.email} pero con diferente cédula")
+            
+            # Crear usuario nuevo
             usuario = Usuario.objects.create_user(
                 email=self.email,
                 persona=persona

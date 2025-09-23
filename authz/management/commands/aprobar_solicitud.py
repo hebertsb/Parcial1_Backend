@@ -61,24 +61,24 @@ class Command(BaseCommand):
                 )
         
         try:
-            # Aprobar la solicitud
-            resultado = solicitud.aprobar_solicitud(
-                admin_user=admin_user,
-                observaciones=observaciones
-            )
+            # Aprobar la solicitud usando el método correcto
+            usuario_creado = solicitud.aprobar_solicitud(admin_user)
             
-            if resultado['success']:
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f'✓ Solicitud {solicitud_id} aprobada exitosamente:\n'
-                        f'  - Solicitante: {solicitud.nombres} {solicitud.apellidos}\n'
-                        f'  - Vivienda: {solicitud.numero_casa}\n'
-                        f'  - Usuario creado: {resultado["usuario_creado"].email}\n'
-                        f'  - Familiares registrados: {resultado["familiares_count"]}'
-                    )
+            # Agregar observaciones si se proporcionaron
+            if observaciones:
+                solicitud.observaciones = observaciones
+                solicitud.save()
+            
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'✓ Solicitud {solicitud_id} aprobada exitosamente:\n'
+                    f'  - Solicitante: {solicitud.nombres} {solicitud.apellidos}\n'
+                    f'  - Vivienda: {solicitud.numero_casa}\n'
+                    f'  - Usuario creado: {usuario_creado.email}\n'
+                    f'  - Rol asignado: Propietario\n'
+                    f'  - Estado: {solicitud.estado}'
                 )
-            else:
-                raise CommandError(f'Error al aprobar solicitud: {resultado["message"]}')
+            )
                 
         except Exception as e:
             raise CommandError(f'Error inesperado al aprobar solicitud: {str(e)}')

@@ -10,8 +10,6 @@ from .views_propietario import (
     RechazarSolicitudView
 )
 
-print("🔍 DEBUG: Cargando authz/urls.py")
-
 app_name = 'authz'
 
 urlpatterns = [
@@ -27,5 +25,3 @@ urlpatterns = [
     # URLs para el panel de propietarios (gestión de familiares e inquilinos)
     path('propietarios/', include('authz.urls_propietarios_panel')),
 ]
-
-print("🔍 DEBUG: URLs de authz cargadas exitosamente")

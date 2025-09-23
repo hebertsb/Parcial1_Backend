@@ -19,7 +19,6 @@ from .serializers_propietario import (
     ListarFamiliaresSerializer, ListarInquilinosSerializer
 )
 
-print("🔍 DEBUG: Cargando views_propietarios_panel.py")
 
 
 class PropietarioPermissionMixin:
