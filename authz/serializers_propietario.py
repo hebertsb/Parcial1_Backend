@@ -821,7 +821,7 @@ class RegistroInquilinoSerializer(serializers.Serializer):
                 )
                 
                 # Asignar rol de inquilino
-                rol_inquilino = Rol.objects.get(nombre='Inquilino')
+                rol_inquilino, _ = Rol.objects.get_or_create(nombre='Inquilino')
                 usuario_inquilino.roles.add(rol_inquilino)
                 
                 # Crear persona para el usuario

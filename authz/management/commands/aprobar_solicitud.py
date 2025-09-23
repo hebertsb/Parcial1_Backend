@@ -50,7 +50,7 @@ class Command(BaseCommand):
             try:
                 admin_user = Usuario.objects.get(
                     email=admin_email,
-                    roles__nombre='Administrador'
+                    roles__nombre__in=['Administrador', 'ADMIN']
                 )
             except Usuario.DoesNotExist:
                 self.stdout.write(

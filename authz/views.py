@@ -159,7 +159,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         usuario_actual = request.user
         print("ADMIN EDIT REQUEST - USER:", usuario_actual.email, "ROLES:", list(usuario_actual.roles.values_list('nombre', flat=True)))
         print("BODY RECIBIDO:", request.data)
-        if not usuario_actual.roles.filter(nombre="ADMIN").exists():
+        # Aceptar tanto 'Administrador' como 'ADMIN' por compatibilidad
+        if not usuario_actual.roles.filter(nombre__in=["Administrador", "ADMIN"]).exists():
             print("NO TIENE ROL ADMIN")
             return Response({"detail": "No tienes permisos para editar usuarios."}, status=403)
         usuario = self.get_object()
@@ -174,17 +175,20 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     def listar_clientes(self, request):
         usuario_actual = request.user
         # Verifica si el usuario tiene el rol ADMIN
-        if not usuario_actual.roles.filter(nombre="ADMIN").exists():
+        # Aceptar tanto 'Administrador' como 'ADMIN' por compatibilidad
+        if not usuario_actual.roles.filter(nombre__in=["Administrador", "ADMIN"]).exists():
             return Response({"detail": "No tienes permisos para ver clientes."}, status=403)
-        clientes = Usuario.objects.filter(roles__nombre="CLIENTE").distinct()
-        serializer = UsuarioSerializer(clientes, many=True)
+        # En este proyecto no existe el rol 'CLIENTE'; listamos usuarios con rol 'Inquilino'
+        usuarios = Usuario.objects.filter(roles__nombre="Inquilino").distinct()
+        serializer = UsuarioSerializer(usuarios, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"], url_path="inhabilitar", permission_classes=[permissions.IsAuthenticated])
     def inhabilitar(self, request, pk=None):
         """Permite al ADMIN inhabilitar (deshabilitar) cualquier usuario."""
         usuario_actual = request.user
-        if not usuario_actual.roles.filter(nombre="ADMIN").exists():
+        # Aceptar tanto 'Administrador' como 'ADMIN' por compatibilidad
+        if not usuario_actual.roles.filter(nombre__in=["Administrador", "ADMIN"]).exists():
             return Response({"detail": "No tienes permisos para inhabilitar usuarios."}, status=403)
         usuario = self.get_object()
         if usuario.estado == "INACTIVO":
@@ -197,7 +201,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     def reactivar(self, request, pk=None):
         """Permite a un usuario con rol ADMIN reactivar una cuenta de usuario inactiva."""
         usuario_admin = Usuario.objects.get(email=request.user.email)
-        if not usuario_admin.roles.filter(nombre="ADMIN").exists():
+        if not usuario_admin.roles.filter(nombre__in=["Administrador", "ADMIN"]).exists():
             return Response({"detail": "No tienes permisos para realizar esta acción."}, status=403)
         usuario = self.get_object()
         if usuario.estado != "INACTIVO":
@@ -235,7 +239,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="asignar-rol")
     def asignar_rol(self, request, pk=None):
         usuario_actual = request.user
-        if not usuario_actual.roles.filter(nombre="ADMIN").exists():
+        # Aceptar tanto 'Administrador' como 'ADMIN' por compatibilidad
+        if not usuario_actual.roles.filter(nombre__in=["Administrador", "ADMIN"]).exists():
             return Response({"detail": "No tienes permisos para asignar roles."}, status=403)
         usuario = self.get_object()
         nombre_rol = request.data.get("rol")
@@ -271,7 +276,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 @permission_classes([AllowAny])
 @extend_schema(
     summary="Registro de nuevo usuario",
-    description="Registro de nuevo usuario con asignación de rol CLIENTE y emisión de tokens JWT.",
+    description="Registro de nuevo usuario con asignación de rol Inquilino y emisión de tokens JWT.",
     request=UsuarioRegistroSerializer,
     responses={
         201: inline_serializer(
@@ -299,7 +304,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
     ],
 )
 def registrar_usuario(request):
-    """Registro de nuevo usuario con asignación de rol CLIENTE y emisión de tokens JWT."""
+    """Registro de nuevo usuario con asignación de rol Inquilino y emisión de tokens JWT."""
     serializer = UsuarioRegistroSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -309,9 +314,10 @@ def registrar_usuario(request):
         if isinstance(usuario, list):
             usuario = usuario[0]
 
-        # Asegurar rol CLIENTE
-        rol, _ = Rol.objects.get_or_create(nombre="CLIENTE")
-        usuario.roles.add(rol)
+        # Asignar rol por defecto: Inquilino (no existe 'CLIENTE' en este proyecto)
+        rol, _ = Rol.objects.get_or_create(nombre="Inquilino")
+        if not usuario.roles.filter(id=rol.id).exists():
+            usuario.roles.add(rol)
 
         # Emitir tokens para el Django User creado
         django_user = getattr(serializer, "_django_user", None)

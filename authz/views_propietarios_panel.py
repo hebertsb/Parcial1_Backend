@@ -45,6 +45,8 @@ class PropietarioPermissionMixin:
             print(f"🔍 DEBUG: ¿Existe rol 'Propietario' en el sistema?: {rol_propietario_exists}")
             
             if not propietario_roles.exists():
+                # Validación estricta: NO auto-asignar rol de propietario
+                return False
                 print(f"❌ DEBUG: Usuario NO tiene rol de propietario")
                 # Intentar asignar el rol automáticamente si falta
                 print(f"🔧 DEBUG: Intentando asignar rol de propietario automáticamente...")

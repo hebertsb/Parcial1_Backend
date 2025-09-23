@@ -257,7 +257,7 @@ class SolicitudesPendientesView(APIView):
         print(f"🔍 DEBUG: request.user tiene roles, verificando...")
         
         try:
-            admin_roles = request.user.roles.filter(nombre='Administrador')
+            admin_roles = request.user.roles.filter(nombre__in=['Administrador', 'ADMIN'])
             print(f"🔍 DEBUG: admin_roles query: {admin_roles}")
             admin_exists = admin_roles.exists()
             print(f"🔍 DEBUG: admin_exists: {admin_exists}")
@@ -319,7 +319,7 @@ class DetalleSolicitudView(APIView):
     )
     def get(self, request, solicitud_id):
         # Verificar que el usuario sea administrador
-        if not hasattr(request.user, 'roles') or not request.user.roles.filter(nombre='Administrador').exists():
+        if not hasattr(request.user, 'roles') or not request.user.roles.filter(nombre__in=['Administrador', 'ADMIN']).exists():
             return Response({
                 'error': 'No tiene permisos para acceder a este recurso'
             }, status=status.HTTP_403_FORBIDDEN)
@@ -347,7 +347,7 @@ class AprobarSolicitudView(APIView):
     )
     def post(self, request, solicitud_id):
         # Verificar que el usuario sea administrador
-        if not hasattr(request.user, 'roles') or not request.user.roles.filter(nombre='Administrador').exists():
+        if not hasattr(request.user, 'roles') or not request.user.roles.filter(nombre__in=['Administrador', 'ADMIN']).exists():
             return Response({
                 'error': 'No tiene permisos para acceder a este recurso'
             }, status=status.HTTP_403_FORBIDDEN)
@@ -400,7 +400,7 @@ class RechazarSolicitudView(APIView):
     permission_classes = [IsAuthenticated]
 
     def dispatch(self, request, *args, **kwargs):
-        if not hasattr(request.user, 'roles') or not request.user.roles.filter(nombre='Administrador').exists():
+        if not hasattr(request.user, 'roles') or not request.user.roles.filter(nombre__in=['Administrador', 'ADMIN']).exists():
             return Response({
                 'error': 'No tiene permisos para acceder a este recurso'
             }, status=status.HTTP_403_FORBIDDEN)
