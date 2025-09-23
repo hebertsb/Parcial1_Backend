@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'drf_spectacular',
     # Local apps
+    'core',  # Aplicación principal con modelos organizados
     'blog',
     'seguridad',
     'authz',  # Sistema de autenticación avanzado
@@ -197,6 +198,10 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Logging Configuration
+# Asegurar que el directorio de logs exista
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -204,7 +209,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'face_recognition.log',
+            'filename': LOG_DIR / 'face_recognition.log',
         },
         'console': {
             'level': 'DEBUG',
