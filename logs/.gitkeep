@@ -1,0 +1,5 @@
+# Esta carpeta contiene los logs del sistema
+# Los archivos .log se ignoran en .gitignore pero la carpeta debe existir
+
+# Archivo placeholder para mantener la carpeta en git
+*.log

@@ -223,14 +223,13 @@ staticfiles/
 static/
 
 # Face Recognition Models & Data
-models/
 *.pkl
 *.model
 *.h5
 *.pb
 
-# Logs Directory
-logs/
+# Logs Directory - permitir carpeta pero ignorar archivos .log
+logs/*.log
 *.log
 
 # Environment Variables (IMPORTANT!)
