@@ -218,15 +218,19 @@ Temporary Items
 # Uncomment if you want to ignore uploaded media files:
 # media/
 
-# Django Static Files (collected for production)
-staticfiles/
-static/
-
-
-
+# Face Recognition Models & Data (ML trained models, not Python code)
+# Only ignore the heavy binary files, allow Python files
 *.pkl
+*.model
 *.h5
 *.pb
+*.weights
+*.ckpt
+*.pth
+*.onnx
+# Specific ML model directories if needed
+# trained_models/
+# model_weights/
 
 # Logs Directory
 logs/
