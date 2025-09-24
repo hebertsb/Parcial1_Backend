@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Third party apps
-    'corsheaders',  # Descomentado para permitir CORS desde frontend
     'corsheaders',  # CORS headers para permitir peticiones desde frontend
     'rest_framework',
     'rest_framework_simplejwt',
