@@ -203,6 +203,8 @@ class Notificacion(models.Model):
     def __str__(self):
         return f"Notificación: {self.titulo} - {self.usuario.user.username}"
 
+
+# Tabla de expensas mensuales
 # Tabla de expensas mensuales
 class ExpensasMensuales(models.Model):
     vivienda = models.ForeignKey('core.Vivienda', on_delete=models.CASCADE)
@@ -234,6 +236,9 @@ class ExpensasMensuales(models.Model):
 
     def __str__(self):
         return f"Expensa {self.vivienda.numero_casa} - {self.periodo_year}/{self.periodo_month}"
+
+
+
 
 # Tabla de multas y sanciones
 class MultasSanciones(models.Model):
@@ -327,7 +332,7 @@ class Visita(models.Model):
     estado = models.CharField(max_length=30, default='programada', choices=[('programada', 'Programada'), ('confirmada_telefono', 'Confirmada por teléfono'), ('en_curso', 'En curso'), ('finalizada', 'Finalizada'), ('cancelada', 'Cancelada'), ('no_autorizada', 'No autorizada')])
     codigo_autorizacion = models.CharField(max_length=10, default='upper(substring(md5(random()::text) from 1 for 6))')
     vehiculo_placa = models.CharField(max_length=20, null=True, blank=True)
-    guardia_recepcion = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    guardia_recepcion = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='visitas_atendidas_core')
     llamada_confirmacion_realizada = models.BooleanField(default=False)
     foto_ingreso_url = models.URLField(null=True, blank=True)
     foto_salida_url = models.URLField(null=True, blank=True)

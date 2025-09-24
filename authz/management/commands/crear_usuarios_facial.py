@@ -1,67 +1,96 @@
 from django.core.management.base import BaseCommand
-from authz.models import Usuario, Rol
+from authz.models import Usuario, Rol, Persona
 from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import date
 
 
 class Command(BaseCommand):
-    help = 'Crea usuarios y roles del sistema de reconocimiento facial'
+    help = 'Crea usuarios y roles del sistema de reconocimiento facial integrado con Persona'
 
     def handle(self, *args, **options):
-        self.stdout.write('🚀 Creando roles y usuarios del sistema facial...')
+        self.stdout.write('🚀 Creando roles, personas y usuarios del sistema facial...')
 
         # Crear roles del sistema facial
         roles_nombres = ['Administrador', 'Seguridad', 'Propietario', 'Inquilino']
 
         created_roles = []
         for rol_nombre in roles_nombres:
-            rol, created = Rol.objects.get_or_create(nombre=rol_nombre)
+            rol, created = Rol.objects.get_or_create(
+                nombre=rol_nombre,
+                defaults={
+                    'descripcion': f'Rol de {rol_nombre} del sistema',
+                    'activo': True
+                }
+            )
             if created:
                 self.stdout.write(f'✅ Rol creado: {rol.nombre}')
                 created_roles.append(rol)
             else:
                 self.stdout.write(f'ℹ️  Rol existente: {rol.nombre}')
 
-        # Crear usuarios del sistema
+        # Datos de personas y usuarios del sistema
         usuarios_data = [
             {
                 'email': 'admin@facial.com',
-                'nombres': 'Sistema',
-                'apellidos': 'Administrador',
+                'persona_data': {
+                    'nombre': 'Sistema',
+                    'apellido': 'Administrador',
+                    'documento_identidad': 'ADM001',
+                    'telefono': '+591-70000001',
+                    'email': 'admin@facial.com',
+                    'fecha_nacimiento': date(1980, 1, 1),
+                    'tipo_persona': 'administrador'
+                },
                 'password': 'admin123',
-                'telefono': '+591-70000001',
                 'rol': 'Administrador',
                 'is_staff': True,
                 'is_superuser': True
             },
             {
                 'email': 'seguridad@facial.com',
-                'nombres': 'Juan Carlos',
-                'apellidos': 'Seguridad',
+                'persona_data': {
+                    'nombre': 'Juan Carlos',
+                    'apellido': 'Seguridad',
+                    'documento_identidad': 'SEG001',
+                    'telefono': '+591-70000002',
+                    'email': 'seguridad@facial.com',
+                    'fecha_nacimiento': date(1985, 5, 15),
+                    'tipo_persona': 'seguridad'
+                },
                 'password': 'seguridad123',
-                'telefono': '+591-70000002',
                 'rol': 'Seguridad',
                 'is_staff': False,
                 'is_superuser': False
             },
             {
                 'email': 'maria.gonzalez@facial.com',
-                'nombres': 'María Elena',
-                'apellidos': 'González López',
+                'persona_data': {
+                    'nombre': 'María Elena',
+                    'apellido': 'González López',
+                    'documento_identidad': '12345678',
+                    'telefono': '+591-70000003',
+                    'email': 'maria.gonzalez@facial.com',
+                    'fecha_nacimiento': date(1990, 3, 20),
+                    'tipo_persona': 'propietario'
+                },
                 'password': 'propietario123',
-                'telefono': '+591-70000003',
                 'rol': 'Propietario',
-                'documento_identidad': '12345678',
                 'is_staff': False,
                 'is_superuser': False
             },
             {
                 'email': 'carlos.rodriguez@facial.com',
-                'nombres': 'Carlos Alberto',
-                'apellidos': 'Rodríguez Pérez',
+                'persona_data': {
+                    'nombre': 'Carlos Alberto',
+                    'apellido': 'Rodríguez Pérez',
+                    'documento_identidad': '87654321',
+                    'telefono': '+591-70000004',
+                    'email': 'carlos.rodriguez@facial.com',
+                    'fecha_nacimiento': date(1988, 8, 10),
+                    'tipo_persona': 'inquilino'
+                },
                 'password': 'inquilino123',
-                'telefono': '+591-70000004',
                 'rol': 'Inquilino',
-                'documento_identidad': '87654321',
                 'is_staff': False,
                 'is_superuser': False
             }
@@ -76,14 +105,27 @@ class Command(BaseCommand):
                 self.stdout.write(f'❌ Error: Rol {user_data["rol"]} no encontrado')
                 continue
 
+            # Crear o actualizar persona
+            persona_data = user_data['persona_data']
+            persona, persona_created = Persona.objects.get_or_create(
+                documento_identidad=persona_data['documento_identidad'],
+                defaults=persona_data
+            )
+            
+            if persona_created:
+                self.stdout.write(f'✅ Persona creada: {persona.nombre_completo}')
+            else:
+                # Actualizar datos de persona existente
+                for key, value in persona_data.items():
+                    setattr(persona, key, value)
+                persona.save()
+                self.stdout.write(f'🔄 Persona actualizada: {persona.nombre_completo}')
+
             # Crear o actualizar usuario
             user, created = Usuario.objects.get_or_create(
                 email=user_data['email'],
                 defaults={
-                    'nombres': user_data['nombres'],
-                    'apellidos': user_data['apellidos'],
-                    'telefono': user_data.get('telefono'),
-                    'documento_identidad': user_data.get('documento_identidad'),
+                    'persona': persona,
                     'is_staff': user_data.get('is_staff', False),
                     'is_superuser': user_data.get('is_superuser', False),
                     'estado': 'ACTIVO'
@@ -95,10 +137,7 @@ class Command(BaseCommand):
             
             # Actualizar campos si el usuario ya existía
             if not created:
-                user.nombres = user_data['nombres']
-                user.apellidos = user_data['apellidos']
-                user.telefono = user_data.get('telefono')
-                user.documento_identidad = user_data.get('documento_identidad')
+                user.persona = persona
                 user.is_staff = user_data.get('is_staff', False)
                 user.is_superuser = user_data.get('is_superuser', False)
                 user.estado = 'ACTIVO'
@@ -118,6 +157,7 @@ class Command(BaseCommand):
         # Mostrar resumen
         self.stdout.write('\n📊 RESUMEN:')
         self.stdout.write(f'- Roles totales: {Rol.objects.count()}')
+        self.stdout.write(f'- Personas totales: {Persona.objects.count()}')
         self.stdout.write(f'- Usuarios totales: {Usuario.objects.count()}')
         
         self.stdout.write('\n🔑 CREDENCIALES DE ACCESO:')
@@ -139,4 +179,4 @@ class Command(BaseCommand):
         except Usuario.DoesNotExist:
             pass
 
-        self.stdout.write('\n✅ Sistema de usuarios configurado correctamente!')
+        self.stdout.write('\n✅ Sistema de usuarios y personas configurado correctamente!')
