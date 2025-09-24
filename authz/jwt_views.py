@@ -5,6 +5,7 @@ from rest_framework import status
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import get_user_model
 from .models import Usuario
+from .serializers import UsuarioSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 import hashlib
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiResponse
@@ -58,7 +59,12 @@ def login_view(request):
         return Response({"detail":"Credenciales inválidas"}, status=401)
     print("LOGIN EXITOSO:", email)
     refresh = RefreshToken.for_user(u)
-    return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
+    user_data = UsuarioSerializer(u).data
+    return Response({
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": user_data
+    })
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -89,6 +95,6 @@ def refresh_view(request):
     try:
         r = RefreshToken(token)
         new_access = r.access_token
-        return Response({"access": str(new_access)})
+        return Response({"access": str(new_access) })
     except Exception:
         return Response({"detail":"Refresh inválido"}, status=401)
