@@ -49,6 +49,9 @@ urlpatterns = [
 
     # CU05 - Gestionar Unidades Habitacionales
     path('api/', include('core.api.viviendas.urls')),
+
+    
+    path('api/', include('core.api.mascotas.urls')),
     
 
     # Face Recognition API
