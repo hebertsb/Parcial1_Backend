@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-gekczkfvw9q$26(8quj^v(7!3^tel@f^17r(0(f2crak9^y_%k
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Third party apps
+    'corsheaders',  # Descomentado para permitir CORS desde frontend
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Descomentado para permitir CORS
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -198,6 +200,23 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Logging Configuration
+
+# CORS configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Permite todos los orígenes en desarrollo
+CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo
+
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF configuration for frontend domain
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 # Asegurar que el directorio de logs exista
 LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(exist_ok=True)

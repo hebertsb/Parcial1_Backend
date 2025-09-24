@@ -1,5 +1,5 @@
-# ===================================
-# Dependencias de Producción
+﻿# ===================================
+# Dependencias de ProducciÃ³n
 # Para usar: pip install -r requirements-prod.txt
 # ===================================
 
@@ -17,7 +17,7 @@ psycopg2-binary>=2.9.7  # PostgreSQL
 redis>=5.0.0
 django-redis>=5.3.0
 
-# === Tareas Asíncronas ===
+# === Tareas AsÃ­ncronas ===
 celery>=5.3.0
 celery[redis]>=5.3.0
 
@@ -32,3 +32,4 @@ django-environ>=0.11.0
 # === Storage (Opcional) ===
 # boto3>=1.28.0  # AWS S3
 # django-storages>=1.14.0
+django-cors-headers==4.6.0

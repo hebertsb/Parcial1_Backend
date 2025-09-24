@@ -1,4 +1,4 @@
-"""
+﻿"""
 URL configuration for core project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -33,11 +33,9 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
-    # Authz Propietarios (Sistema de registro) - MOVER ARRIBA
-    path('api/authz/', include('authz.urls')),
-    
-    # Authz Authentication (Sistema avanzado)
-    # path('api/auth/', include('authz.auth_urls')),
+    # Authz Authentication + Propietarios
+    path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
+    path('api/authz/', include('authz.urls')),        # registro, panel propietarios
     
     # JWT Authentication (Sistema anterior - mantener para compatibilidad)
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -68,6 +66,7 @@ urlpatterns = [
 # Servir archivos media en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 
 
 

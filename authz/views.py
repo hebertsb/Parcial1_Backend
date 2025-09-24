@@ -1,4 +1,5 @@
-# --- IMPORTS ---
+﻿# --- IMPORTS ---
+from typing import cast
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
@@ -316,7 +317,7 @@ def registrar_usuario(request):
 
         # Asignar rol por defecto: Inquilino (no existe 'CLIENTE' en este proyecto)
         rol, _ = Rol.objects.get_or_create(nombre="Inquilino")
-        if not usuario.roles.filter(id=rol.id).exists():
+        if not usuario.roles.filter(id=getattr(rol, 'id', None)).exists():
             usuario.roles.add(rol)
 
         # Emitir tokens para el Django User creado

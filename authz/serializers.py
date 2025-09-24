@@ -43,13 +43,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
     roles = RolSerializer(many=True, read_only=True)
     
     # Propiedades de la persona para compatibilidad
-    nombres = serializers.CharField(source='nombres', read_only=True)
-    apellidos = serializers.CharField(source='apellidos', read_only=True)
-    telefono = serializers.CharField(source='telefono', read_only=True)
-    fecha_nacimiento = serializers.DateField(source='fecha_nacimiento', read_only=True)
-    genero = serializers.CharField(source='genero', read_only=True)
-    documento_identidad = serializers.CharField(source='documento_identidad', read_only=True)
-    pais = serializers.CharField(source='pais', read_only=True)
+    nombres = serializers.CharField(read_only=True)
+    apellidos = serializers.CharField(read_only=True)
+    telefono = serializers.CharField(read_only=True)
+    fecha_nacimiento = serializers.DateField(read_only=True)
+    genero = serializers.CharField(read_only=True)
+    documento_identidad = serializers.CharField(read_only=True)
+    pais = serializers.CharField(read_only=True)
     
     class Meta:
         model = Usuario
