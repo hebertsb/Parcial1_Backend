@@ -62,6 +62,10 @@ urlpatterns = [
 
        # Rutas para Expensas y Multas (CRUD)
     path('api/pagos/', include('expensas_multas.urls')),
+
+        # Rutas para Avisos y Comunicados (CRUD)
+
+    path('api/avisos/', include('avisos_comunicados.urls')),
 ]
 
 # Servir archivos media en desarrollo
