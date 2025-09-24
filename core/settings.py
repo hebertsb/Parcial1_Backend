@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'seguridad',
     'authz',  # Sistema de autenticación avanzado
      'expensas_multas', 
+       'avisos_comunicados',
 ]
 
 MIDDLEWARE = [
