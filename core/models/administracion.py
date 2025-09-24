@@ -158,7 +158,7 @@ class FondoCondominio(models.Model):
 
 # Tabla de pagos
 class Pagos(models.Model):
-    persona = models.ForeignKey('core.Persona', on_delete=models.RESTRICT)
+    persona = models.ForeignKey('authz.Persona', on_delete=models.RESTRICT)
     tipo_pago = models.CharField(max_length=30, choices=[('expensa', 'Expensa'), ('multa', 'Multa'), ('reserva', 'Reserva'), ('servicios_adicionales', 'Servicios Adicionales')])
     expensa = models.ForeignKey('core.ExpensasMensuales', null=True, blank=True, on_delete=models.CASCADE)
     multa = models.ForeignKey('core.MultasSanciones', null=True, blank=True, on_delete=models.CASCADE)

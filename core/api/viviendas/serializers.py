@@ -2,7 +2,8 @@
 from rest_framework import serializers
 from django.db import models
 from drf_spectacular.utils import extend_schema_field
-from core.models.propiedades_residentes import Vivienda, Persona, Propiedad, RelacionesPropietarioInquilino
+from core.models.propiedades_residentes import Vivienda, Propiedad
+from authz.models import Persona, RelacionesPropietarioInquilino
 from decimal import Decimal
 
 

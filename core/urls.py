@@ -52,15 +52,12 @@ urlpatterns = [
     path('api/', include('core.api.mascotas.urls')),
     
 
-    # Face Recognition API
-    path('', include('seguridad.urls')),
-    
     # OpenAPI Schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # Face Recognition API (AL FINAL para que no interfiera)
+    # Face Recognition API
     path('', include('seguridad.urls')),
 
        # Rutas para Expensas y Multas (CRUD)

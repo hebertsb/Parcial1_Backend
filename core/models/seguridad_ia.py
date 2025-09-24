@@ -80,7 +80,7 @@ class DeteccionIA(models.Model):
 
 # Tabla de reconocimiento facial
 class ReconocimientoFacial(models.Model):
-    persona = models.OneToOneField('core.Persona', on_delete=models.CASCADE)
+    persona = models.OneToOneField('authz.Persona', on_delete=models.CASCADE)
     vector_facial = models.TextField()
     imagen_referencia_url = models.URLField(null=True, blank=True)
     activo = models.BooleanField(default=True)

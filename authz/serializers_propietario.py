@@ -2,6 +2,7 @@
 Serializers específicos para el registro de propietarios
 Incluye formularios para propietarios, familiares y reconocimiento facial
 """
+from typing import cast, Dict, Any, Optional
 from rest_framework import serializers
 from django.core.files.base import ContentFile
 from django.contrib.auth.password_validation import validate_password
@@ -437,23 +438,28 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
         attrs['solicitud'] = solicitud
         return attrs
 
-    def save(self):
-        solicitud = self.validated_data['solicitud']
-        password = self.validated_data['password']
-        foto_base64 = self.validated_data.get('foto_base64')
-        familiares_data = self.validated_data.get('familiares', [])
+    def save(self, **kwargs):  # type: ignore
+        validated_data = cast(Dict[str, Any], getattr(self, 'validated_data', {}))
+        solicitud = validated_data.get('solicitud')
+        password = validated_data.get('password', '')
+        foto_base64 = validated_data.get('foto_base64')
+        familiares_data = validated_data.get('familiares', [])
         
         from django.db import transaction
         
         with transaction.atomic():
+            # Verificar que solicitud no sea None
+            if not solicitud:
+                raise serializers.ValidationError("Solicitud no encontrada")
+                
             # Crear persona del propietario
             persona = Persona.objects.create(
-                nombre=solicitud.nombres,
-                apellido=solicitud.apellidos,
-                documento_identidad=solicitud.documento_identidad,
-                telefono=solicitud.telefono,
-                email=solicitud.email,
-                fecha_nacimiento=solicitud.fecha_nacimiento,
+                nombre=getattr(solicitud, 'nombres', ''),
+                apellido=getattr(solicitud, 'apellidos', ''),
+                documento_identidad=getattr(solicitud, 'documento_identidad', ''),
+                telefono=getattr(solicitud, 'telefono', ''),
+                email=getattr(solicitud, 'email', ''),
+                fecha_nacimiento=getattr(solicitud, 'fecha_nacimiento', None),
                 tipo_persona='propietario'
             )
             
@@ -463,7 +469,7 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
             
             # Crear usuario
             usuario = Usuario.objects.create_user(
-                email=solicitud.email,
+                email=getattr(solicitud, 'email', ''),
                 persona=persona,
                 password=password
             )
@@ -480,8 +486,9 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
                 self._crear_familiar(usuario, familiar_data)
             
             # Actualizar solicitud
-            solicitud.usuario_creado = usuario
-            solicitud.save()
+            if hasattr(solicitud, 'usuario_creado') and hasattr(solicitud, 'save'):
+                solicitud.usuario_creado = usuario  # type: ignore
+                solicitud.save()  # type: ignore
             
             return usuario
 
@@ -645,11 +652,11 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
         if obj.usuario_creado:
             familiares = FamiliarPropietario.objects.filter(propietario=obj.usuario_creado)
             return [{
-                'nombres': f.persona.nombre,
-                'apellidos': f.persona.apellido,
-                'documento_identidad': f.persona.documento_identidad,
-                'parentesco': f.get_parentesco_display(),
-                'telefono': f.persona.telefono
+                'nombres': getattr(f.persona, 'nombre', 'N/A'),
+                'apellidos': getattr(f.persona, 'apellido', 'N/A'),
+                'documento_identidad': getattr(f.persona, 'documento_identidad', 'N/A'),
+                'parentesco': getattr(f, 'get_parentesco_display', lambda: f.parentesco)(),
+                'telefono': getattr(f.persona, 'telefono', 'N/A')
             } for f in familiares]
         return []
 

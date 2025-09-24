@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from decimal import Decimal
 import uuid
 import secrets
 import string
@@ -210,7 +211,7 @@ class Propiedad(models.Model):
     vivienda = models.ForeignKey(Vivienda, on_delete=models.CASCADE)
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE)
     tipo_tenencia = models.CharField(max_length=20, choices=TIPO_TENENCIA_CHOICES)
-    porcentaje_propiedad = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
+    porcentaje_propiedad = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('100.00'))
     fecha_inicio_tenencia = models.DateField()
     fecha_fin_tenencia = models.DateField(blank=True, null=True)
     activo = models.BooleanField(default=True)
@@ -233,7 +234,7 @@ class RelacionesPropietarioInquilino(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(blank=True, null=True)
     contrato_alquiler = models.TextField()
-    monto_alquiler = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    monto_alquiler = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
     activo = models.BooleanField(default=True)
 
     class Meta:

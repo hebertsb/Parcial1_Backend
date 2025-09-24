@@ -1,6 +1,7 @@
 """
 Vistas para el sistema de registro de propietarios
 """
+from typing import Dict, Any, Optional, cast
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -76,17 +77,29 @@ class RegistroPropietarioInicialView(APIView):
                     resultado = serializer.save()
                     print(f"🔍 DEBUG: save() exitoso, resultado: {resultado}")
                     
+                    # Validar que el resultado es un diccionario
+                    if not isinstance(resultado, dict):
+                        raise ValueError(f"El serializer.save() retornó {type(resultado)} en lugar de dict")
+                    
+                    # Acceder a los elementos del diccionario con verificación de tipos
+                    solicitud = resultado.get('solicitud')
+                    usuario = resultado.get('usuario')
+                    vivienda = resultado.get('vivienda')
+                    
+                    if not solicitud or not usuario or not vivienda:
+                        raise ValueError("El resultado del serializer no contiene las claves esperadas")
+                    
                     # Enviar notificación a administradores
                     print("🔍 DEBUG: Enviando notificación a admin")
-                    self._enviar_notificacion_admin(resultado['solicitud'])
+                    self._enviar_notificacion_admin(solicitud)
                     
                     response_data = {
                         'mensaje': 'Registro realizado exitosamente',
                         'detalle': 'Su solicitud ha sido enviada para aprobación administrativa',
-                        'solicitud_id': resultado['solicitud'].id,
+                        'solicitud_id': solicitud.id,
                         'estado': 'PENDIENTE',
-                        'usuario_id': resultado['usuario'].id,
-                        'numero_vivienda': resultado['vivienda'].numero_casa
+                        'usuario_id': usuario.id,
+                        'numero_vivienda': vivienda.numero_casa
                     }
                     print(f"🔍 DEBUG: Respuesta a enviar: {response_data}")
                     
@@ -160,7 +173,12 @@ class RegistroSolicitudPropietarioView(APIView):
         if serializer.is_valid():
             try:
                 with transaction.atomic():
-                    solicitud = serializer.save()
+                    # Usar cast para indicar el tipo correcto a Pylance
+                    solicitud = cast(SolicitudRegistroPropietario, serializer.save())
+                    
+                    # Verificar que el resultado es una instancia de SolicitudRegistroPropietario
+                    if not isinstance(solicitud, SolicitudRegistroPropietario):
+                        raise ValueError("El serializer no retornó una instancia válida de SolicitudRegistroPropietario")
                     
                     # Enviar notificación a administradores
                     _enviar_notificacion_nueva_solicitud(solicitud)
@@ -170,9 +188,9 @@ class RegistroSolicitudPropietarioView(APIView):
                     if solicitud.vivienda_validada:
                         vivienda_info = {
                             'numero_casa': solicitud.vivienda_validada.numero_casa,
-                            'bloque': solicitud.vivienda_validada.bloque,
-                            'tipo_vivienda': solicitud.vivienda_validada.tipo_vivienda,
-                            'area_m2': solicitud.vivienda_validada.area_m2
+                            'bloque': getattr(solicitud.vivienda_validada, 'bloque', ''),
+                            'tipo_vivienda': getattr(solicitud.vivienda_validada, 'tipo_vivienda', ''),
+                            'area_m2': getattr(solicitud.vivienda_validada, 'area_m2', 0)
                         }
                     
                     familiares_count = FamiliarPropietario.objects.filter(solicitud=solicitud).count()
@@ -181,9 +199,9 @@ class RegistroSolicitudPropietarioView(APIView):
                         'success': True,
                         'message': 'Solicitud creada exitosamente. Se ha enviado una notificación al administrador.',
                         'data': {
-                            'solicitud_id': solicitud.id,
-                            'token_seguimiento': solicitud.token_seguimiento,
-                            'estado': solicitud.estado,
+                            'solicitud_id': getattr(solicitud, 'id', None),
+                            'token_seguimiento': getattr(solicitud, 'token_seguimiento', ''),
+                            'estado': getattr(solicitud, 'estado', ''),
                             'vivienda_info': vivienda_info,
                             'familiares_registrados': familiares_count
                         }
@@ -366,8 +384,15 @@ class AprobarSolicitudView(APIView):
                     # Usar el método del modelo que asigna el rol de propietario
                     usuario_creado = solicitud.aprobar_solicitud(request.user)
                     
-                    # Actualizar observaciones si se proporcionaron
-                    observaciones = serializer.validated_data.get('observaciones_aprobacion', '')
+                    # Actualizar observaciones si se proporcionadas
+                    observaciones = ''
+                    if hasattr(serializer, 'validated_data') and serializer.validated_data:
+                        # Intentar obtener observaciones de forma segura
+                        try:
+                            if hasattr(serializer.validated_data, 'get'):
+                                observaciones = str(serializer.validated_data.get('observaciones_aprobacion', ''))  # type: ignore
+                        except (AttributeError, TypeError, KeyError):
+                            observaciones = ''
                     if observaciones:
                         solicitud.observaciones = observaciones
                         solicitud.save()
@@ -376,7 +401,7 @@ class AprobarSolicitudView(APIView):
                         'success': True,
                         'message': 'Solicitud aprobada exitosamente. Rol de propietario asignado.',
                         'data': {
-                            'solicitud_id': solicitud.id,
+                            'solicitud_id': getattr(solicitud, 'id', None),
                             'nuevo_estado': solicitud.estado,
                             'usuario_id': usuario_creado.id,
                             'email_propietario': usuario_creado.email,
@@ -428,7 +453,14 @@ class RechazarSolicitudView(APIView):
             try:
                 with transaction.atomic():
                     solicitud.estado = 'RECHAZADA'
-                    solicitud.motivo_rechazo = serializer.validated_data['motivo_rechazo']
+                    motivo_rechazo = 'Sin motivo especificado'
+                    if hasattr(serializer, 'validated_data') and serializer.validated_data:
+                        try:
+                            if hasattr(serializer.validated_data, 'get'):
+                                motivo_rechazo = str(serializer.validated_data.get('motivo_rechazo', 'Sin motivo especificado'))  # type: ignore
+                        except (AttributeError, TypeError, KeyError):
+                            motivo_rechazo = 'Sin motivo especificado'
+                    solicitud.motivo_rechazo = motivo_rechazo
                     solicitud.fecha_rechazo = timezone.now()
                     solicitud.save()
                     

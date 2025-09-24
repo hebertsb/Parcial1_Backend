@@ -6,6 +6,9 @@ from decimal import Decimal
 from datetime import time
 
 User = get_user_model()
+
+# Importar modelo Persona centralizado de authz
+from authz.models import Persona
 # Tabla de viviendas
 class Vivienda(models.Model):
     numero_casa = models.CharField(max_length=20, unique=True)
@@ -21,25 +24,8 @@ class Vivienda(models.Model):
     def __str__(self):
         return f"{self.numero_casa} - {self.tipo_vivienda}"
 
-# Tabla de personas
-class Persona(models.Model):
-    nombre = models.CharField(max_length=100)
-    apellido = models.CharField(max_length=100)
-    documento_identidad = models.CharField(max_length=20, unique=True)
-    tipo_documento = models.CharField(max_length=20, default='CI')
-    telefono = models.CharField(max_length=20, null=True, blank=True)
-    email = models.EmailField(max_length=100, unique=True)
-    fecha_nacimiento = models.DateField()
-    estado_civil = models.CharField(max_length=20, null=True, blank=True)
-    profesion = models.CharField(max_length=100, null=True, blank=True)
-    tipo_persona = models.CharField(max_length=20, choices=[('propietario', 'Propietario'), ('inquilino', 'Inquilino'), ('familiar', 'Familiar'), ('personal_servicio', 'Personal de servicio')])
-    fecha_registro = models.DateTimeField(auto_now_add=True)
-    activo = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.nombre} {self.apellido}"
-
 # Tabla de propiedades (relaciona vivienda y persona)
+# NOTA: Ahora usa authz.Persona como modelo centralizado
 class Propiedad(models.Model):
     vivienda = models.ForeignKey(Vivienda, on_delete=models.CASCADE)
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE)
@@ -53,21 +39,6 @@ class Propiedad(models.Model):
         return f"Propiedad {self.vivienda.numero_casa} - {self.persona.nombre}"
 
 # Relación entre propietario e inquilino
-class RelacionesPropietarioInquilino(models.Model):
-    propietario = models.ForeignKey(Persona, related_name='propietarios', on_delete=models.RESTRICT)
-    inquilino = models.ForeignKey(Persona, related_name='inquilinos', on_delete=models.CASCADE)
-    fecha_inicio = models.DateField()
-    fecha_fin = models.DateField(null=True, blank=True)
-    contrato_alquiler = models.TextField()
-    monto_alquiler = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
-    activo = models.BooleanField(default=True)
-
-    class Meta:
-        unique_together = ('propietario', 'inquilino', 'activo')
-
-    def __str__(self):
-        return f"{self.propietario.nombre} - {self.inquilino.nombre}"
-
 # Tabla de mascotas
 class Mascota(models.Model):
     propietario = models.ForeignKey(Persona, on_delete=models.CASCADE)
@@ -100,18 +71,6 @@ class Vehiculo(models.Model):
         return self.placa
 
 # Tabla de familiares residentes
-class FamiliarResidente(models.Model):
-    persona_principal = models.ForeignKey(Persona, related_name='familiares_principales', on_delete=models.CASCADE)
-    familiar = models.ForeignKey(Persona, related_name='familiares', on_delete=models.CASCADE)
-    parentesco = models.CharField(max_length=50)
-    autorizado_acceso = models.BooleanField(default=True)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
-    activo = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.persona_principal.nombre} - {self.familiar.nombre}"
-
-# Tabla de roles
 # Tabla de mantenimientos
 class Mantenimiento(models.Model):
     titulo = models.CharField(max_length=200)
@@ -242,8 +201,8 @@ class ExpensasMensuales(models.Model):
 
 # Tabla de multas y sanciones
 class MultasSanciones(models.Model):
-    persona_responsable = models.ForeignKey('core.Persona', on_delete=models.RESTRICT)
-    persona_infractor = models.ForeignKey('core.Persona', related_name='infractores', on_delete=models.RESTRICT)
+    persona_responsable = models.ForeignKey('authz.Persona', on_delete=models.RESTRICT)
+    persona_infractor = models.ForeignKey('authz.Persona', related_name='infractores', on_delete=models.RESTRICT)
     tipo_infraccion = models.ForeignKey('TiposInfracciones', on_delete=models.RESTRICT)
     descripcion_detallada = models.TextField()
     monto = models.DecimalField(max_digits=10, decimal_places=2)
@@ -283,7 +242,7 @@ class TiposInfracciones(models.Model):
 
 # Tabla de avisos personalizados
 class AvisosPersonalizados(models.Model):
-    persona_destinatario = models.ForeignKey('core.Persona', on_delete=models.CASCADE)
+    persona_destinatario = models.ForeignKey('authz.Persona', on_delete=models.CASCADE)
     titulo = models.CharField(max_length=200)
     mensaje = models.TextField()
     tipo_aviso = models.CharField(max_length=50)
@@ -321,7 +280,7 @@ class ComunicadosAdministracion(models.Model):
 
 # Tabla de visitas
 class Visita(models.Model):
-    persona_autorizante = models.ForeignKey('core.Persona', on_delete=models.CASCADE)
+    persona_autorizante = models.ForeignKey('authz.Persona', on_delete=models.CASCADE)
     nombre_visitante = models.CharField(max_length=100)
     documento_visitante = models.CharField(max_length=20, null=True, blank=True)
     telefono_visitante = models.CharField(max_length=20, null=True, blank=True)

@@ -1,8 +1,8 @@
 # Script para crear datos de prueba - CU05
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from core.models.propiedades_residentes import Vivienda, Persona, Propiedad
-from authz.models import Usuario, Rol
+from core.models.propiedades_residentes import Vivienda, Propiedad
+from authz.models import Usuario, Rol, Persona
 from decimal import Decimal
 from datetime import date
 
@@ -18,14 +18,23 @@ class Command(BaseCommand):
         admin_user, created = Usuario.objects.get_or_create(
             email='admin@condominio.com',
             defaults={
-                'nombres': 'Administrador',
-                'apellidos': 'Sistema',
                 'is_staff': True,
                 'is_superuser': True,
                 'estado': 'ACTIVO'
             }
         )
         if created:
+            # Crear persona para el admin
+            admin_persona, _ = Persona.objects.get_or_create(
+                documento_identidad='99999999',
+                defaults={
+                    'nombre': 'Administrador',
+                    'apellido': 'Sistema',
+                    'email': 'admin@condominio.com',
+                    'tipo_persona': 'administrador'
+                }
+            )
+            admin_user.persona = admin_persona
             admin_user.set_password('admin123')
             admin_user.save()
             self.stdout.write('✅ Usuario admin creado')

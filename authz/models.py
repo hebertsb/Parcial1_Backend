@@ -77,22 +77,33 @@ class UsuarioManager(BaseUserManager):
     """Manager personalizado para Usuario"""
     
     def create_user(self, email, password=None, **extra_fields):
+        """Crear y guardar un Usuario con email y password"""
         if not email:
             raise ValueError('El email es obligatorio')
         
         email = self.normalize_email(email)
+        extra_fields.setdefault('is_staff', False)
+        extra_fields.setdefault('is_superuser', False)
+        
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
+        """Crear y guardar un superusuario con email y password"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+            
         return self.create_user(email, password, **extra_fields)
     
-    def get_by_natural_key(self, email):
-        return self.get(email=email)
+    def get_by_natural_key(self, username):
+        return self.get(email=username)  # username es el email en nuestro caso
 
 
 class Usuario(AbstractUser):
@@ -115,7 +126,7 @@ class Usuario(AbstractUser):
     roles = models.ManyToManyField(Rol, blank=True, related_name='usuarios')
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='ACTIVO')
 
-    objects = UsuarioManager()
+    objects: UsuarioManager = UsuarioManager()  # type: ignore
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -285,6 +296,9 @@ class SolicitudRegistroPropietario(models.Model):
     # Estado de la solicitud
     estado = models.CharField(max_length=25, choices=ESTADO_CHOICES, default='PENDIENTE')
     comentarios_admin = models.TextField(blank=True, help_text="Comentarios del administrador")
+    observaciones = models.TextField(blank=True, help_text="Observaciones de aprobación")
+    motivo_rechazo = models.TextField(blank=True, help_text="Motivo del rechazo")
+    fecha_rechazo = models.DateTimeField(blank=True, null=True)
     revisado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -303,6 +317,9 @@ class SolicitudRegistroPropietario(models.Model):
         related_name='solicitud_registro'
     )
     
+    # Token de seguimiento
+    token_seguimiento = models.CharField(max_length=50, unique=True, blank=True, help_text="Token único para seguimiento de la solicitud")
+    
     # Metadatos
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -312,18 +329,28 @@ class SolicitudRegistroPropietario(models.Model):
         verbose_name = 'Solicitud de Registro de Propietario'
         verbose_name_plural = 'Solicitudes de Registro de Propietarios'
 
+    def save(self, *args, **kwargs):
+        if not self.token_seguimiento:
+            self.token_seguimiento = self._generar_token_seguimiento()
+        super().save(*args, **kwargs)
+
+    def _generar_token_seguimiento(self):
+        """Genera un token único para seguimiento de la solicitud"""
+        import uuid
+        return str(uuid.uuid4())[:8].upper()
+
     def __str__(self):
         bloque_info = f" - {self.vivienda_validada.bloque}" if self.vivienda_validada and self.vivienda_validada.bloque else ""
         return f"Solicitud: {self.nombres} {self.apellidos} - {self.numero_casa}{bloque_info} ({self.estado})"
 
     def validar_vivienda(self):
         """Valida que la vivienda existe y está disponible para registro"""
+        from core.models import Vivienda, Propiedad
+        
         try:
-            from core.models import Vivienda
             vivienda = Vivienda.objects.get(numero_casa=self.numero_casa)
             
             # Verificar que no haya otro propietario ya registrado para esta vivienda
-            from core.models import Propiedad
             propietario_existente = Propiedad.objects.filter(
                 vivienda=vivienda,
                 tipo_tenencia='propietario',
@@ -369,7 +396,7 @@ class SolicitudRegistroPropietario(models.Model):
             usuario_existente = Usuario.objects.filter(email=self.email).first()
             if usuario_existente:
                 # Si la persona ya tiene usuario, verificar si puede ser reutilizada
-                if usuario_existente.persona.documento_identidad == self.documento_identidad:
+                if usuario_existente.persona and usuario_existente.persona.documento_identidad == self.documento_identidad:
                     # Es la misma persona, solo asignar rol si no lo tiene
                     rol_propietario, _ = Rol.objects.get_or_create(
                         nombre='Propietario',
@@ -389,9 +416,10 @@ class SolicitudRegistroPropietario(models.Model):
                 else:
                     raise ValueError(f"Ya existe un usuario con el email {self.email} pero con diferente cédula")
             
-            # Crear usuario nuevo
+            # Crear usuario nuevo con password temporal (debe cambiarse después)
             usuario = Usuario.objects.create_user(
                 email=self.email,
+                password='temporal123',  # Password temporal, debe cambiarse después
                 persona=persona
             )
             
@@ -405,24 +433,10 @@ class SolicitudRegistroPropietario(models.Model):
             # Crear registro en el modelo Propiedad de core para compatibilidad
             try:
                 from core.models import Propiedad
-                # Crear persona en el modelo de core para compatibilidad
-                from core.models import Persona as PersonaCore
-                persona_core, created = PersonaCore.objects.get_or_create(
-                    documento_identidad=self.documento_identidad,
-                    defaults={
-                        'nombre': self.nombres,
-                        'apellido': self.apellidos,
-                        'email': self.email,
-                        'fecha_nacimiento': self.fecha_nacimiento,
-                        'telefono': self.telefono,
-                        'tipo_persona': 'propietario'
-                    }
-                )
-                
-                # Crear propiedad
+                # Usar la persona ya creada del modelo centralizado de authz
                 Propiedad.objects.create(
                     vivienda=self.vivienda_validada,
-                    persona=persona_core,
+                    persona=persona,  # Usar la persona del modelo authz centralizado
                     tipo_tenencia='propietario',
                     fecha_inicio_tenencia=timezone.now().date(),
                     porcentaje_propiedad=100.00,
@@ -430,6 +444,9 @@ class SolicitudRegistroPropietario(models.Model):
                 )
             except Exception as e:
                 # Log pero no fallar si hay problema con compatibilidad
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Error creando propiedad para compatibilidad: {e}")
                 pass
             
             # Actualizar solicitud

@@ -1,4 +1,4 @@
-﻿# --- IMPORTS ---
+# --- IMPORTS ---
 from typing import cast
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes, action

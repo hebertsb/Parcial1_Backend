@@ -7,7 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import models
 from django.db.models import Q, Count, Avg, Sum
 
-from core.models.propiedades_residentes import Vivienda, Persona, Propiedad, RelacionesPropietarioInquilino
+from core.models.propiedades_residentes import Vivienda, Propiedad
+from authz.models import Persona, RelacionesPropietarioInquilino
 from .serializers import (
     ViviendaSerializer, ViviendaListSerializer, PropiedadSerializer, 
     PropiedadDetailSerializer, PropiedadCreateSerializer,
