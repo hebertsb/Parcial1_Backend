@@ -15,29 +15,29 @@ class ExpensasMensualesSerializer(serializers.ModelSerializer):
                   'total_egresos_servicios', 'total_egresos_mejoras', 
                   'saldo_inicial_periodo', 'saldo_final_periodo', 'estado']
 
-    def validate(self, data):
+    def validate(self, attrs):
         """
         Este método se llama antes de la validación del serializer, 
         podemos usarlo para hacer cálculos o modificaciones de los datos.
         """
         # Calcular el monto_total
-        monto_total = data['monto_base_administracion'] + data['monto_mantenimiento'] + data['monto_servicios_comunes'] + data['monto_seguridad']
-        data['monto_total'] = monto_total
+        monto_total = attrs['monto_base_administracion'] + attrs['monto_mantenimiento'] + attrs['monto_servicios_comunes'] + attrs['monto_seguridad']
+        attrs['monto_total'] = monto_total
 
         # Obtener valores de ingresos y egresos, y asignar 0 si no están presentes
-        total_ingresos_expensas = data.get('total_ingresos_expensas', Decimal('0.00'))
-        total_ingresos_multas = data.get('total_ingresos_multas', Decimal('0.00'))
-        total_ingresos_reservas = data.get('total_ingresos_reservas', Decimal('0.00'))
-        total_ingresos_otros = data.get('total_ingresos_otros', Decimal('0.00'))
+        total_ingresos_expensas = attrs.get('total_ingresos_expensas', Decimal('0.00'))
+        total_ingresos_multas = attrs.get('total_ingresos_multas', Decimal('0.00'))
+        total_ingresos_reservas = attrs.get('total_ingresos_reservas', Decimal('0.00'))
+        total_ingresos_otros = attrs.get('total_ingresos_otros', Decimal('0.00'))
         
-        total_egresos_salarios = data.get('total_egresos_salarios', Decimal('0.00'))
-        total_egresos_mantenimiento = data.get('total_egresos_mantenimiento', Decimal('0.00'))
-        total_egresos_servicios = data.get('total_egresos_servicios', Decimal('0.00'))
-        total_egresos_mejoras = data.get('total_egresos_mejoras', Decimal('0.00'))
+        total_egresos_salarios = attrs.get('total_egresos_salarios', Decimal('0.00'))
+        total_egresos_mantenimiento = attrs.get('total_egresos_mantenimiento', Decimal('0.00'))
+        total_egresos_servicios = attrs.get('total_egresos_servicios', Decimal('0.00'))
+        total_egresos_mejoras = attrs.get('total_egresos_mejoras', Decimal('0.00'))
 
         # Calcular saldo_final_periodo
-        saldo_final = data['saldo_inicial_periodo'] + total_ingresos_expensas + total_ingresos_multas + total_ingresos_reservas + total_ingresos_otros
+        saldo_final = attrs['saldo_inicial_periodo'] + total_ingresos_expensas + total_ingresos_multas + total_ingresos_reservas + total_ingresos_otros
         saldo_final -= (total_egresos_salarios + total_egresos_mantenimiento + total_egresos_servicios + total_egresos_mejoras)
-        data['saldo_final_periodo'] = saldo_final
+        attrs['saldo_final_periodo'] = saldo_final
 
-        return data
+        return attrs

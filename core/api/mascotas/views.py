@@ -1,3 +1,4 @@
+from typing import Any
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from core.models.propiedades_residentes import Mascota
@@ -7,7 +8,7 @@ class MascotaViewSet(viewsets.ModelViewSet):
     queryset = Mascota.objects.all()
     permission_classes = [IsAuthenticated]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         if self.action == 'list':
             return MascotaListSerializer
         elif self.action == 'retrieve':
