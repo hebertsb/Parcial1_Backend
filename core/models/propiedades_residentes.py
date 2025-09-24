@@ -203,6 +203,8 @@ class Notificacion(models.Model):
     def __str__(self):
         return f"Notificación: {self.titulo} - {self.usuario.user.username}"
 
+
+# Tabla de expensas mensuales
 # Tabla de expensas mensuales
 class ExpensasMensuales(models.Model):
     vivienda = models.ForeignKey('core.Vivienda', on_delete=models.CASCADE)
@@ -234,6 +236,9 @@ class ExpensasMensuales(models.Model):
 
     def __str__(self):
         return f"Expensa {self.vivienda.numero_casa} - {self.periodo_year}/{self.periodo_month}"
+
+
+
 
 # Tabla de multas y sanciones
 class MultasSanciones(models.Model):

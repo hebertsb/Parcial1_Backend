@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'blog',
     'seguridad',
     'authz',  # Sistema de autenticación avanzado
+     'expensas_multas', 
 ]
 
 MIDDLEWARE = [
