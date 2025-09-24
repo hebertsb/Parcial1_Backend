@@ -1,0 +1,113 @@
+{% extends 'emails/base.html' %}
+
+{% block title %}Solicitud Aprobada - Bienvenido al Sistema{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    🎉 ¡Felicitaciones {{ solicitud.nombres }}!
+</div>
+
+<div class="message">
+    Su solicitud de registro como propietario ha sido <strong>APROBADA</strong> exitosamente. 
+    Ya puede acceder al sistema del condominio con sus credenciales.
+</div>
+
+<div class="alert alert-success">
+    <strong>✅ Aprobación Confirmada:</strong> Su cuenta de propietario está activa y lista para usar.
+</div>
+
+<div class="info-box">
+    <h3>👤 Sus Datos de Acceso</h3>
+    <div class="info-item">
+        <span class="info-label">Usuario (Email):</span>
+        <span class="info-value">{{ usuario_creado.email }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Contraseña inicial:</span>
+        <span class="info-value" style="font-family: monospace; background: #f8f9fa; padding: 4px 8px; border-radius: 4px;">temporal123</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Tipo de cuenta:</span>
+        <span class="info-value">Propietario</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Vivienda asignada:</span>
+        <span class="info-value">{{ solicitud.numero_casa }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Estado:</span>
+        <span class="info-value">Activo</span>
+    </div>
+</div>
+
+<div class="info-box">
+    <h3>📅 Detalles de la Aprobación</h3>
+    <div class="info-item">
+        <span class="info-label">Fecha de aprobación:</span>
+        <span class="info-value">{{ solicitud.fecha_aprobacion|date:"d/m/Y H:i" }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Token de solicitud:</span>
+        <span class="info-value">{{ solicitud.token_seguimiento }}</span>
+    </div>
+    {% if solicitud.comentarios_admin %}
+    <div class="info-item">
+        <span class="info-label">Comentarios:</span>
+        <span class="info-value">"{{ solicitud.comentarios_admin }}"</span>
+    </div>
+    {% endif %}
+</div>
+
+<div class="divider"></div>
+
+<div style="text-align: center;">
+    <p style="font-size: 16px; margin-bottom: 20px;">
+        <strong>¡Comience a usar el sistema ahora!</strong>
+    </p>
+    
+    <a href="{{ frontend_url }}/login" class="button">
+        🚀 Iniciar Sesión
+    </a>
+    
+    <p style="font-size: 14px; color: #718096; margin-top: 15px;">
+        Use su email: <strong>{{ usuario_creado.email }}</strong><br>
+        Contraseña temporal: <strong>temporal123</strong>
+    </p>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-box">
+    <h3>🎯 Próximos Pasos</h3>
+    <div style="color: #4a5568;">
+        <p style="margin-bottom: 10px;">✓ <strong>IMPORTANTE:</strong> Cambie su contraseña temporal inmediatamente</p>
+        <p style="margin-bottom: 10px;">✓ Inicie sesión en el sistema</p>
+        <p style="margin-bottom: 10px;">✓ Complete su perfil si es necesario</p>
+        <p style="margin-bottom: 10px;">✓ Explore las funcionalidades disponibles</p>
+        <p style="margin-bottom: 10px;">✓ Configure sus preferencias de notificaciones</p>
+        <p style="margin-bottom: 10px;">✓ Registre a sus familiares si aún no lo ha hecho</p>
+    </div>
+</div>
+
+<div class="info-box">
+    <h3>📋 Funcionalidades Disponibles</h3>
+    <div style="color: #4a5568;">
+        <p style="margin-bottom: 8px;">• 👨‍👩‍👧‍👦 Gestión de familiares e inquilinos</p>
+        <p style="margin-bottom: 8px;">• 💰 Consulta de expensas y pagos</p>
+        <p style="margin-bottom: 8px;">• 🔒 Control de acceso y seguridad</p>
+        <p style="margin-bottom: 8px;">• 📋 Reportes y notificaciones</p>
+        <p style="margin-bottom: 8px;">• 📞 Comunicación con administración</p>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    <strong>🔐 IMPORTANTE - SEGURIDAD:</strong><br>
+    Su contraseña actual es temporal. Por seguridad, debe cambiarla inmediatamente después de su primer inicio de sesión. 
+    Nunca comparta sus credenciales con terceros.
+</div>
+
+<div class="message" style="font-size: 14px; color: #718096;">
+    Si tiene alguna pregunta o necesita ayuda, puede contactar a la administración del condominio. 
+    ¡Bienvenido a la comunidad!
+</div>
+{% endblock %}

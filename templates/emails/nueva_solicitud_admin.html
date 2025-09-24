@@ -1,0 +1,133 @@
+{% extends 'emails/base.html' %}
+
+{% block title %}Nueva Solicitud de Registro - Sistema Condominio{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    👋 Estimado Administrador,
+</div>
+
+<div class="message">
+    Se ha recibido una nueva solicitud de registro de propietario que requiere su revisión y aprobación.
+</div>
+
+<div class="alert alert-warning">
+    <strong>⚠️ Acción Requerida:</strong> Esta solicitud está pendiente de su aprobación para que el solicitante pueda acceder al sistema.
+</div>
+
+<div class="info-box">
+    <h3>📋 Información del Solicitante</h3>
+    <div class="info-item">
+        <span class="info-label">Nombre:</span>
+        <span class="info-value">{{ solicitud.nombres }} {{ solicitud.apellidos }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Documento:</span>
+        <span class="info-value">{{ solicitud.documento_identidad }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Email:</span>
+        <span class="info-value">{{ solicitud.email }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Teléfono:</span>
+        <span class="info-value">{{ solicitud.telefono }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Género:</span>
+        <span class="info-value">{{ solicitud.genero|title }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Fecha Nacimiento:</span>
+        <span class="info-value">{{ solicitud.fecha_nacimiento|date:"d/m/Y" }}</span>
+    </div>
+</div>
+
+<div class="info-box">
+    <h3>🏠 Información de la Vivienda</h3>
+    <div class="info-item">
+        <span class="info-label">Número de Casa:</span>
+        <span class="info-value">{{ solicitud.numero_casa }}</span>
+    </div>
+    {% if solicitud.vivienda_validada %}
+    <div class="info-item">
+        <span class="info-label">Bloque:</span>
+        <span class="info-value">{{ solicitud.vivienda_validada.bloque|default:"N/A" }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Tipo:</span>
+        <span class="info-value">{{ solicitud.vivienda_validada.tipo_vivienda|default:"N/A" }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Área:</span>
+        <span class="info-value">{{ solicitud.vivienda_validada.area_m2|default:"N/A" }} m²</span>
+    </div>
+    <div class="alert alert-success">
+        ✅ <strong>Vivienda Validada:</strong> La vivienda existe en el sistema y está disponible.
+    </div>
+    {% else %}
+    <div class="alert alert-error">
+        ❌ <strong>Vivienda No Validada:</strong> Revisar manualmente la información de la vivienda.
+    </div>
+    {% endif %}
+</div>
+
+{% if familiares_count > 0 %}
+<div class="info-box">
+    <h3>👨‍👩‍👧‍👦 Familiares Registrados</h3>
+    <div class="info-item">
+        <span class="info-label">Cantidad:</span>
+        <span class="info-value">{{ familiares_count }} familiar{{ familiares_count|pluralize:"es" }}</span>
+    </div>
+</div>
+{% endif %}
+
+<div class="info-box">
+    <h3>📅 Información de la Solicitud</h3>
+    <div class="info-item">
+        <span class="info-label">Token:</span>
+        <span class="info-value">{{ solicitud.token_seguimiento }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Estado:</span>
+        <span class="info-value">{{ solicitud.get_estado_display }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Fecha Solicitud:</span>
+        <span class="info-value">{{ solicitud.created_at|date:"d/m/Y H:i" }}</span>
+    </div>
+</div>
+
+{% if solicitud.observaciones_solicitante %}
+<div class="info-box">
+    <h3>💬 Observaciones del Solicitante</h3>
+    <p style="color: #4a5568; font-style: italic;">
+        "{{ solicitud.observaciones_solicitante }}"
+    </p>
+</div>
+{% endif %}
+
+<div class="divider"></div>
+
+<div style="text-align: center;">
+    <p style="font-size: 16px; margin-bottom: 20px;">
+        <strong>Para revisar y gestionar esta solicitud:</strong>
+    </p>
+    
+    <a href="{{ admin_panel_url }}/authz/solicitudregistropropietario/{{ solicitud.id }}/change/" class="button">
+        🔍 Revisar Solicitud
+    </a>
+    
+    <p style="font-size: 14px; color: #718096; margin-top: 15px;">
+        También puede acceder desde el panel administrativo en la sección<br>
+        <strong>Authz > Solicitudes Registro Propietario</strong>
+    </p>
+</div>
+
+<div class="divider"></div>
+
+<div class="message" style="font-size: 14px; color: #718096;">
+    <strong>Recordatorio:</strong> Las solicitudes deben ser revisadas dentro de las 48 horas posteriores a su recepción. 
+    El solicitante será notificado automáticamente una vez que tome una decisión.
+</div>
+{% endblock %}

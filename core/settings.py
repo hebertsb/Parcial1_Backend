@@ -72,7 +72,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -297,3 +297,26 @@ CORS_EXPOSE_HEADERS = [
 
 # Tiempo de cache para peticiones preflight (OPTIONS)
 CORS_PREFLIGHT_MAX_AGE = 86400
+
+# =============================================================================
+# CONFIGURACIÓN DE EMAIL
+# =============================================================================
+
+# Para desarrollo: usar consola (los emails se muestran en la terminal)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Para producción: configurar SMTP real
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'  # o tu servidor SMTP
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'tu-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'tu-password-app'
+
+# Configuración general de emails
+DEFAULT_FROM_EMAIL = 'Sistema Condominio <noreply@condominio.com>'
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# URLs para emails (para enlaces en los templates)
+FRONTEND_URL = 'http://localhost:3000'  # URL del frontend
+ADMIN_PANEL_URL = 'http://localhost:8000/admin'  # URL del panel admin

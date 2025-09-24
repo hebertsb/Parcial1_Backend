@@ -1,0 +1,106 @@
+{% extends 'emails/base.html' %}
+
+{% block title %}Solicitud Rechazada - Sistema Condominio{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    👋 Estimado/a {{ solicitud.nombres }},
+</div>
+
+<div class="message">
+    Lamentamos informarle que su solicitud de registro como propietario ha sido <strong>RECHAZADA</strong> 
+    después de la revisión correspondiente.
+</div>
+
+<div class="alert alert-error">
+    <strong>❌ Solicitud Rechazada:</strong> Su solicitud no pudo ser aprobada en esta ocasión.
+</div>
+
+<div class="info-box">
+    <h3>📋 Información de su Solicitud</h3>
+    <div class="info-item">
+        <span class="info-label">Token:</span>
+        <span class="info-value">{{ solicitud.token_seguimiento }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Fecha solicitud:</span>
+        <span class="info-value">{{ solicitud.created_at|date:"d/m/Y H:i" }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Fecha rechazo:</span>
+        <span class="info-value">{{ solicitud.fecha_rechazo|date:"d/m/Y H:i" }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Vivienda solicitada:</span>
+        <span class="info-value">{{ solicitud.numero_casa }}</span>
+    </div>
+</div>
+
+{% if solicitud.motivo_rechazo %}
+<div class="info-box">
+    <h3>📝 Motivo del Rechazo</h3>
+    <div style="background-color: #fff5f5; padding: 15px; border-left: 4px solid #f56565; border-radius: 0 6px 6px 0;">
+        <p style="color: #742a2a; font-style: italic; margin: 0;">
+            "{{ solicitud.motivo_rechazo }}"
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<div class="divider"></div>
+
+<div class="info-box">
+    <h3>🔄 ¿Qué puede hacer ahora?</h3>
+    <div style="color: #4a5568;">
+        <p style="margin-bottom: 15px;">
+            <strong>1. Revisar la información:</strong><br>
+            Verifique que todos los datos proporcionados sean correctos y estén completos.
+        </p>
+        <p style="margin-bottom: 15px;">
+            <strong>2. Corregir documentación:</strong><br>
+            Si el rechazo fue por documentación faltante o incorrecta, prepare la documentación adecuada.
+        </p>
+        <p style="margin-bottom: 15px;">
+            <strong>3. Nueva solicitud:</strong><br>
+            Una vez que haya corregido los aspectos mencionados, puede enviar una nueva solicitud.
+        </p>
+        <p style="margin-bottom: 15px;">
+            <strong>4. Contactar administración:</strong><br>
+            Si considera que existe un error, puede contactar directamente con la administración.
+        </p>
+    </div>
+</div>
+
+<div style="text-align: center;">
+    <p style="font-size: 16px; margin-bottom: 20px;">
+        <strong>¿Desea enviar una nueva solicitud?</strong>
+    </p>
+    
+    <a href="{{ frontend_url }}/registro-propietario" class="button">
+        📝 Nueva Solicitud
+    </a>
+    
+    <p style="font-size: 14px; color: #718096; margin-top: 15px;">
+        Asegúrese de corregir los aspectos mencionados antes de enviar una nueva solicitud
+    </p>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-box">
+    <h3>📞 Información de Contacto</h3>
+    <div style="color: #4a5568;">
+        <p style="margin-bottom: 8px;">
+            <strong>Administración del Condominio:</strong>
+        </p>
+        <p style="margin-bottom: 5px;">📧 Email: admin@condominio.com</p>
+        <p style="margin-bottom: 5px;">📱 Teléfono: +591 XXX-XXXX</p>
+        <p style="margin-bottom: 5px;">🕐 Horario: Lunes a Viernes, 8:00 - 18:00</p>
+    </div>
+</div>
+
+<div class="message" style="font-size: 14px; color: #718096;">
+    <strong>Nota importante:</strong> Este rechazo no es definitivo. Siempre puede enviar una nueva solicitud 
+    una vez que haya corregido los aspectos mencionados. Estamos aquí para ayudarle en el proceso.
+</div>
+{% endblock %}

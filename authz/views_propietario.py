@@ -24,6 +24,8 @@ from .serializers_propietario import (
     AprobarSolicitudSerializer,
     RechazarSolicitudSerializer
 )
+from .email_service import EmailService
+from core.models import Vivienda, Propiedad
 
 
 class RegistroPropietarioInicialView(APIView):
@@ -155,9 +157,10 @@ class RegistroSolicitudPropietarioView(APIView):
     """
     Vista para crear solicitudes de registro de propietarios
     Endpoint público que permite a cualquier persona solicitar ser propietario
+    Formato de respuesta compatible con frontend React/Next.js
     """
     permission_classes = [AllowAny]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [JSONParser]
 
     @extend_schema(
         request=SolicitudRegistroPropietarioSerializer,
@@ -168,6 +171,79 @@ class RegistroSolicitudPropietarioView(APIView):
         summary="Crear solicitud de registro de propietario"
     )
     def post(self, request):
+        """
+        Crear nueva solicitud de registro de propietario
+        
+        Body esperado:
+        {
+            "nombres": "string",
+            "apellidos": "string", 
+            "documento_identidad": "string",
+            "email": "string",
+            "telefono": "string",
+            "numero_casa": "string",
+            "fecha_nacimiento": "YYYY-MM-DD",
+            "acepta_terminos": true,
+            "password": "string",
+            "confirm_password": "string"
+        }
+        """
+        print(f"🔍 DEBUG: Datos recibidos en crear solicitud: {request.data}")
+        
+        # Validaciones previas
+        email = request.data.get('email', '').strip()
+        documento_identidad = request.data.get('documento_identidad', '').strip()
+        numero_casa = request.data.get('numero_casa', '').strip()
+        
+        # Verificar email único
+        if Usuario.objects.filter(email=email).exists():
+            return Response({
+                'success': False,
+                'message': f'Ya existe un usuario registrado con el email {email}',
+                'errors': {'email': ['Este email ya está registrado en el sistema']}
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verificar documento único
+        existing_solicitud = SolicitudRegistroPropietario.objects.filter(
+            documento_identidad=documento_identidad,
+            estado__in=['PENDIENTE', 'EN_REVISION', 'APROBADA']
+        ).first()
+        
+        if existing_solicitud:
+            return Response({
+                'success': False,
+                'message': f'Ya existe una solicitud activa para el documento {documento_identidad}',
+                'errors': {'documento_identidad': ['Este documento ya tiene una solicitud activa']}
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verificar que la vivienda existe y está disponible
+        from core.models import Vivienda, Propiedad
+        
+        try:
+            vivienda = Vivienda.objects.get(numero_casa=numero_casa)
+            
+            # Verificar que no tenga propietario activo
+            propietario_existente = Propiedad.objects.filter(
+                vivienda=vivienda,
+                tipo_tenencia='propietario',
+                activo=True
+            ).exists()
+            
+            if propietario_existente:
+                return Response({
+                    'success': False,
+                    'message': f'La vivienda {numero_casa} ya tiene un propietario registrado',
+                    'errors': {'numero_casa': ['Esta vivienda ya tiene propietario asignado']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Vivienda.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': f'No existe la vivienda {numero_casa} en el sistema',
+                'errors': {'numero_casa': ['Esta vivienda no existe en el sistema']}
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Crear solicitud usando el serializer
         serializer = SolicitudRegistroPropietarioSerializer(data=request.data)
         
         if serializer.is_valid():
@@ -176,41 +252,31 @@ class RegistroSolicitudPropietarioView(APIView):
                     # Usar cast para indicar el tipo correcto a Pylance
                     solicitud = cast(SolicitudRegistroPropietario, serializer.save())
                     
-                    # Verificar que el resultado es una instancia de SolicitudRegistroPropietario
-                    if not isinstance(solicitud, SolicitudRegistroPropietario):
-                        raise ValueError("El serializer no retornó una instancia válida de SolicitudRegistroPropietario")
+                    # Asignar vivienda validada usando setattr para evitar problemas de tipo
+                    setattr(solicitud, 'vivienda_validada', vivienda)
+                    solicitud.save()
                     
-                    # Enviar notificación a administradores
-                    _enviar_notificacion_nueva_solicitud(solicitud)
+                    # Enviar email de confirmación de solicitud recibida
+                    EmailService.enviar_confirmacion_solicitud(solicitud, 0)
                     
-                    # Preparar respuesta con información de la vivienda
-                    vivienda_info = {}
-                    if solicitud.vivienda_validada:
-                        vivienda_info = {
-                            'numero_casa': solicitud.vivienda_validada.numero_casa,
-                            'bloque': getattr(solicitud.vivienda_validada, 'bloque', ''),
-                            'tipo_vivienda': getattr(solicitud.vivienda_validada, 'tipo_vivienda', ''),
-                            'area_m2': getattr(solicitud.vivienda_validada, 'area_m2', 0)
-                        }
+                    print(f"✅ Solicitud creada exitosamente: ID={solicitud.pk}, Token={solicitud.token_seguimiento}")
                     
-                    familiares_count = FamiliarPropietario.objects.filter(solicitud=solicitud).count()
-                    
+                    # Respuesta en formato esperado por frontend
                     return Response({
                         'success': True,
-                        'message': 'Solicitud creada exitosamente. Se ha enviado una notificación al administrador.',
+                        'message': 'Solicitud creada exitosamente',
                         'data': {
-                            'solicitud_id': getattr(solicitud, 'id', None),
-                            'token_seguimiento': getattr(solicitud, 'token_seguimiento', ''),
-                            'estado': getattr(solicitud, 'estado', ''),
-                            'vivienda_info': vivienda_info,
-                            'familiares_registrados': familiares_count
+                            'id': solicitud.pk,
+                            'token_seguimiento': solicitud.token_seguimiento,
+                            'estado': 'pendiente'
                         }
                     }, status=status.HTTP_201_CREATED)
                     
             except Exception as e:
+                print(f"❌ Error creando solicitud: {str(e)}")
                 return Response({
                     'success': False,
-                    'message': f'Error al crear la solicitud: {str(e)}'
+                    'message': f'Error interno del servidor: {str(e)}'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({
@@ -399,13 +465,14 @@ class AprobarSolicitudView(APIView):
                     
                     return Response({
                         'success': True,
-                        'message': 'Solicitud aprobada exitosamente. Rol de propietario asignado.',
+                        'message': 'Solicitud aprobada y usuario creado',
                         'data': {
                             'solicitud_id': getattr(solicitud, 'id', None),
-                            'nuevo_estado': solicitud.estado,
+                            'nuevo_estado': 'aprobado',
                             'usuario_id': usuario_creado.id,
                             'email_propietario': usuario_creado.email,
-                            'rol_asignado': 'Propietario'
+                            'role_asignado': 'propietario',
+                            'password_temporal': 'temporal123'
                         }
                     })
                         
@@ -465,11 +532,15 @@ class RechazarSolicitudView(APIView):
                     solicitud.save()
                     
                     # Enviar notificación de rechazo
-                    _enviar_notificacion_rechazo(solicitud)
+                    EmailService.enviar_solicitud_rechazada(solicitud)
                     
                     return Response({
                         'success': True,
-                        'message': 'Solicitud rechazada exitosamente'
+                        'message': 'Solicitud rechazada',
+                        'data': {
+                            'solicitud_id': solicitud.pk,
+                            'nuevo_estado': 'rechazado'
+                        }
                     })
                     
             except Exception as e:

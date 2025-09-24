@@ -307,6 +307,7 @@ class SolicitudRegistroPropietario(models.Model):
         related_name='solicitudes_revisadas'
     )
     fecha_revision = models.DateTimeField(blank=True, null=True)
+    fecha_aprobacion = models.DateTimeField(blank=True, null=True, help_text="Fecha de aprobación de la solicitud")
     
     # Usuario creado tras aprobación
     usuario_creado = models.OneToOneField(
@@ -453,7 +454,17 @@ class SolicitudRegistroPropietario(models.Model):
             self.estado = 'APROBADA'
             self.revisado_por = revisado_por_usuario
             self.fecha_revision = timezone.now()
+            self.fecha_aprobacion = timezone.now()
             self.usuario_creado = usuario
             self.save()
+            
+            # Enviar notificación de aprobación
+            try:
+                from .email_service import EmailService
+                EmailService.enviar_solicitud_aprobada(self, usuario)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Error enviando email de aprobación: {e}")
             
             return usuario

@@ -1,0 +1,118 @@
+{% extends 'emails/base.html' %}
+
+{% block title %}Confirmación de Solicitud - Sistema Condominio{% endblock %}
+
+{% block content %}
+<div class="greeting">
+    👋 Estimado/a {{ solicitud.nombres }},
+</div>
+
+<div class="message">
+    ¡Gracias por registrarse! Su solicitud de registro como propietario ha sido <strong>recibida exitosamente</strong> 
+    y está siendo procesada por nuestro equipo de administración.
+</div>
+
+<div class="alert alert-success">
+    <strong>✅ Solicitud Enviada:</strong> Su solicitud se encuentra en estado "Pendiente de Revisión".
+</div>
+
+<div class="info-box">
+    <h3>📋 Resumen de su Solicitud</h3>
+    <div class="info-item">
+        <span class="info-label">Nombre completo:</span>
+        <span class="info-value">{{ solicitud.nombres }} {{ solicitud.apellidos }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Email:</span>
+        <span class="info-value">{{ solicitud.email }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Vivienda solicitada:</span>
+        <span class="info-value">{{ solicitud.numero_casa }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Fecha de solicitud:</span>
+        <span class="info-value">{{ solicitud.created_at|date:"d/m/Y H:i" }}</span>
+    </div>
+</div>
+
+<div class="info-box">
+    <h3>🎫 Token de Seguimiento</h3>
+    <div style="text-align: center; background-color: #667eea; color: white; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 18px; font-weight: bold;">
+        {{ solicitud.token_seguimiento }}
+    </div>
+    <p style="text-align: center; margin-top: 10px; font-size: 14px; color: #718096;">
+        Guarde este token para consultar el estado de su solicitud
+    </p>
+</div>
+
+{% if solicitud.vivienda_validada %}
+<div class="alert alert-success">
+    <strong>🏠 Vivienda Validada:</strong> La vivienda {{ solicitud.numero_casa }} existe en nuestro sistema y está disponible para registro.
+</div>
+{% endif %}
+
+{% if familiares_count > 0 %}
+<div class="info-box">
+    <h3>👨‍👩‍👧‍👦 Familiares Registrados</h3>
+    <p>Se han registrado {{ familiares_count }} familiar{{ familiares_count|pluralize:"es" }} junto con su solicitud.</p>
+</div>
+{% endif %}
+
+<div class="divider"></div>
+
+<div class="info-box">
+    <h3>⏰ Próximos Pasos</h3>
+    <div style="color: #4a5568;">
+        <p style="margin-bottom: 10px;">
+            <strong>1. Revisión (24-48 horas):</strong><br>
+            Nuestro equipo revisará su solicitud y documentación.
+        </p>
+        <p style="margin-bottom: 10px;">
+            <strong>2. Validación:</strong><br>
+            Verificaremos la información proporcionada y la propiedad.
+        </p>
+        <p style="margin-bottom: 10px;">
+            <strong>3. Decisión:</strong><br>
+            Le notificaremos por email si su solicitud es aprobada o requiere correcciones.
+        </p>
+        <p style="margin-bottom: 10px;">
+            <strong>4. Acceso al sistema:</strong><br>
+            Una vez aprobado, podrá acceder al sistema con sus credenciales.
+        </p>
+    </div>
+</div>
+
+<div style="text-align: center;">
+    <p style="font-size: 16px; margin-bottom: 20px;">
+        <strong>¿Necesita consultar el estado de su solicitud?</strong>
+    </p>
+    
+    <a href="{{ frontend_url }}/consultar-solicitud?token={{ solicitud.token_seguimiento }}" class="button">
+        🔍 Consultar Estado
+    </a>
+    
+    <p style="font-size: 14px; color: #718096; margin-top: 15px;">
+        También puede usar su token de seguimiento: <strong>{{ solicitud.token_seguimiento }}</strong>
+    </p>
+</div>
+
+<div class="divider"></div>
+
+<div class="info-box">
+    <h3>📞 ¿Necesita Ayuda?</h3>
+    <div style="color: #4a5568;">
+        <p style="margin-bottom: 8px;">
+            Si tiene alguna pregunta sobre su solicitud, puede contactarnos:
+        </p>
+        <p style="margin-bottom: 5px;">📧 Email: admin@condominio.com</p>
+        <p style="margin-bottom: 5px;">📱 Teléfono: +591 XXX-XXXX</p>
+        <p style="margin-bottom: 5px;">🕐 Horario: Lunes a Viernes, 8:00 - 18:00</p>
+    </div>
+</div>
+
+<div class="message" style="font-size: 14px; color: #718096;">
+    <strong>Importante:</strong> Mantenga este email como comprobante de su solicitud. 
+    Le notificaremos cualquier actualización en el estado de su registro.
+</div>
+{% endblock %}

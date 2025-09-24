@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+from typing import cast
 
 from django.db.models import Sum
 from rest_framework import status
@@ -100,13 +101,13 @@ class RegistrarPagoView(APIView):
             context={'persona': persona, 'request': request},
         )
         serializer.is_valid(raise_exception=True)
-        pago = serializer.save()
+        pago = cast(Pagos, serializer.save())
 
         payload = {
             'pago': PagoDetailSerializer(pago).data,
         }
 
-        if pago.expensa_id:
+        if pago.expensa:
             total_pagado_expensa = (
                 Pagos.objects
                 .filter(expensa=pago.expensa, estado__in=CONFIRMED_PAYMENT_STATES)
@@ -115,11 +116,11 @@ class RegistrarPagoView(APIView):
             expensa_serializer = ExpensaDebtSerializer(
                 [pago.expensa],
                 many=True,
-                context={'pagos_por_expensa': {pago.expensa_id: total_pagado_expensa}},
+                context={'pagos_por_expensa': {pago.expensa.id: total_pagado_expensa}},
             )
             payload['expensa_actualizada'] = expensa_serializer.data[0]
 
-        if pago.multa_id:
+        if pago.multa:
             total_pagado_multa = (
                 Pagos.objects
                 .filter(multa=pago.multa, estado__in=CONFIRMED_PAYMENT_STATES)
@@ -128,7 +129,7 @@ class RegistrarPagoView(APIView):
             multa_serializer = MultaDebtSerializer(
                 [pago.multa],
                 many=True,
-                context={'pagos_por_multa': {pago.multa_id: total_pagado_multa}},
+                context={'pagos_por_multa': {pago.multa.id: total_pagado_multa}},
             )
             payload['multa_actualizada'] = multa_serializer.data[0]
 

@@ -234,6 +234,7 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
     # Campos adicionales para contraseña
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)  # Alias para compatibilidad con frontend
     
     # Campos para reconocimiento facial
     foto_base64 = serializers.CharField(
@@ -258,7 +259,7 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
         fields = [
             'nombres', 'apellidos', 'documento_identidad', 'fecha_nacimiento',
             'email', 'telefono', 'numero_casa', 
-            'password', 'password_confirm', 'foto_base64', 'familiares',
+            'password', 'password_confirm', 'confirm_password', 'foto_base64', 'familiares',
             'acepta_terminos', 'acepta_tratamiento_datos', 'vivienda_info'
         ]
 
@@ -319,10 +320,14 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
             return value.strip().upper()
 
     def validate(self, attrs):
-        # Validar contraseñas coincidan
-        if attrs.get('password') != attrs.get('password_confirm'):
+        # Validar contraseñas coincidan (soportar ambos nombres de campo)
+        password = attrs.get('password')
+        password_confirm = attrs.get('password_confirm') or attrs.get('confirm_password')
+        
+        if password != password_confirm:
             raise serializers.ValidationError({
-                'password_confirm': 'Las contraseñas no coinciden'
+                'password_confirm': 'Las contraseñas no coinciden',
+                'confirm_password': 'Las contraseñas no coinciden'
             })
         
         # Validar documento único
@@ -373,7 +378,8 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Extraer datos que no van al modelo principal
         validated_data.pop('password')
-        validated_data.pop('password_confirm')
+        validated_data.pop('password_confirm', None)
+        validated_data.pop('confirm_password', None)
         validated_data.pop('foto_base64', None)
         validated_data.pop('familiares', [])
         validated_data.pop('acepta_terminos')
@@ -618,7 +624,7 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
         model = SolicitudRegistroPropietario
         fields = [
             'id', 'nombres', 'apellidos', 'documento_identidad', 'email',
-            'telefono', 'numero_casa', 'estado', 'created_at', 'fecha_revision',
+            'telefono', 'numero_casa', 'fecha_nacimiento', 'estado', 'created_at', 'fecha_revision',
             'comentarios_admin', 'revisado_por_info', 'vivienda_info', 'familiares_count', 'familiares'
         ]
     
