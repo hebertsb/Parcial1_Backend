@@ -4,8 +4,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from typing import cast
+from django.db.models.query import QuerySet
 from .serializers import AvisosPersonalizadosSerializer, ComunicadosAdministracionSerializer
 from core.models.propiedades_residentes import AvisosPersonalizados, ComunicadosAdministracion
+from authz.models import Usuario
 
 class AvisosPersonalizadosViewSet(viewsets.ModelViewSet):
     """
@@ -30,19 +33,30 @@ class AvisosPersonalizadosViewSet(viewsets.ModelViewSet):
         # Para cualquier otra acción (post, put, delete) no permitida
         raise PermissionDenied("No tienes permisos para realizar esta acción.")
     
-    def get_queryset(self):
+    def get_queryset(self):  # type: ignore
         """
         Filtra los avisos personalizados para que solo se muestren aquellos dirigidos
         a la persona que está autenticada, excepto si el usuario tiene rol de admin.
         """
         user = self.request.user
         
+        # Verificar que el usuario esté autenticado
+        if not user.is_authenticated:
+            return AvisosPersonalizados.objects.none()
+        
+        # Cast del usuario para acceder a sus propiedades personalizadas
+        usuario = cast(Usuario, user)
+        
         # Admin puede ver todos los avisos
-        if user.is_staff:
+        if usuario.is_staff:
             return AvisosPersonalizados.objects.all()
         
+        # Verificar que el usuario tenga persona asociada
+        if not usuario.persona:
+            return AvisosPersonalizados.objects.none()
+        
         # Usuarios comunes pueden ver solo los avisos que les fueron asignados
-        return AvisosPersonalizados.objects.filter(persona_destinatario=user.persona)
+        return AvisosPersonalizados.objects.filter(persona_destinatario=usuario.persona)
 
     @action(detail=True, methods=['post'])
     def enviar(self, request, pk=None):
@@ -78,19 +92,30 @@ class ComunicadosAdministracionViewSet(viewsets.ModelViewSet):
         # Para cualquier otra acción (post, put, delete) no permitida
         raise PermissionDenied("No tienes permisos para realizar esta acción.")
     
-    def get_queryset(self):
+    def get_queryset(self):  # type: ignore
         """
         Filtra los comunicados para que solo se muestren aquellos dirigidos
         a la persona que está autenticada, excepto si el usuario tiene rol de admin.
         """
         user = self.request.user
         
+        # Verificar que el usuario esté autenticado
+        if not user.is_authenticated:
+            return ComunicadosAdministracion.objects.none()
+        
+        # Cast del usuario para acceder a sus propiedades personalizadas
+        usuario = cast(Usuario, user)
+        
         # Admin puede ver todos los comunicados
-        if user.is_staff:
+        if usuario.is_staff:
             return ComunicadosAdministracion.objects.all()
         
+        # Verificar que el usuario tenga persona asociada
+        if not usuario.persona:
+            return ComunicadosAdministracion.objects.none()
+        
         # Usuarios comunes pueden ver solo los comunicados dirigidos a ellos
-        return ComunicadosAdministracion.objects.filter(dirigido_a__contains=user.persona.id)  # Ajusta la lógica según sea necesario
+        return ComunicadosAdministracion.objects.filter(dirigido_a__contains=usuario.persona.pk)
     
     @action(detail=True, methods=['post'])
     def confirmar_lectura(self, request, pk=None):
