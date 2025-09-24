@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third party apps
     'corsheaders',  # Descomentado para permitir CORS desde frontend
+    'corsheaders',  # CORS headers para permitir peticiones desde frontend
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
@@ -52,9 +53,11 @@ INSTALLED_APPS = [
     'blog',
     'seguridad',
     'authz',  # Sistema de autenticación avanzado
+     'expensas_multas', 
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware debe ir PRIMERO
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Descomentado para permitir CORS
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -243,3 +246,55 @@ LOGGING = {
         },
     },
 }
+
+# ============================================================================
+# CONFIGURACIÓN CORS - Para conectar con Frontend
+# ============================================================================
+
+# Lista de orígenes permitidos (URLs del frontend)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",    # React (puerto por defecto)
+    "http://localhost:5173",    # Vite/Vue (puerto por defecto)
+    "http://localhost:8080",    # Vue CLI (puerto por defecto)
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8080",
+]
+
+# Permitir todas las cabeceras en desarrollo (más flexible)
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Solo en desarrollo
+
+# Cabeceras permitidas explícitamente
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Métodos HTTP permitidos
+CORS_ALLOWED_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Permitir cookies (para autenticación)
+CORS_ALLOW_CREDENTIALS = True
+
+# Cabeceras que el frontend puede acceder en la respuesta
+CORS_EXPOSE_HEADERS = [
+    'Content-Type',
+    'X-CSRFToken',
+]
+
+# Tiempo de cache para peticiones preflight (OPTIONS)
+CORS_PREFLIGHT_MAX_AGE = 86400

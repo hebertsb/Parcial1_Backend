@@ -47,9 +47,10 @@ urlpatterns = [
 
     # CU05 - Gestionar Unidades Habitacionales
     path('api/', include('core.api.viviendas.urls')),
+
     
-    # Pagos (Expensas y Multas)
-    path('api/pagos/', include('core.api_urls')),
+    path('api/', include('core.api.mascotas.urls')),
+    
 
     # Face Recognition API
     path('', include('seguridad.urls')),
@@ -61,6 +62,9 @@ urlpatterns = [
     
     # Face Recognition API (AL FINAL para que no interfiera)
     path('', include('seguridad.urls')),
+
+       # Rutas para Expensas y Multas (CRUD)
+    path('api/pagos/', include('expensas_multas.urls')),
 ]
 
 # Servir archivos media en desarrollo
