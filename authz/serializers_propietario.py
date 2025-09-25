@@ -15,6 +15,7 @@ from .models import (
     RelacionesPropietarioInquilino
 )
 from core.models import Vivienda
+from core.models.propiedades_residentes import Vivienda as ViviendaPropiedades
 import base64
 import uuid
 
@@ -755,11 +756,31 @@ class RegistroInquilinoSerializer(serializers.Serializer):
     email = serializers.EmailField()
     fecha_nacimiento = serializers.DateField()
     
+    # Datos de la cuenta del inquilino
+    password = serializers.CharField(
+        min_length=8,
+        write_only=True,
+        help_text="Contraseña para la cuenta del inquilino"
+    )
+    confirm_password = serializers.CharField(
+        min_length=8,
+        write_only=True,
+        help_text="Confirmar contraseña"
+    )
+    
     # Datos de la relación de alquiler
     fecha_inicio = serializers.DateField()
     fecha_fin = serializers.DateField(required=False, allow_null=True)
     monto_alquiler = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     observaciones = serializers.CharField(required=False, allow_blank=True)
+    
+    # Vivienda específica (opcional, si no se proporciona usa la del propietario)
+    vivienda_id = serializers.IntegerField(required=False, allow_null=True)
+    genero = serializers.ChoiceField(
+        choices=Persona.GENERO_CHOICES,
+        required=False,
+        allow_blank=True
+    )
     
     def validate_documento_identidad(self, value):
         """Validar que el documento no esté ya registrado"""
@@ -785,6 +806,22 @@ class RegistroInquilinoSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'
             })
+        
+        # Validar que las contraseñas coincidan
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+        
+        if password != confirm_password:
+            raise serializers.ValidationError({
+                'confirm_password': 'Las contraseñas no coinciden.'
+            })
+        
+        # Validar fortaleza de la contraseña
+        try:
+            from django.contrib.auth.password_validation import validate_password
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError({'password': e.messages})
             
         return attrs
     
@@ -792,30 +829,43 @@ class RegistroInquilinoSerializer(serializers.Serializer):
         request = self.context['request']
         propietario = request.user
         
-        # Obtener la vivienda del propietario (asumimos que tiene una vivienda principal)
-        # Esto puedes ajustarlo según tu lógica de negocio
-        try:
-            # Buscar la vivienda del propietario en el modelo SolicitudRegistroPropietario aprobada
-            solicitud = SolicitudRegistroPropietario.objects.get(
-                usuario_creado=propietario,
-                estado='APROBADA'
-            )
-            vivienda = solicitud.vivienda_validada
-            
-            if not vivienda:
-                raise serializers.ValidationError("No se encontró una vivienda asociada al propietario.")
+        # Obtener la vivienda (prioridad: vivienda_id del payload, luego la del propietario)
+        vivienda_id = validated_data.pop('vivienda_id', None)
+        
+        if vivienda_id:
+            # Usar la vivienda específica del payload
+            try:
+                vivienda = ViviendaPropiedades.objects.get(id=vivienda_id)
+            except ViviendaPropiedades.DoesNotExist:
+                raise serializers.ValidationError(f"No se encontró la vivienda con ID {vivienda_id}.")
+        else:
+            # Usar la vivienda del propietario de su solicitud aprobada
+            try:
+                solicitud = SolicitudRegistroPropietario.objects.get(
+                    usuario_creado=propietario,
+                    estado='APROBADA'
+                )
+                vivienda = solicitud.vivienda_validada
                 
-        except SolicitudRegistroPropietario.DoesNotExist:
-            raise serializers.ValidationError("No se encontró una solicitud aprobada para este propietario.")
+                if not vivienda:
+                    raise serializers.ValidationError("No se encontró una vivienda asociada al propietario.")
+                    
+            except SolicitudRegistroPropietario.DoesNotExist:
+                raise serializers.ValidationError("No se encontró una solicitud aprobada para este propietario.")
+        
+        # Extraer contraseña
+        password = validated_data.pop('password')
+        validated_data.pop('confirm_password')  # Remover confirm_password
         
         # Extraer datos de persona y relación
         persona_data = {
             'nombre': validated_data.pop('nombre'),
             'apellido': validated_data.pop('apellido'),
             'documento_identidad': validated_data.pop('documento_identidad'),
-            'telefono': validated_data.get('telefono', ''),
+            'telefono': validated_data.pop('telefono', ''),
             'email': validated_data.pop('email'),
             'fecha_nacimiento': validated_data.pop('fecha_nacimiento'),
+            'genero': validated_data.pop('genero', ''),
             'tipo_persona': 'inquilino'
         }
         
@@ -829,26 +879,17 @@ class RegistroInquilinoSerializer(serializers.Serializer):
                 # Crear usuario para el inquilino
                 usuario_inquilino = Usuario.objects.create_user(
                     email=persona.email,
-                    password='inquilino123',  # Password temporal
-                    tipo_usuario='inquilino'
+                    password=password,  # Usar la contraseña proporcionada
+                    estado='ACTIVO'
                 )
+                
+                # Asignar la persona creada al usuario
+                usuario_inquilino.persona = persona
+                usuario_inquilino.save()
                 
                 # Asignar rol de inquilino
                 rol_inquilino, _ = Rol.objects.get_or_create(nombre='Inquilino')
                 usuario_inquilino.roles.add(rol_inquilino)
-                
-                # Crear persona para el usuario
-                persona_usuario = Persona.objects.create(
-                    nombre=persona.nombre,
-                    apellido=persona.apellido,
-                    documento_identidad=persona.documento_identidad + '_USER',  # Diferenciador
-                    telefono=persona.telefono,
-                    email=persona.email,
-                    fecha_nacimiento=persona.fecha_nacimiento,
-                    tipo_persona='inquilino'
-                )
-                usuario_inquilino.persona = persona_usuario
-                usuario_inquilino.save()
                 
                 # Crear la relación propietario-inquilino
                 relacion = RelacionesPropietarioInquilino.objects.create(
@@ -861,7 +902,7 @@ class RegistroInquilinoSerializer(serializers.Serializer):
                 return {
                     'inquilino': usuario_inquilino,
                     'relacion': relacion,
-                    'mensaje': 'Inquilino registrado exitosamente. Password temporal: inquilino123'
+                    'mensaje': 'Inquilino registrado exitosamente con la contraseña proporcionada.'
                 }
                 
         except Exception as e:
