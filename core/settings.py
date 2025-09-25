@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'expensas_multas', 
     'avisos_comunicados',
     'areas_comunes',
+    'reservas_areas',
 
 ]
 
