@@ -52,8 +52,10 @@ INSTALLED_APPS = [
     'blog',
     'seguridad',
     'authz',  # Sistema de autenticación avanzado
-     'expensas_multas', 
-       'avisos_comunicados',
+    'expensas_multas', 
+    'avisos_comunicados',
+    'areas_comunes',
+
 ]
 
 MIDDLEWARE = [

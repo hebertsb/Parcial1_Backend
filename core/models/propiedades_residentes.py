@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from decimal import Decimal
 from datetime import time
+from datetime import datetime
 
 User = get_user_model()
 
@@ -145,6 +146,26 @@ class EspacioComun(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+
+#tabla aux de espacio comun
+class DisponibilidadEspacioComun(models.Model):
+    espacio_comun = models.ForeignKey(EspacioComun, related_name='disponibilidad', on_delete=models.CASCADE)
+    fecha_inicio = models.DateTimeField()
+    fecha_fin = models.DateTimeField()
+    capacidad_maxima = models.IntegerField(default=10)
+    bloqueado_por_mantenimiento = models.BooleanField(default=False)
+    motivo_bloqueo = models.CharField(max_length=255, null=True, blank=True)
+    es_recurrente = models.BooleanField(default=False)
+    dias_recurrentes = models.JSONField(default=list)  # Días de la semana (por ejemplo, ['Lunes', 'Martes'])
+
+    class Meta:
+        unique_together = ['espacio_comun', 'fecha_inicio', 'fecha_fin']
+
+    def __str__(self):
+        return f"Disponibilidad de {self.espacio_comun.nombre} desde {self.fecha_inicio} hasta {self.fecha_fin}"
+
+
 # Tabla de notificaciones
 class Notificacion(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
