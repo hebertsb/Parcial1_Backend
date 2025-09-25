@@ -71,6 +71,9 @@ urlpatterns = [
         # Rutas para Avisos y Comunicados (CRUD)
 
     path('api/avisos/', include('avisos_comunicados.urls')),
+    #gestion de espacios comunes(crud)
+    path('api/areas-comunes/', include('areas_comunes.urls')),
+
 ]
 
 # Servir archivos media en desarrollo
