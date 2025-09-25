@@ -15,7 +15,7 @@ class PersonaBasicSerializer(serializers.ModelSerializer):
         model = Persona
         fields = [
             'id', 'nombre', 'apellido', 'nombre_completo', 
-            'documento_identidad', 'tipo_documento', 'telefono', 
+            'documento_identidad', 'telefono', 
             'email', 'tipo_persona', 'activo'
         ]
         read_only_fields = ['id', 'nombre_completo']
@@ -23,6 +23,62 @@ class PersonaBasicSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField())
     def get_nombre_completo(self, obj):
         return f"{obj.nombre} {obj.apellido}"
+
+
+class PersonaEditSerializer(serializers.ModelSerializer):
+    """Serializer completo para edición de personas por administradores"""
+    nombre_completo = serializers.SerializerMethodField()
+    propiedades_activas = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Persona
+        fields = [
+            'id', 'nombre', 'apellido', 'nombre_completo',
+            'documento_identidad', 'telefono', 'email', 
+            'tipo_persona', 'activo', 'fecha_registro',
+            'propiedades_activas'
+        ]
+        read_only_fields = ['id', 'nombre_completo', 'fecha_registro', 'propiedades_activas']
+    
+    def validate_email(self, value):
+        """Validar que el email sea único (excluyendo la persona actual)"""
+        if value:
+            queryset = Persona.objects.filter(email=value)
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise serializers.ValidationError("Ya existe una persona con este email.")
+        return value
+    
+    def validate_documento_identidad(self, value):
+        """Validar que el documento sea único (excluyendo la persona actual)"""
+        if value:
+            queryset = Persona.objects.filter(documento_identidad=value)
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise serializers.ValidationError("Ya existe una persona con este documento de identidad.")
+        return value
+    
+    def validate_tipo_persona(self, value):
+        """Validar tipos de persona permitidos"""
+        tipos_validos = ['administrador', 'seguridad', 'propietario', 'inquilino', 'cliente']
+        if value not in tipos_validos:
+            raise serializers.ValidationError(f"Tipo inválido. Tipos válidos: {', '.join(tipos_validos)}")
+        return value
+    
+    @extend_schema_field(serializers.CharField())
+    def get_nombre_completo(self, obj):
+        return f"{obj.nombre} {obj.apellido}"
+    
+    @extend_schema_field(serializers.IntegerField())
+    def get_propiedades_activas(self, obj):
+        """Contar propiedades activas de la persona"""
+        try:
+            from core.models.propiedades_residentes import Propiedad
+            return Propiedad.objects.filter(persona=obj, activo=True).count()
+        except:
+            return 0
 
 
 class ViviendaSerializer(serializers.ModelSerializer):

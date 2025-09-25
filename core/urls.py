@@ -36,6 +36,11 @@ urlpatterns = [
     # Authz Authentication + Propietarios
     path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
     path('api/authz/', include('authz.urls')),        # registro, panel propietarios
+    path('api/authz/', include('authz.urls_admin')),  # funcionalidades administrativas
+    
+    # URLs de administración también en path 'auth' para compatibilidad con frontend
+    path('auth/', include('authz.auth_urls')),        # login, refresh compatibilidad
+    path('auth/', include('authz.urls_admin')),       # admin endpoints sin api/ prefix
     
     # JWT Authentication (Sistema anterior - mantener para compatibilidad)
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

@@ -77,6 +77,26 @@ class IsInquilino(BasePermission):
         return self.has_permission(request, view)
 
 
+class IsSeguridad(BasePermission):
+    """
+    Permiso personalizado para verificar que el usuario es de Seguridad.
+    SEGURIDAD: Solo usuarios con rol 'Seguridad' y estado ACTIVO.
+    """
+    
+    def has_permission(self, request, view):  # type: ignore[override]
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Verificar rol de seguridad Y estado activo
+        return bool(
+            request.user.roles.filter(nombre='Seguridad').exists() and
+            request.user.estado == 'ACTIVO'
+        )
+    
+    def has_object_permission(self, request, view, obj):  # type: ignore[override]
+        return self.has_permission(request, view)
+
+
 class IsAdminOrPropietario(BasePermission):
     """
     Permiso que permite acceso a Administradores O Propietarios.
