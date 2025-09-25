@@ -12,7 +12,8 @@ from authz.models import Persona, RelacionesPropietarioInquilino
 from .serializers import (
     ViviendaSerializer, ViviendaListSerializer, PropiedadSerializer, 
     PropiedadDetailSerializer, PropiedadCreateSerializer,
-    RelacionPropietarioInquilinoSerializer, PersonaBasicSerializer
+    RelacionPropietarioInquilinoSerializer, PersonaBasicSerializer,
+    PersonaEditSerializer
 )
 
 
@@ -164,9 +165,17 @@ class PropiedadViewSet(viewsets.ModelViewSet):
         )
 
 
-class PersonaViewSet(viewsets.ReadOnlyModelViewSet):
+class PersonaViewSet(viewsets.ModelViewSet):
     """
-    ViewSet de solo lectura para consultar personas
+    ViewSet completo para gestionar personas
+    
+    Operaciones disponibles:
+    - GET /personas/ - Listar todas las personas
+    - POST /personas/ - Crear nueva persona
+    - GET /personas/{id}/ - Obtener persona específica
+    - PUT /personas/{id}/ - Actualizar persona completa
+    - PATCH /personas/{id}/ - Actualizar persona parcial
+    - DELETE /personas/{id}/ - Desactivar persona
     """
     queryset = Persona.objects.filter(activo=True).order_by('nombre', 'apellido')
     serializer_class = PersonaBasicSerializer
@@ -179,6 +188,16 @@ class PersonaViewSet(viewsets.ReadOnlyModelViewSet):
     # Ordenamiento
     ordering_fields = ['nombre', 'apellido', 'fecha_registro']
     ordering = ['nombre', 'apellido']
+    
+    def get_serializer_class(self):
+        """
+        Usar diferentes serializers según la acción:
+        - Para operaciones de escritura (POST, PUT, PATCH): PersonaEditSerializer
+        - Para operaciones de lectura (GET): PersonaBasicSerializer
+        """
+        if self.action in ['create', 'update', 'partial_update']:
+            return PersonaEditSerializer
+        return PersonaBasicSerializer
     
     @action(detail=False, methods=['get'])
     def propietarios(self, request):
@@ -193,3 +212,230 @@ class PersonaViewSet(viewsets.ReadOnlyModelViewSet):
         inquilinos = self.queryset.filter(tipo_persona='inquilino')
         serializer = self.get_serializer(inquilinos, many=True)
         return Response(serializer.data)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Desactivar persona en lugar de eliminar"""
+        persona = self.get_object()
+        
+        # Verificar si tiene propiedades activas
+        propiedades_activas = Propiedad.objects.filter(persona=persona, activo=True).count()
+        if propiedades_activas > 0:
+            return Response(
+                {
+                    'error': 'No se puede desactivar la persona porque tiene propiedades activas',
+                    'propiedades_activas': propiedades_activas,
+                    'mensaje': 'Primero debe transferir o desactivar las propiedades asociadas'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Marcar como inactiva
+        persona.activo = False
+        persona.save()
+        
+        return Response(
+            {'message': 'Persona desactivada exitosamente'},
+            status=status.HTTP_200_OK
+        )
+    
+    @action(detail=True, methods=['patch'])
+    def cambiar_tipo(self, request, pk=None):
+        """
+        Cambiar tipo de persona (ej: inquilino -> propietario)
+        
+        Casos de uso:
+        - Inquilino compra la propiedad y se convierte en propietario
+        - Propietario vende y se convierte en inquilino
+        - Cambios administrativos de roles
+        """
+        persona = self.get_object()
+        nuevo_tipo = request.data.get('tipo_persona')
+        
+        if not nuevo_tipo:
+            return Response(
+                {'error': 'El campo tipo_persona es requerido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar tipos permitidos
+        tipos_validos = ['administrador', 'seguridad', 'propietario', 'inquilino', 'cliente']
+        if nuevo_tipo not in tipos_validos:
+            return Response(
+                {'error': f'Tipo inválido. Tipos válidos: {", ".join(tipos_validos)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tipo_anterior = persona.tipo_persona
+        persona.tipo_persona = nuevo_tipo
+        persona.save()
+        
+        # Log del cambio
+        from django.utils import timezone
+        cambio_info = {
+            'persona_id': persona.id,
+            'nombre_completo': persona.nombre_completo,
+            'tipo_anterior': tipo_anterior,
+            'tipo_nuevo': nuevo_tipo,
+            'fecha_cambio': timezone.now(),
+            'usuario_admin': request.user.email if hasattr(request.user, 'email') else 'Sistema'
+        }
+        
+        serializer = self.get_serializer(persona)
+        return Response({
+            'message': f'Tipo de persona cambiado de {tipo_anterior} a {nuevo_tipo}',
+            'persona': serializer.data,
+            'cambio_registrado': cambio_info
+        })
+    
+    @action(detail=True, methods=['post'])
+    def transferir_propiedad(self, request, pk=None):
+        """
+        Transferir propiedad completa cuando inquilino compra la casa
+        
+        Proceso automático:
+        1. Cambiar inquilino a propietario
+        2. Buscar propiedades donde es inquilino
+        3. Transferir ownership de esas propiedades
+        4. Desactivar o cambiar el propietario anterior
+        5. Actualizar relaciones propietario-inquilino
+        """
+        from django.db import transaction
+        from django.utils import timezone
+        
+        inquilino = self.get_object()
+        accion_propietario_anterior = request.data.get('accion_propietario_anterior', 'desactivar')  # 'desactivar' o 'inquilino'
+        
+        # Validar que sea inquilino
+        if inquilino.tipo_persona != 'inquilino':
+            return Response(
+                {'error': 'Solo se puede transferir propiedad a personas que son inquilinos actualmente'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Buscar propiedades donde esta persona es inquilino
+        propiedades_como_inquilino = Propiedad.objects.filter(
+            persona=inquilino,
+            tipo_tenencia='inquilino',
+            activo=True
+        )
+        
+        if not propiedades_como_inquilino.exists():
+            return Response(
+                {'error': 'Esta persona no tiene propiedades activas como inquilino'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        transferencias_realizadas = []
+        
+        try:
+            with transaction.atomic():
+                for propiedad_inquilino in propiedades_como_inquilino:
+                    vivienda = propiedad_inquilino.vivienda
+                    
+                    # Buscar el propietario anterior de esta vivienda
+                    propiedad_propietario = Propiedad.objects.filter(
+                        vivienda=vivienda,
+                        tipo_tenencia='propietario',
+                        activo=True
+                    ).first()
+                    
+                    if propiedad_propietario:
+                        propietario_anterior = propiedad_propietario.persona
+                        
+                        # 1. Desactivar la propiedad del propietario anterior
+                        propiedad_propietario.activo = False
+                        propiedad_propietario.fecha_fin_tenencia = timezone.now().date()
+                        propiedad_propietario.save()
+                        
+                        # 2. Convertir la propiedad del inquilino a propietario
+                        propiedad_inquilino.tipo_tenencia = 'propietario'
+                        propiedad_inquilino.porcentaje_propiedad = propiedad_propietario.porcentaje_propiedad
+                        propiedad_inquilino.save()
+                        
+                        # 3. Manejar al propietario anterior según la acción solicitada
+                        if accion_propietario_anterior == 'desactivar':
+                            # Desactivar completamente al propietario anterior
+                            propietario_anterior.activo = False
+                            propietario_anterior.save()
+                            estado_anterior = 'desactivado'
+                        elif accion_propietario_anterior == 'inquilino':
+                            # Convertir propietario anterior en inquilino
+                            propietario_anterior.tipo_persona = 'inquilino'
+                            propietario_anterior.save()
+                            
+                            # Crear nueva propiedad como inquilino
+                            Propiedad.objects.create(
+                                vivienda=vivienda,
+                                persona=propietario_anterior,
+                                tipo_tenencia='inquilino',
+                                porcentaje_propiedad=Decimal('100.00'),
+                                fecha_inicio_tenencia=timezone.now().date(),
+                                activo=True
+                            )
+                            estado_anterior = 'convertido a inquilino'
+                        else:
+                            # Solo desactivar la propiedad, mantener persona activa
+                            estado_anterior = 'propiedad desactivada'
+                        
+                        # 4. Actualizar relaciones propietario-inquilino si existen
+                        relaciones_activas = RelacionesPropietarioInquilino.objects.filter(
+                            inquilino_id=inquilino.id,  # Usar _id para acceso directo
+                            vivienda_id=vivienda.id,
+                            activo=True
+                        )
+                        
+                        for relacion in relaciones_activas:
+                            relacion.activo = False
+                            relacion.fecha_fin = timezone.now().date()
+                            relacion.save()
+                        
+                        transferencias_realizadas.append({
+                            'vivienda': vivienda.numero_casa,
+                            'vivienda_id': vivienda.id,
+                            'propietario_anterior': propietario_anterior.nombre_completo,
+                            'propietario_anterior_id': propietario_anterior.id,
+                            'estado_propietario_anterior': estado_anterior,
+                            'nuevo_propietario': inquilino.nombre_completo,
+                            'porcentaje_transferido': float(propiedad_propietario.porcentaje_propiedad)
+                        })
+                
+                # 5. Cambiar el tipo de persona de inquilino a propietario
+                inquilino.tipo_persona = 'propietario'
+                inquilino.save()
+                
+        except Exception as e:
+            return Response(
+                {'error': f'Error durante la transferencia: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Preparar respuesta
+        serializer = self.get_serializer(inquilino)
+        return Response({
+            'message': f'Transferencia de propiedad completada exitosamente',
+            'nuevo_propietario': serializer.data,
+            'transferencias_realizadas': transferencias_realizadas,
+            'total_propiedades_transferidas': len(transferencias_realizadas),
+            'fecha_transferencia': timezone.now(),
+            'accion_propietarios_anteriores': accion_propietario_anterior
+        })
+    
+    @action(detail=True, methods=['post'])
+    def activar(self, request, pk=None):
+        """Reactivar una persona desactivada"""
+        persona = self.get_object()
+        
+        if persona.activo:
+            return Response(
+                {'error': 'La persona ya está activa'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        persona.activo = True
+        persona.save()
+        
+        serializer = self.get_serializer(persona)
+        return Response({
+            'message': 'Persona reactivada exitosamente',
+            'persona': serializer.data
+        })

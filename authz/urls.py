@@ -27,5 +27,8 @@ urlpatterns = [
     path('propietarios/admin/solicitudes/<int:solicitud_id>/rechazar/', RechazarSolicitudView.as_view(), name='rechazar-solicitud'),
     
     # URLs para el panel de propietarios (gestión de familiares e inquilinos)
-    path('propietarios/', include('authz.urls_propietarios_panel')),
+    path('propietarios/panel/', include('authz.urls_propietarios_panel')),
+    
+    # URLs para funcionalidades administrativas
+    path('', include('authz.urls_admin')),
 ]
