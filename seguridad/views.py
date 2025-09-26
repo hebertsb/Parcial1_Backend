@@ -4,6 +4,7 @@ Face Recognition API Views
 
 import logging
 from datetime import datetime
+from typing import Dict, Any, cast
 from django.utils import timezone
 from django.http import Http404
 from rest_framework import status
@@ -13,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.throttling import UserRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiExample
-from drf_spectacular.openapi import OpenApiTypes
+from drf_spectacular.types import OpenApiTypes
 
 from .models import Copropietarios, ReconocimientoFacial, fn_bitacora_log
 from .serializers import (
@@ -95,7 +96,13 @@ class FaceEnrollView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            validated_data = serializer.validated_data
+            validated_data = cast(Dict[str, Any], serializer.validated_data)
+            if not validated_data:
+                return Response(
+                    {'error': 'No se pudieron validar los datos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             copropietario_id = validated_data['copropietario_id']
             imagen = validated_data['imagen']
             update_existing = validated_data.get('update_existing', False)
@@ -269,7 +276,13 @@ class FaceVerifyView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            validated_data = serializer.validated_data
+            validated_data = cast(Dict[str, Any], serializer.validated_data)
+            if not validated_data:
+                return Response(
+                    {'error': 'No se pudieron validar los datos'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             copropietario_id = validated_data['copropietario_id']
             imagen = validated_data['imagen']
             

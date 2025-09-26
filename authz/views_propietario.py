@@ -160,7 +160,8 @@ class RegistroSolicitudPropietarioView(APIView):
     Formato de respuesta compatible con frontend React/Next.js
     """
     permission_classes = [AllowAny]
-    parser_classes = [JSONParser]
+    from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
         request=SolicitudRegistroPropietarioSerializer,

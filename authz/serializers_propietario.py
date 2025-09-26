@@ -15,6 +15,7 @@ from .models import (
     RelacionesPropietarioInquilino
 )
 from core.models import Vivienda
+from core.models.propiedades_residentes import Vivienda as ViviendaPropiedades
 import base64
 import uuid
 
@@ -109,19 +110,21 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
         """Crear la solicitud de registro inicial"""
         print("🔍 DEBUG: Iniciando create() del serializer")
         print(f"🔍 DEBUG: validated_data recibido: {validated_data}")
-        
         try:
             # Remover campos que no van al modelo
             password = validated_data.pop('password')
-            validated_data.pop('confirm_password')
+            validated_data.pop('confirm_password', None)
             numero_casa = validated_data.pop('numero_casa')
             print(f"🔍 DEBUG: Campos removidos - numero_casa: {numero_casa}")
-            
+
+            # Eliminar fotos_base64 ANTES de cualquier uso de validated_data para modelos
+            fotos_base64 = validated_data.pop('fotos_base64', None)
+
             # Obtener la vivienda
             print(f"🔍 DEBUG: Buscando vivienda con numero_casa: {numero_casa}")
             vivienda = Vivienda.objects.get(numero_casa=numero_casa)
             print(f"🔍 DEBUG: Vivienda encontrada: {vivienda}")
-            
+
             # Crear persona
             persona_data = {
                 'nombre': validated_data['primer_nombre'],
@@ -135,7 +138,11 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
             print(f"🔍 DEBUG: Datos para crear persona: {persona_data}")
             persona = Persona.objects.create(**persona_data)
             print(f"🔍 DEBUG: Persona creada: {persona}")
-            
+
+            # Procesar fotos si se proporcionan
+            if fotos_base64:
+                self._procesar_fotos_reconocimiento(persona, fotos_base64)
+
             # Crear usuario
             print(f"🔍 DEBUG: Creando usuario con email: {validated_data['email']}")
             usuario = Usuario.objects.create_user(
@@ -145,7 +152,7 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
                 estado='ACTIVO'
             )
             print(f"🔍 DEBUG: Usuario creado: {usuario}")
-            
+
             # Crear solicitud de registro con los campos correctos del modelo
             solicitud_data = {
                 'nombres': validated_data['primer_nombre'],
@@ -161,10 +168,10 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
                 'comentarios_admin': f"Registro inicial desde formulario web - Usuario ID: {usuario.id}"
             }
             print(f"🔍 DEBUG: Datos para crear solicitud: {solicitud_data}")
-            
+
             solicitud = SolicitudRegistroPropietario.objects.create(**solicitud_data)
             print(f"🔍 DEBUG: Solicitud creada exitosamente: {solicitud}")
-            
+
             resultado = {
                 'usuario': usuario,
                 'persona': persona,
@@ -173,7 +180,6 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
             }
             print(f"🔍 DEBUG: Retornando resultado: {type(resultado)}")
             return resultado
-            
         except Exception as e:
             print(f"❌ ERROR en create(): {type(e).__name__}: {str(e)}")
             import traceback
@@ -205,10 +211,10 @@ class FamiliarRegistroSerializer(serializers.Serializer):
     puede_autorizar_visitas = serializers.BooleanField(default=False)
     
     # Campo para foto en base64
-    foto_base64 = serializers.CharField(
-        required=False, 
-        allow_blank=True,
-        help_text="Foto en formato base64 para reconocimiento facial"
+    fotos_base64 = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="Lista de fotos en base64 para reconocimiento facial (mínimo 1, recomendado 3-5)"
     )
 
     def validate(self, attrs):
@@ -236,12 +242,11 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)  # Alias para compatibilidad con frontend
     
-    # Campos para reconocimiento facial
-    foto_base64 = serializers.CharField(
-        write_only=True, 
-        required=False, 
-        allow_blank=True,
-        help_text="Foto del propietario en base64 para reconocimiento facial"
+    # Campo para imagen de perfil (archivo)
+    fotos_base64 = serializers.ListField(
+        child=serializers.CharField(),
+        required=True,
+        help_text="Lista de fotos en base64 para reconocimiento facial (mínimo 1, recomendado 3-5)"
     )
     
     # Lista de familiares
@@ -259,7 +264,7 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
         fields = [
             'nombres', 'apellidos', 'documento_identidad', 'fecha_nacimiento',
             'email', 'telefono', 'numero_casa', 
-            'password', 'password_confirm', 'confirm_password', 'foto_base64', 'familiares',
+            'password', 'password_confirm', 'confirm_password', 'foto_perfil', 'fotos_base64', 'familiares',
             'acepta_terminos', 'acepta_tratamiento_datos', 'vivienda_info'
         ]
 
@@ -384,10 +389,38 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
         validated_data.pop('familiares', [])
         validated_data.pop('acepta_terminos')
         validated_data.pop('acepta_tratamiento_datos')
-        
+        fotos_base64 = validated_data.pop('fotos_base64', None)
+
+        # Subir fotos a Dropbox y guardar URLs
+        fotos_urls = []
+        if fotos_base64:
+            from core.utils.dropbox_upload import upload_image_to_dropbox
+            import base64
+            from django.core.files.base import ContentFile
+            from uuid import uuid4
+            for idx, foto_b64 in enumerate(fotos_base64):
+                try:
+                    # Extraer extensión real del base64 (ej: data:image/png;base64,...)
+                    if ';base64,' in foto_b64:
+                        header, b64data = foto_b64.split(';base64,')
+                        ext = header.split('/')[-1].lower()
+                        if ext == 'jpeg':
+                            ext = 'jpg'
+                    else:
+                        b64data = foto_b64
+                        ext = 'jpg'
+                    img_data = base64.b64decode(b64data)
+                    file_name = f"solicitud_propietario_reconocimiento_{validated_data.get('documento_identidad','')}_{uuid4().hex[:8]}_{idx}.{ext}"
+                    file = ContentFile(img_data, name=file_name)
+                    url_foto = upload_image_to_dropbox(file, file_name, folder="/FotoPropietario")
+                    fotos_urls.append(url_foto)
+                except Exception:
+                    pass
+        validated_data['fotos_reconocimiento_urls'] = fotos_urls
+
         # Crear solicitud
         solicitud = SolicitudRegistroPropietario.objects.create(**validated_data)
-        
+
         # Validar vivienda automáticamente
         try:
             es_valida, mensaje = solicitud.validar_vivienda()
@@ -403,7 +436,7 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'numero_casa': f'Error validando vivienda: {str(e)}'
             })
-        
+
         return solicitud
 
 
@@ -498,28 +531,28 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
             
             return usuario
 
-    def _procesar_foto_reconocimiento(self, persona, foto_base64):
-        """Procesa la foto para reconocimiento facial"""
+    def _procesar_fotos_reconocimiento(self, persona, fotos_base64):
+        """Procesa varias fotos para reconocimiento facial y guarda todos los encodings"""
         try:
-            # Decodificar base64
-            format_str, imgstr = foto_base64.split(';base64,')
-            ext = format_str.split('/')[-1]
-            
-            # Crear archivo
-            data = ContentFile(
-                base64.b64decode(imgstr), 
-                name=f'perfil_{persona.documento_identidad}.{ext}'
-            )
-            
-            persona.foto_perfil = data
-            persona.reconocimiento_facial_activo = True
+            from django.core.files.base import ContentFile
+            import base64
+            from core.utils.face_encoding import generate_face_encoding_from_base64
+            encodings = []
+            for idx, foto_base64 in enumerate(fotos_base64):
+                # Decodificar base64 y guardar la primera foto como perfil
+                if idx == 0:
+                    format_str, imgstr = foto_base64.split(';base64,')
+                    ext = format_str.split('/')[-1]
+                    data = ContentFile(base64.b64decode(imgstr), name=f'perfil_{persona.documento_identidad}.{ext}')
+                    persona.foto_perfil = data
+                encoding = generate_face_encoding_from_base64(foto_base64)
+                if encoding:
+                    encodings.append(encoding)
+            if encodings:
+                persona.encoding_facial = encodings
+                persona.reconocimiento_facial_activo = True
             persona.save()
-            
-            # TODO: Aquí se integraría con el servicio de reconocimiento facial
-            # para generar el encoding_facial
-            
         except Exception as e:
-            # Log del error pero no fallar el registro
             pass
 
     def _crear_familiar(self, propietario, familiar_data):
@@ -538,9 +571,7 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
             tipo_persona='familiar'
         )
         
-        # Procesar foto si se proporciona
-        if foto_base64:
-            self._procesar_foto_reconocimiento(persona, foto_base64)
+        # Procesar fotos si se proporcionan
         
         # Crear relación familiar
         FamiliarPropietario.objects.create(
@@ -619,13 +650,15 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
     familiares_count = serializers.SerializerMethodField()
     familiares = serializers.SerializerMethodField()
     revisado_por_info = serializers.SerializerMethodField()
+    foto_perfil = serializers.ImageField(read_only=True)
     
     class Meta:
         model = SolicitudRegistroPropietario
         fields = [
             'id', 'nombres', 'apellidos', 'documento_identidad', 'email',
             'telefono', 'numero_casa', 'fecha_nacimiento', 'estado', 'created_at', 'fecha_revision',
-            'comentarios_admin', 'revisado_por_info', 'vivienda_info', 'familiares_count', 'familiares'
+            'comentarios_admin', 'revisado_por_info', 'vivienda_info', 'familiares_count', 'familiares',
+            'foto_perfil'
         ]
     
     def get_vivienda_info(self, obj):
@@ -755,11 +788,31 @@ class RegistroInquilinoSerializer(serializers.Serializer):
     email = serializers.EmailField()
     fecha_nacimiento = serializers.DateField()
     
+    # Datos de la cuenta del inquilino
+    password = serializers.CharField(
+        min_length=8,
+        write_only=True,
+        help_text="Contraseña para la cuenta del inquilino"
+    )
+    confirm_password = serializers.CharField(
+        min_length=8,
+        write_only=True,
+        help_text="Confirmar contraseña"
+    )
+    
     # Datos de la relación de alquiler
     fecha_inicio = serializers.DateField()
     fecha_fin = serializers.DateField(required=False, allow_null=True)
     monto_alquiler = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
     observaciones = serializers.CharField(required=False, allow_blank=True)
+    
+    # Vivienda específica (opcional, si no se proporciona usa la del propietario)
+    vivienda_id = serializers.IntegerField(required=False, allow_null=True)
+    genero = serializers.ChoiceField(
+        choices=Persona.GENERO_CHOICES,
+        required=False,
+        allow_blank=True
+    )
     
     def validate_documento_identidad(self, value):
         """Validar que el documento no esté ya registrado"""
@@ -785,6 +838,22 @@ class RegistroInquilinoSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 'fecha_fin': 'La fecha de fin debe ser posterior a la fecha de inicio.'
             })
+        
+        # Validar que las contraseñas coincidan
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+        
+        if password != confirm_password:
+            raise serializers.ValidationError({
+                'confirm_password': 'Las contraseñas no coinciden.'
+            })
+        
+        # Validar fortaleza de la contraseña
+        try:
+            from django.contrib.auth.password_validation import validate_password
+            validate_password(password)
+        except ValidationError as e:
+            raise serializers.ValidationError({'password': e.messages})
             
         return attrs
     
@@ -792,30 +861,43 @@ class RegistroInquilinoSerializer(serializers.Serializer):
         request = self.context['request']
         propietario = request.user
         
-        # Obtener la vivienda del propietario (asumimos que tiene una vivienda principal)
-        # Esto puedes ajustarlo según tu lógica de negocio
-        try:
-            # Buscar la vivienda del propietario en el modelo SolicitudRegistroPropietario aprobada
-            solicitud = SolicitudRegistroPropietario.objects.get(
-                usuario_creado=propietario,
-                estado='APROBADA'
-            )
-            vivienda = solicitud.vivienda_validada
-            
-            if not vivienda:
-                raise serializers.ValidationError("No se encontró una vivienda asociada al propietario.")
+        # Obtener la vivienda (prioridad: vivienda_id del payload, luego la del propietario)
+        vivienda_id = validated_data.pop('vivienda_id', None)
+        
+        if vivienda_id:
+            # Usar la vivienda específica del payload
+            try:
+                vivienda = ViviendaPropiedades.objects.get(id=vivienda_id)
+            except ViviendaPropiedades.DoesNotExist:
+                raise serializers.ValidationError(f"No se encontró la vivienda con ID {vivienda_id}.")
+        else:
+            # Usar la vivienda del propietario de su solicitud aprobada
+            try:
+                solicitud = SolicitudRegistroPropietario.objects.get(
+                    usuario_creado=propietario,
+                    estado='APROBADA'
+                )
+                vivienda = solicitud.vivienda_validada
                 
-        except SolicitudRegistroPropietario.DoesNotExist:
-            raise serializers.ValidationError("No se encontró una solicitud aprobada para este propietario.")
+                if not vivienda:
+                    raise serializers.ValidationError("No se encontró una vivienda asociada al propietario.")
+                    
+            except SolicitudRegistroPropietario.DoesNotExist:
+                raise serializers.ValidationError("No se encontró una solicitud aprobada para este propietario.")
+        
+        # Extraer contraseña
+        password = validated_data.pop('password')
+        validated_data.pop('confirm_password')  # Remover confirm_password
         
         # Extraer datos de persona y relación
         persona_data = {
             'nombre': validated_data.pop('nombre'),
             'apellido': validated_data.pop('apellido'),
             'documento_identidad': validated_data.pop('documento_identidad'),
-            'telefono': validated_data.get('telefono', ''),
+            'telefono': validated_data.pop('telefono', ''),
             'email': validated_data.pop('email'),
             'fecha_nacimiento': validated_data.pop('fecha_nacimiento'),
+            'genero': validated_data.pop('genero', ''),
             'tipo_persona': 'inquilino'
         }
         
@@ -829,26 +911,17 @@ class RegistroInquilinoSerializer(serializers.Serializer):
                 # Crear usuario para el inquilino
                 usuario_inquilino = Usuario.objects.create_user(
                     email=persona.email,
-                    password='inquilino123',  # Password temporal
-                    tipo_usuario='inquilino'
+                    password=password,  # Usar la contraseña proporcionada
+                    estado='ACTIVO'
                 )
+                
+                # Asignar la persona creada al usuario
+                usuario_inquilino.persona = persona
+                usuario_inquilino.save()
                 
                 # Asignar rol de inquilino
                 rol_inquilino, _ = Rol.objects.get_or_create(nombre='Inquilino')
                 usuario_inquilino.roles.add(rol_inquilino)
-                
-                # Crear persona para el usuario
-                persona_usuario = Persona.objects.create(
-                    nombre=persona.nombre,
-                    apellido=persona.apellido,
-                    documento_identidad=persona.documento_identidad + '_USER',  # Diferenciador
-                    telefono=persona.telefono,
-                    email=persona.email,
-                    fecha_nacimiento=persona.fecha_nacimiento,
-                    tipo_persona='inquilino'
-                )
-                usuario_inquilino.persona = persona_usuario
-                usuario_inquilino.save()
                 
                 # Crear la relación propietario-inquilino
                 relacion = RelacionesPropietarioInquilino.objects.create(
@@ -861,7 +934,7 @@ class RegistroInquilinoSerializer(serializers.Serializer):
                 return {
                     'inquilino': usuario_inquilino,
                     'relacion': relacion,
-                    'mensaje': 'Inquilino registrado exitosamente. Password temporal: inquilino123'
+                    'mensaje': 'Inquilino registrado exitosamente con la contraseña proporcionada.'
                 }
                 
         except Exception as e:
