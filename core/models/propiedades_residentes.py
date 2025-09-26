@@ -77,6 +77,12 @@ class Mantenimiento(models.Model):
     titulo = models.CharField(max_length=200)
     descripcion = models.TextField()
     tipo = models.CharField(max_length=50, choices=[('preventivo', 'Preventivo'), ('correctivo', 'Correctivo')])
+
+    # Hacer frecuencia opcional para inquilinos y propietarios
+    frecuencia = models.CharField(max_length=50, choices=[('diario', 'Diario'), ('semanal', 'Semanal'), ('mensual', 'Mensual'), ('anual', 'Anual')],
+                                  null=True, blank=True,  # Hacerlo opcional para propietarios e inquilinos
+                                  default=None)
+    
     fecha_programada = models.DateField(null=True, blank=True)
     fecha_realizacion = models.DateField(null=True, blank=True)
     costo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
@@ -87,6 +93,7 @@ class Mantenimiento(models.Model):
 
     def __str__(self):
         return self.titulo
+
 
 # Tabla de tareas de mantenimiento
 class TareaMantenimiento(models.Model):

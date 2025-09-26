@@ -77,6 +77,9 @@ urlpatterns = [
     # Rutas para la gestión de áreas comunes (crud)
     path('api/areas-comunes/', include('reservas_areas.urls')),
 
+    #mantenimiento
+    path('api/mantenimiento/', include('mantenimiento.urls')),
+    
 ]
 
 # Servir archivos media en desarrollo
