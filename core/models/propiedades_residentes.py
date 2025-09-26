@@ -316,6 +316,7 @@ class Visita(models.Model):
     llamada_confirmacion_realizada = models.BooleanField(default=False)
     foto_ingreso_url = models.URLField(null=True, blank=True)
     foto_salida_url = models.URLField(null=True, blank=True)
+    fotos_reconocimiento = models.JSONField(default=list, blank=True, help_text="Lista de dicts con path y url de fotos para reconocimiento facial")
     registro_automatico_ia = models.BooleanField(default=False)
     observaciones = models.TextField(null=True, blank=True)
 

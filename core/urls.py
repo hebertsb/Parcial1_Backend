@@ -74,6 +74,9 @@ urlpatterns = [
     #gestion de espacios comunes(crud)
     path('api/areas-comunes/', include('areas_comunes.urls')),
 
+    # Visitas (registro y gestión de visitantes)
+    path('api/', include('core.api.visitas.urls')),
+
 ]
 
 # Servir archivos media en desarrollo

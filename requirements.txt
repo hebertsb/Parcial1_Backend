@@ -31,12 +31,13 @@ Pillow==11.3.0
 numpy==2.2.6
 opencv-python==4.12.0.88
 
-# === Optional: Face Recognition Library ===
-# Uncomment the following lines if you want to install face_recognition
-# Note: Requires CMake and Visual Studio Build Tools on Windows
-# cmake==4.1.0
-# dlib>=19.24.0
-# face-recognition>=1.3.0
+# === Face Recognition Library ===
+cmake==4.1.0
+dlib>=19.24.0
+face-recognition>=1.3.0
+
+# === Dropbox SDK ===
+dropbox>=11.36.2
 
 # === Azure Cognitive Services (Optional) ===
 azure-cognitiveservices-vision-face==0.6.1

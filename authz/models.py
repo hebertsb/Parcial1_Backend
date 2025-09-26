@@ -54,7 +54,16 @@ class Persona(models.Model):
     direccion = models.TextField(blank=True)
     # Campos para reconocimiento facial
     foto_perfil = models.ImageField(upload_to='fotos_perfil/', blank=True, null=True)
-    encoding_facial = models.JSONField(blank=True, null=True, help_text="Codificación facial para reconocimiento")
+    encoding_facial = models.JSONField(blank=True, null=True, help_text="Lista de codificaciones faciales para reconocimiento (puede ser una lista de listas)")
+    def agregar_encoding_facial(self, nuevo_encoding):
+        """Agrega un nuevo encoding facial a la lista de encodings."""
+        if not self.encoding_facial:
+            self.encoding_facial = []
+        # Si solo hay un encoding antiguo (no lista de listas), conviértelo
+        if self.encoding_facial and isinstance(self.encoding_facial[0], (float, int)):
+            self.encoding_facial = [self.encoding_facial]
+        self.encoding_facial.append(list(nuevo_encoding))
+        self.save()
     reconocimiento_facial_activo = models.BooleanField(default=False)
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -318,9 +327,15 @@ class SolicitudRegistroPropietario(models.Model):
         related_name='solicitud_registro'
     )
     
+    # Imagen del solicitante
+    foto_perfil = models.ImageField(upload_to='solicitudes_fotos/', blank=True, null=True, help_text="Foto del solicitante para reconocimiento/acceso")
+
+    # URLs de fotos de reconocimiento facial subidas a Dropbox
+    fotos_reconocimiento_urls = models.JSONField(default=list, blank=True, help_text="Lista de URLs de fotos para reconocimiento facial (Dropbox)")
+
     # Token de seguimiento
     token_seguimiento = models.CharField(max_length=50, unique=True, blank=True, help_text="Token único para seguimiento de la solicitud")
-    
+
     # Metadatos
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
