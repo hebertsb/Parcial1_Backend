@@ -102,13 +102,23 @@ class TareaMantenimiento(models.Model):
 
 # Tabla de reservas de espacios
 class ReservaEspacio(models.Model):
+    ESTADO_CHOICES = [
+        ('solicitada', 'Solicitada'),
+        ('confirmada', 'Confirmada'),
+        ('pagada', 'Pagada'),
+        ('en_uso', 'En uso'),
+        ('completada', 'Completada'),
+        ('cancelada', 'Cancelada'),
+        ('no_show', 'No Show'),
+    ]
+    
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE)
     espacio_comun = models.ForeignKey('core.EspacioComun', on_delete=models.CASCADE)
     fecha_reserva = models.DateField()
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
     tipo_evento = models.CharField(max_length=100, null=True, blank=True)
-    estado = models.CharField(max_length=30, default='solicitada', choices=[('solicitada', 'Solicitada'), ('confirmada', 'Confirmada'), ('pagada', 'Pagada'), ('en_uso', 'En uso'), ('completada', 'Completada'), ('cancelada', 'Cancelada'), ('no_show', 'No Show')])
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='solicitada')
     monto_total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     monto_deposito = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
@@ -122,6 +132,7 @@ class ReservaEspacio(models.Model):
 
     def __str__(self):
         return f"Reserva {self.espacio_comun.nombre} - {self.fecha_reserva}"
+
 
 # Tabla de espacios comunes
 class EspacioComun(models.Model):

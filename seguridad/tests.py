@@ -8,15 +8,17 @@ import base64
 from unittest.mock import patch, MagicMock
 from PIL import Image
 from django.test import TestCase
-from django.contrib.auth.models import User
 from django.urls import reverse
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
+from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from typing import Optional, cast
 
 from seguridad.models import (
-    Roles, Usuarios, Copropietarios, ReconocimientoFacial, BitacoraAcciones
+    Copropietarios, ReconocimientoFacial, BitacoraAcciones, fn_bitacora_log
 )
+from authz.models import Usuario, Rol
 
 
 class ModelsTestCase(TestCase):
@@ -24,22 +26,16 @@ class ModelsTestCase(TestCase):
     
     def setUp(self):
         """Configuración inicial para tests"""
-        self.rol = Roles.objects.create(
+        self.rol = Rol.objects.create(
             nombre='Test Role',
             descripcion='Rol de prueba'
         )
         
-        self.user = User.objects.create_user(
-            username='testuser',
+        self.usuario = Usuario.objects.create_user(
             email='test@test.com',
             password='testpass123'
         )
-        
-        self.usuario = Usuarios.objects.create(
-            user=self.user,
-            rol=self.rol,
-            telefono='+573001234567'
-        )
+        self.usuario.roles.add(self.rol)
         
         self.copropietario = Copropietarios.objects.create(
             nombres='Juan',
@@ -85,19 +81,13 @@ class FaceRecognitionAPITestCase(APITestCase):
     
     def setUp(self):
         """Configuración inicial"""
-        # Crear usuario de prueba
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@test.com',
+        # Crear rol y usuario
+        self.rol = Rol.objects.create(nombre='Operador')
+        self.usuario = Usuario.objects.create_user(
+            email='testuser@test.com',
             password='testpass123'
         )
-        
-        # Crear rol y usuario
-        self.rol = Roles.objects.create(nombre='Operador')
-        self.usuario = Usuarios.objects.create(
-            user=self.user,
-            rol=self.rol
-        )
+        self.usuario.roles.add(self.rol)
         
         # Crear copropietario
         self.copropietario = Copropietarios.objects.create(
@@ -109,11 +99,11 @@ class FaceRecognitionAPITestCase(APITestCase):
         )
         
         # Obtener token JWT
-        refresh = RefreshToken.for_user(self.user)
+        refresh = RefreshToken.for_user(self.usuario)
         self.access_token = str(refresh.access_token)
         
         # Configurar autenticación
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')  # type: ignore
         
         # Crear imagen de prueba
         self.test_image = self._create_test_image()
@@ -128,7 +118,7 @@ class FaceRecognitionAPITestCase(APITestCase):
     
     def test_face_enroll_without_auth(self):
         """Test enrolamiento sin autenticación"""
-        self.client.credentials()  # Remover credenciales
+        self.client.credentials()  # Remover credenciales  # type: ignore
         
         url = reverse('seguridad:face-enroll')
         response = self.client.post(url, {
@@ -154,8 +144,9 @@ class FaceRecognitionAPITestCase(APITestCase):
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertFalse(response.data['enrolado'])
-        self.assertIsNone(response.data['proveedor'])
+        # APITestCase provides response.data attribute
+        self.assertFalse(response.data['enrolado'])  # type: ignore
+        self.assertIsNone(response.data['proveedor'])  # type: ignore
 
 
 class BitacoraTestCase(TestCase):
@@ -163,13 +154,12 @@ class BitacoraTestCase(TestCase):
     
     def setUp(self):
         """Configuración inicial"""
-        self.user = User.objects.create_user(
-            username='testuser',
+        self.rol = Rol.objects.create(nombre='Test Role')
+        self.usuario = Usuario.objects.create_user(
+            email='testuser@test.com',
             password='testpass123'
         )
-        
-        self.rol = Roles.objects.create(nombre='Test Role')
-        self.usuario = Usuarios.objects.create(user=self.user, rol=self.rol)
+        self.usuario.roles.add(self.rol)
         
         self.copropietario = Copropietarios.objects.create(
             nombres='Test',
@@ -197,6 +187,8 @@ class BitacoraTestCase(TestCase):
         ).first()
         
         self.assertIsNotNone(bitacora)
+        # Usar assert para que Pylance entienda que bitacora no es None
+        assert bitacora is not None
         self.assertEqual(bitacora.usuario, self.usuario)
         self.assertEqual(bitacora.copropietario, self.copropietario)
         self.assertEqual(bitacora.proveedor_ia, 'Local')
