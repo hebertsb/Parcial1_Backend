@@ -527,8 +527,8 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
                     file_name_final = f"propietario_{persona.documento_identidad}_{idx}.jpg"
                     print(f"[DEBUG] [IMG {idx}] Nombre final para FotoPropietario: {file_name_final}")
                     file = ContentFile(img_bytes.read(), name=file_name_final)
-                    print(f"[DEBUG] [IMG {idx}] Subiendo imagen a /FotoPropietario...")
-                    url_final = upload_image_to_dropbox(file, file_name_final, folder="/FotoPropietario")
+                    print(f"[DEBUG] [IMG {idx}] Subiendo imagen a /Propietarios...")
+                    url_final = upload_image_to_dropbox(file, file_name_final, folder="/Propietarios")
                     print(f"[DEBUG] [IMG {idx}] Imagen subida. URL/Path: {url_final}")
                     nuevas_urls.append(url_final)
                     dbx = dropbox.Dropbox(DROPBOX_TOKEN)
