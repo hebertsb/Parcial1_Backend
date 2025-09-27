@@ -1,0 +1,47 @@
+# Guía de integración para el flujo de imágenes de propietarios
+
+Esta guía explica cómo funciona el flujo de registro y aprobación de propietarios, especialmente el manejo de imágenes en Dropbox, para que el frontend pueda integrarse correctamente.
+
+## 1. Registro de propietario (solicitud)
+- El usuario llena el formulario de registro y adjunta imágenes (base64) para reconocimiento facial.
+- El frontend envía la solicitud al endpoint:
+  `POST /api/authz/propietarios/solicitud/`
+- Las imágenes se suben a Dropbox en la carpeta `/SolicitudesPendientes`.
+- El backend responde con el estado "Pendiente de Revisión" y un token de seguimiento.
+
+## 2. Estado inicial en Dropbox
+- Las imágenes estarán en `/SolicitudesPendientes` con nombres tipo:
+  `solicitud_propietario_reconocimiento_{documento_identidad}_{uuid}_{idx}.jpg`
+
+## 3. Aprobación de la solicitud
+- Un administrador revisa y aprueba la solicitud desde el panel o vía API:
+  `POST /api/authz/propietarios/admin/solicitudes/{id}/aprobar/`
+- Al aprobar:
+  - El backend mueve las imágenes de `/SolicitudesPendientes` a `/Propietarios/{documento_identidad}`.
+  - Actualiza los enlaces públicos en la base de datos.
+  - El propietario recibe un email de bienvenida con sus credenciales.
+
+## 4. Estado final en Dropbox
+- Las imágenes estarán en `/Propietarios/{documento_identidad}`.
+- Los enlaces públicos (`url`) se actualizan y pueden ser consultados por el frontend.
+
+## 5. Consultar estado y datos
+- El frontend puede consultar el estado de la solicitud y los enlaces de las imágenes usando el token de seguimiento:
+  `GET /api/authz/propietarios/solicitud/{token}/`
+- El backend responderá con:
+  - Estado de la solicitud (pendiente, aprobada, rechazada)
+  - Datos del propietario
+  - Enlaces públicos a las imágenes
+
+## 6. Resumen del flujo
+1. Solicitud: imágenes en `/SolicitudesPendientes`.
+2. Aprobación: imágenes movidas a `/Propietarios/{documento_identidad}`.
+3. Frontend consulta estado y enlaces actualizados.
+
+## 7. Recomendaciones para el frontend
+- Mostrar el estado de la solicitud y los enlaces de las imágenes según la respuesta del backend.
+- No asumir la ubicación final de las imágenes hasta que la solicitud esté aprobada.
+- Usar el token de seguimiento para todas las consultas relacionadas.
+
+---
+Si necesitas ejemplos de payloads o endpoints específicos, avísame y los agrego.

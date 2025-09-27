@@ -22,8 +22,33 @@ from .serializers_propietario import (
     StatusSolicitudSerializer,
     SolicitudDetailSerializer,
     AprobarSolicitudSerializer,
-    RechazarSolicitudSerializer
+    RechazarSolicitudSerializer,
+    PropietarioDetalleSerializer
 )
+# ...existing code...
+
+class DetallePropietarioView(APIView):
+    """
+    Endpoint para obtener el detalle de un propietario por ID, incluyendo:
+    - Datos de Persona (foto_perfil)
+    - Datos de SolicitudRegistroPropietario (foto_perfil, fotos_reconocimiento_urls)
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, propietario_id):
+        from .models import Usuario, SolicitudRegistroPropietario
+        usuario = Usuario.objects.filter(id=propietario_id).first()
+        if not usuario or not usuario.persona:
+            return Response({"error": "Propietario no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Buscar la solicitud asociada (la última aprobada)
+        solicitud = SolicitudRegistroPropietario.objects.filter(usuario_creado=usuario).order_by('-fecha_aprobacion').first()
+
+        serializer = PropietarioDetalleSerializer({
+            "persona": usuario.persona,
+            "solicitud": solicitud
+        })
+        return Response(serializer.data)
 from .email_service import EmailService
 from core.models import Vivienda, Propiedad
 

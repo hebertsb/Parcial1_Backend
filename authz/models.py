@@ -7,6 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 import secrets
 import string
 from django.utils import timezone
+        # Mover imágenes de reconocimiento facial a la carpeta definitiva del propietario en Dropbox
 
 
 class Rol(models.Model):
@@ -27,6 +28,10 @@ class Rol(models.Model):
 
 
 class Persona(models.Model):
+    @property
+    def foto_perfil_url(self):
+        """Devuelve la URL pública de Dropbox para foto_perfil si existe."""
+        return self.foto_perfil if self.foto_perfil else None
     """Modelo para datos personales centralizados"""
     GENERO_CHOICES = [
         ('M', 'Masculino'),
@@ -53,7 +58,7 @@ class Persona(models.Model):
     tipo_persona = models.CharField(max_length=20, choices=TIPO_PERSONA_CHOICES, default='cliente')
     direccion = models.TextField(blank=True)
     # Campos para reconocimiento facial
-    foto_perfil = models.ImageField(upload_to='fotos_perfil/', blank=True, null=True)
+    foto_perfil = models.CharField(max_length=512, blank=True, null=True, help_text="URL pública de la foto de perfil (Dropbox)")
     encoding_facial = models.JSONField(blank=True, null=True, help_text="Lista de codificaciones faciales para reconocimiento (puede ser una lista de listas)")
     def agregar_encoding_facial(self, nuevo_encoding):
         """Agrega un nuevo encoding facial a la lista de encodings."""
@@ -272,6 +277,30 @@ class FamiliarPropietario(models.Model):
 
 
 class SolicitudRegistroPropietario(models.Model):
+    @property
+    def foto_perfil_url(self):
+        """Devuelve la URL pública de Dropbox para foto_perfil si existe."""
+        if self.foto_perfil:
+            try:
+                from core.utils.dropbox_upload import DROPBOX_TOKEN
+                import dropbox
+                dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+                destino = self.foto_perfil.name if hasattr(self.foto_perfil, 'name') else str(self.foto_perfil)
+                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(destino)
+                url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
+                return url
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Error obteniendo URL pública de Dropbox para foto_perfil: {e}")
+                return None
+        return None
+    @property
+    def foto_perfil_url(self):
+        """Devuelve la URL pública de Dropbox para foto_perfil si existe."""
+        if self.foto_perfil:
+            return self.foto_perfil
+        return None
     """Modelo para gestionar solicitudes de registro de propietarios"""
     ESTADO_CHOICES = [
         ('PENDIENTE', 'Pendiente de Revisión'),
@@ -386,100 +415,167 @@ class SolicitudRegistroPropietario(models.Model):
             return False, f"Error validando vivienda: {str(e)}"
 
     def aprobar_solicitud(self, revisado_por_usuario):
+        import logging
+        logger = logging.getLogger(__name__)
+        # Mover imágenes de reconocimiento facial a la carpeta definitiva del propietario en Dropbox
+        # Crear o obtener persona antes del bloque try
+        persona, persona_created = Persona.objects.get_or_create(
+            documento_identidad=self.documento_identidad,
+            defaults={
+                'nombre': self.nombres,
+                'apellido': self.apellidos,
+                'telefono': self.telefono,
+                'email': self.email,
+                'fecha_nacimiento': self.fecha_nacimiento,
+                'tipo_persona': 'propietario'
+            }
+        )
+        try:
+            from core.utils.dropbox_upload import DROPBOX_TOKEN
+            import dropbox
+            dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+            documento_identidad = self.documento_identidad
+            nueva_carpeta = f"/Aplicaciones/FotoVisita/Propietarios/{documento_identidad}"
+            nuevas_fotos_urls = []
+            url_foto_perfil = None
+            for idx, foto in enumerate(self.fotos_reconocimiento_urls):
+                foto_path = foto['path'] if isinstance(foto, dict) and 'path' in foto else foto
+                nombre_archivo = foto_path.split('/')[-1]
+                origen = foto_path
+                destino = f"{nueva_carpeta}/{nombre_archivo}"
+                try:
+                    # Solo mover si origen y destino son diferentes
+                    if origen != destino:
+                        dbx.files_move_v2(origen, destino, allow_shared_folder=True, autorename=True)
+                    shared_link_metadata = dbx.sharing_create_shared_link_with_settings(destino)
+                    url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
+                    nuevas_fotos_urls.append({'path': destino, 'url': url})
+                    # Guardar la primera imagen como foto_perfil en Persona
+                    if idx == 0:
+                        url_foto_perfil = url
+                except Exception as e:
+                    logger.warning(f"Error moviendo/compartiendo imagen en Dropbox: {e}")
+                    # Intentar solo generar el enlace si el movimiento falla
+                    try:
+                        shared_link_metadata = dbx.sharing_create_shared_link_with_settings(destino)
+                        url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
+                        nuevas_fotos_urls.append({'path': destino, 'url': url})
+                        if idx == 0:
+                            url_foto_perfil = url
+                    except Exception as e2:
+                        logger.warning(f"Error generando enlace público en Dropbox: {e2}")
+                        # Si el error es 'shared_link_already_exists', intentar recuperar el enlace existente
+                        try:
+                            links = dbx.sharing_list_shared_links(path=destino, direct_only=True)
+                            if links.links:
+                                url = links.links[0].url.replace('?dl=0', '?dl=1')
+                                nuevas_fotos_urls.append({'path': destino, 'url': url})
+                                if idx == 0:
+                                    url_foto_perfil = url
+                            else:
+                                nuevas_fotos_urls.append({'path': destino, 'url': None})
+                        except Exception as e3:
+                            logger.warning(f"Error recuperando enlace existente en Dropbox: {e3}")
+                            nuevas_fotos_urls.append({'path': destino, 'url': None})
+            self.fotos_reconocimiento_urls = nuevas_fotos_urls
+            self.save()
+            # Guardar la URL pública en foto_perfil de Persona si existe
+            # Si no hay foto_perfil, usar la primera imagen de reconocimiento facial
+            if not url_foto_perfil and nuevas_fotos_urls and nuevas_fotos_urls[0].get('url'):
+                url_foto_perfil = nuevas_fotos_urls[0]['url']
+            print(f"[DEBUG] url_foto_perfil: {url_foto_perfil}")
+            print(f"[DEBUG] nuevas_fotos_urls: {nuevas_fotos_urls}")
+            if url_foto_perfil:
+                print(f"[DEBUG] persona encontrada: {persona}")
+                print(f"[DEBUG] persona.foto_perfil antes: {persona.foto_perfil}")
+                # Convertir enlace de Dropbox a formato raw
+                def dropbox_to_raw(url):
+                    if url.startswith("https://www.dropbox.com/scl/fi/"):
+                        url = url.replace("https://www.dropbox.com/scl/fi/", "https://dl.dropboxusercontent.com/scl/fi/")
+                        url = url.replace("?dl=0", "")
+                        url = url.replace("?dl=1", "")
+                    return url
+                raw_url = dropbox_to_raw(url_foto_perfil)
+                if not persona.foto_perfil:
+                    persona.foto_perfil = raw_url
+                    persona.save()
+                    persona.refresh_from_db()
+                    print(f"[DEBUG] persona.foto_perfil después: {persona.foto_perfil}")
+                print(f"[DEBUG] solicitud.foto_perfil (ImageField) no modificado")
+        except Exception as e:
+            logger.warning(f"Error general en Dropbox durante aprobación de solicitud: {e}")
         """Aprueba la solicitud y crea el usuario propietario"""
         from django.db import transaction
         
-        with transaction.atomic():
-            # Validar vivienda antes de aprobar
-            es_valida, mensaje = self.validar_vivienda()
-            if not es_valida:
-                raise ValueError(mensaje)
-            
-            # Crear o obtener persona usando el modelo de authz (centralizado)
-            persona, persona_created = Persona.objects.get_or_create(
-                documento_identidad=self.documento_identidad,
-                defaults={
-                    'nombre': self.nombres,
-                    'apellido': self.apellidos,
-                    'telefono': self.telefono,
-                    'email': self.email,
-                    'fecha_nacimiento': self.fecha_nacimiento,
-                    'tipo_persona': 'propietario'
-                }
-            )
-            
-            # Verificar si ya existe un usuario con este email
-            usuario_existente = Usuario.objects.filter(email=self.email).first()
-            if usuario_existente:
-                # Si la persona ya tiene usuario, verificar si puede ser reutilizada
-                if usuario_existente.persona and usuario_existente.persona.documento_identidad == self.documento_identidad:
-                    # Es la misma persona, solo asignar rol si no lo tiene
+        try:
+            with transaction.atomic():
+                # Validar vivienda antes de aprobar
+                es_valida, mensaje = self.validar_vivienda()
+                if not es_valida:
+                    raise ValueError(mensaje)
+
+                # Crear o obtener persona usando el modelo de authz (centralizado)
+                persona, persona_created = Persona.objects.get_or_create(
+                    documento_identidad=self.documento_identidad,
+                    defaults={
+                        'nombre': self.nombres,
+                        'apellido': self.apellidos,
+                        'telefono': self.telefono,
+                        'email': self.email,
+                        'fecha_nacimiento': self.fecha_nacimiento,
+                        'tipo_persona': 'propietario'
+                    }
+                )
+
+                # Verificar si ya existe un usuario con este email
+                usuario_existente = Usuario.objects.filter(email=self.email).first()
+                if usuario_existente:
+                    # Si la persona ya tiene usuario, verificar si puede ser reutilizada
+                    if usuario_existente.persona and usuario_existente.persona.documento_identidad == self.documento_identidad:
+                        # Es la misma persona, solo asignar rol si no lo tiene
+                        rol_propietario, _ = Rol.objects.get_or_create(
+                            nombre='Propietario',
+                            defaults={'descripcion': 'Propietario de vivienda'}
+                        )
+                        if rol_propietario not in usuario_existente.roles.all():
+                            usuario_existente.roles.add(rol_propietario)
+                    usuario = usuario_existente
+                else:
+                    # Crear nuevo usuario y asignar rol propietario
                     rol_propietario, _ = Rol.objects.get_or_create(
                         nombre='Propietario',
                         defaults={'descripcion': 'Propietario de vivienda'}
                     )
-                    if not usuario_existente.roles.filter(nombre='Propietario').exists():
-                        usuario_existente.roles.add(rol_propietario)
-                    
-                    # Actualizar solicitud
-                    self.estado = 'APROBADA'
-                    self.revisado_por = revisado_por_usuario
-                    self.fecha_revision = timezone.now()
-                    self.usuario_creado = usuario_existente
-                    self.save()
-                    
-                    return usuario_existente
-                else:
-                    raise ValueError(f"Ya existe un usuario con el email {self.email} pero con diferente cédula")
-            
-            # Crear usuario nuevo con password temporal (debe cambiarse después)
-            usuario = Usuario.objects.create_user(
-                email=self.email,
-                password='temporal123',  # Password temporal, debe cambiarse después
-                persona=persona
-            )
-            
-            # Asignar rol de propietario
-            rol_propietario, _ = Rol.objects.get_or_create(
-                nombre='Propietario',
-                defaults={'descripcion': 'Propietario de vivienda'}
-            )
-            usuario.roles.add(rol_propietario)
-            
-            # Crear registro en el modelo Propiedad de core para compatibilidad
-            try:
-                from core.models import Propiedad
-                # Usar la persona ya creada del modelo centralizado de authz
-                Propiedad.objects.create(
-                    vivienda=self.vivienda_validada,
-                    persona=persona,  # Usar la persona del modelo authz centralizado
-                    tipo_tenencia='propietario',
-                    fecha_inicio_tenencia=timezone.now().date(),
-                    porcentaje_propiedad=100.00,
-                    activo=True
-                )
-            except Exception as e:
-                # Log pero no fallar si hay problema con compatibilidad
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Error creando propiedad para compatibilidad: {e}")
-                pass
-            
-            # Actualizar solicitud
-            self.estado = 'APROBADA'
-            self.revisado_por = revisado_por_usuario
-            self.fecha_revision = timezone.now()
-            self.fecha_aprobacion = timezone.now()
-            self.usuario_creado = usuario
-            self.save()
-            
-            # Enviar notificación de aprobación
-            try:
-                from .email_service import EmailService
-                EmailService.enviar_solicitud_aprobada(self, usuario)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Error enviando email de aprobación: {e}")
-            
-            return usuario
+                    random_password = "temporal123"
+                    usuario = Usuario.objects.create_user(
+                        email=self.email,
+                        password=random_password,
+                        persona=persona,
+                        estado='ACTIVO'
+                    )
+                    usuario.roles.add(rol_propietario)
+
+                # Actualizar solicitud
+                self.estado = 'APROBADA'
+                self.revisado_por = revisado_por_usuario
+                self.fecha_revision = timezone.now()
+                self.fecha_aprobacion = timezone.now()
+                self.usuario_creado = usuario
+                self.save()
+
+                # Enviar notificación de aprobación
+                try:
+                    from .email_service import EmailService
+                    EmailService.enviar_solicitud_aprobada(self, usuario)
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Error enviando email de aprobación: {e}")
+
+                return usuario
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"[ERROR] aprobar_solicitud: {e}")
+            print(f"[ERROR] aprobar_solicitud: {e}")
+            raise

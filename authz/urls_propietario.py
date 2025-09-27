@@ -8,7 +8,8 @@ from .views_propietario import (
     SolicitudesPendientesView,
     AprobarSolicitudView,
     RechazarSolicitudView,
-    DetalleSolicitudView
+    DetalleSolicitudView,
+    DetallePropietarioView
 )
 
 urlpatterns = [
@@ -21,4 +22,7 @@ urlpatterns = [
     path('admin/solicitudes/<int:solicitud_id>/', DetalleSolicitudView.as_view(), name='detalle-solicitud'),
     path('admin/solicitudes/<int:solicitud_id>/aprobar/', AprobarSolicitudView.as_view(), name='aprobar-solicitud'),
     path('admin/solicitudes/<int:solicitud_id>/rechazar/', RechazarSolicitudView.as_view(), name='rechazar-solicitud'),
+
+    # Endpoint de detalle de propietario por ID
+    path('<int:propietario_id>/', DetallePropietarioView.as_view(), name='detalle-propietario'),
 ]

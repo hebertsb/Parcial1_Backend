@@ -363,12 +363,16 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 )
 def registrar_usuario(request):
     """Registro de nuevo usuario con asignación de rol Inquilino y emisión de tokens JWT."""
+    print("[DEPURACIÓN] request.FILES:", request.FILES)
+    print("[DEPURACIÓN] request.POST:", request.POST)
     serializer = UsuarioRegistroSerializer(data=request.data)
     if not serializer.is_valid():
+        print("[DEPURACIÓN] Errores de validación:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     with transaction.atomic():
         usuario = serializer.save()
+        print("[DEPURACIÓN] Usuario creado:", usuario)
         if isinstance(usuario, list):
             usuario = usuario[0]
 
@@ -386,8 +390,13 @@ def registrar_usuario(request):
         else:
             refresh = RefreshToken.for_user(django_user)
 
+    print("[DEPURACIÓN] Respuesta API:", {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "usuario_id": usuario.id,
+    })
     return Response({
         "access": str(refresh.access_token),
         "refresh": str(refresh),
-    "usuario_id": usuario.id,  # type: ignore
+        "usuario_id": usuario.id,  # type: ignore
     }, status=status.HTTP_201_CREATED)

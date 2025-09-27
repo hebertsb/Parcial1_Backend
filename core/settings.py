@@ -309,7 +309,9 @@ CORS_PREFLIGHT_MAX_AGE = 86400
 # =============================================================================
 
 # Para desarrollo: usar consola (los emails se muestran en la terminal)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+EMAIL_FILE_PATH = 'd:/ParcialBackend/Parcial_1/emails_dev/'  # Carpeta donde se guardarán los emails
 
 # Para producción: configurar SMTP real
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

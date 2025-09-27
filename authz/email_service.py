@@ -54,11 +54,11 @@ class EmailService:
                 fail_silently=False
             )
             
-            logger.info(f"Email enviado exitosamente: {subject} -> {recipient_list}")
+            # logger.info(f"Email enviado exitosamente: {subject} -> {recipient_list}")
             return True
             
         except Exception as e:
-            logger.error(f"Error enviando email: {e}")
+            # logger.error(f"Error enviando email: {e}")
             return False
     
     @staticmethod
@@ -68,8 +68,8 @@ class EmailService:
         Los administradores NO reciben emails de notificación.
         Solo gestionan las solicitudes desde su panel administrativo.
         """
-        logger.info(f"Solicitud creada: {solicitud.nombres} {solicitud.apellidos} - Token: {solicitud.token_seguimiento}")
-        logger.info("Los administradores pueden revisar esta solicitud desde el panel administrativo")
+    # logger.info(f"Solicitud creada: {solicitud.nombres} {solicitud.apellidos} - Token: {solicitud.token_seguimiento}")
+    # logger.info("Los administradores pueden revisar esta solicitud desde el panel administrativo")
         return True
     
     @staticmethod
@@ -143,6 +143,6 @@ class EmailService:
                 test_results['send_test_ok'] = test_email
                 
         except Exception as e:
-            logger.error(f"Error en prueba de email: {e}")
-        
+            # logger.error(f"Error en prueba de email: {e}")
+            pass
         return test_results

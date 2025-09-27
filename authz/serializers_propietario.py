@@ -1,3 +1,47 @@
+from .models import Persona, SolicitudRegistroPropietario
+# ...existing code...
+from rest_framework import serializers
+# ...existing code...
+
+class PersonaSimpleSerializer(serializers.ModelSerializer):
+    foto_perfil = serializers.SerializerMethodField()
+
+    def get_foto_perfil(self, obj):
+        return obj.foto_perfil_url
+    class Meta:
+        model = Persona
+        fields = [
+            'id', 'nombre', 'apellido', 'documento_identidad', 'email', 'telefono', 'fecha_nacimiento',
+            'foto_perfil', 'encoding_facial', 'reconocimiento_facial_activo'
+        ]
+
+class SolicitudRegistroPropietarioSimpleSerializer(serializers.ModelSerializer):
+    foto_perfil = serializers.SerializerMethodField()
+    fotos_reconocimiento_urls = serializers.SerializerMethodField(read_only=True)
+
+    def get_foto_perfil(self, obj):
+        return obj.foto_perfil_url
+
+    def get_fotos_reconocimiento_urls(self, obj):
+        # Devuelve la lista de dicts con la URL pública o null
+        resultado = []
+        for foto in obj.fotos_reconocimiento_urls or []:
+            resultado.append({
+                'path': foto.get('path') if isinstance(foto, dict) else None,
+                'url': foto.get('url') if isinstance(foto, dict) else None
+            })
+        return resultado
+
+    class Meta:
+        model = SolicitudRegistroPropietario
+        fields = [
+            'id', 'nombres', 'apellidos', 'documento_identidad', 'email', 'telefono', 'numero_casa',
+            'fecha_nacimiento', 'estado', 'foto_perfil', 'fotos_reconocimiento_urls', 'created_at', 'fecha_aprobacion'
+        ]
+
+class PropietarioDetalleSerializer(serializers.Serializer):
+    persona = PersonaSimpleSerializer()
+    solicitud = SolicitudRegistroPropietarioSimpleSerializer(allow_null=True)
 """
 Serializers específicos para el registro de propietarios
 Incluye formularios para propietarios, familiares y reconocimiento facial
@@ -411,9 +455,11 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
                         b64data = foto_b64
                         ext = 'jpg'
                     img_data = base64.b64decode(b64data)
-                    file_name = f"solicitud_propietario_reconocimiento_{validated_data.get('documento_identidad','')}_{uuid4().hex[:8]}_{idx}.{ext}"
+                    documento_identidad = validated_data.get('documento_identidad','')
+                    file_name = f"solicitud_propietario_reconocimiento_{documento_identidad}_{uuid4().hex[:8]}_{idx}.{ext}"
                     file = ContentFile(img_data, name=file_name)
-                    url_foto = upload_image_to_dropbox(file, file_name, folder="/SolicitudesPendientes")
+                    folder_path = f"/Propietarios/{documento_identidad}"
+                    url_foto = upload_image_to_dropbox(file, file_name, folder=folder_path)
                     fotos_urls.append(url_foto)
                 except Exception:
                     pass
@@ -645,6 +691,11 @@ class SolicitudRegistroDetailSerializer(serializers.ModelSerializer):
         source='revisado_por.persona.nombre_completo',
         read_only=True
     )
+    fotos_reconocimiento_urls = serializers.SerializerMethodField(read_only=True)
+
+    def get_fotos_reconocimiento_urls(self, obj):
+        # Return the list of Dropbox URLs for frontend display
+        return obj.fotos_reconocimiento_urls if obj.fotos_reconocimiento_urls else []
     
     class Meta:
         model = SolicitudRegistroPropietario
@@ -705,6 +756,11 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
     familiares = serializers.SerializerMethodField()
     revisado_por_info = serializers.SerializerMethodField()
     foto_perfil = serializers.ImageField(read_only=True)
+    fotos_reconocimiento_urls = serializers.SerializerMethodField(read_only=True)
+
+    def get_fotos_reconocimiento_urls(self, obj):
+        # Return the list of Dropbox URLs for frontend display
+        return obj.fotos_reconocimiento_urls if obj.fotos_reconocimiento_urls else []
     
     class Meta:
         model = SolicitudRegistroPropietario
@@ -712,7 +768,7 @@ class SolicitudDetailSerializer(serializers.ModelSerializer):
             'id', 'nombres', 'apellidos', 'documento_identidad', 'email',
             'telefono', 'numero_casa', 'fecha_nacimiento', 'estado', 'created_at', 'fecha_revision',
             'comentarios_admin', 'revisado_por_info', 'vivienda_info', 'familiares_count', 'familiares',
-            'foto_perfil'
+            'foto_perfil', 'fotos_reconocimiento_urls'
         ]
     
     def get_vivienda_info(self, obj):

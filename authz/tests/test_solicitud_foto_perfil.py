@@ -24,10 +24,14 @@ class SolicitudFotoPerfilDetalleTest(APITestCase):
     def test_crear_y_ver_foto_perfil_en_detalle(self):
         url = reverse('registro-solicitud-propietario')
         image_path = os.path.join(settings.BASE_DIR, "authz", "tests", "media", "1.jpg")
+        import base64
         with open(image_path, "rb") as img_file:
+            image_bytes = img_file.read()
             image = SimpleUploadedFile(
-                "test.jpg", img_file.read(), content_type="image/jpeg"
+                "test.jpg", image_bytes, content_type="image/jpeg"
             )
+            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+            fotos_base64 = [f"data:image/jpeg;base64,{image_b64}"]
             data = {
                 "nombres": "Juan",
                 "apellidos": "Pérez",
@@ -40,6 +44,7 @@ class SolicitudFotoPerfilDetalleTest(APITestCase):
                 "password_confirm": "TestPassword123",
                 "confirm_password": "TestPassword123",
                 "foto_perfil": image,
+                "fotos_base64": fotos_base64,
                 "acepta_terminos": True,
                 "acepta_tratamiento_datos": True
             }

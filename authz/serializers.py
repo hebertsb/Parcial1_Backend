@@ -16,7 +16,10 @@ class PersonaSerializer(serializers.ModelSerializer):
     """Serializer para manejar datos de persona"""
     edad = serializers.SerializerMethodField()
     nombre_completo = serializers.SerializerMethodField()
-    foto_perfil = serializers.ImageField(required=True)
+    foto_perfil = serializers.SerializerMethodField()
+    def get_foto_perfil(self, obj):
+        # Devuelve la URL pública si existe
+        return obj.foto_perfil if obj.foto_perfil else None
 
     class Meta:
         model = Persona
@@ -42,7 +45,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
     """Serializer para mostrar datos completos del usuario incluyendo persona"""
     persona = PersonaSerializer(read_only=True)
     roles = RolSerializer(many=True, read_only=True)
-    
+
     # Propiedades de la persona para compatibilidad
     nombres = serializers.CharField(read_only=True)
     apellidos = serializers.CharField(read_only=True)
@@ -51,7 +54,14 @@ class UsuarioSerializer(serializers.ModelSerializer):
     genero = serializers.CharField(read_only=True)
     documento_identidad = serializers.CharField(read_only=True)
     pais = serializers.CharField(read_only=True)
-    
+
+    foto_perfil = serializers.SerializerMethodField()
+    def get_foto_perfil(self, obj):
+        # Devuelve la URL pública de la foto de perfil si existe
+        if obj.persona and obj.persona.foto_perfil:
+            return obj.persona.foto_perfil
+        return None
+
     class Meta:
         model = Usuario
         fields = [
@@ -59,7 +69,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "last_login", "date_joined", "persona", "roles",
             # Campos de compatibilidad
             "nombres", "apellidos", "telefono", "fecha_nacimiento", 
-            "genero", "documento_identidad", "pais"
+            "genero", "documento_identidad", "pais",
+            "foto_perfil"
         ]
 
 
@@ -193,45 +204,53 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data):
-        # Extraer datos de contraseña
-        validated_data.pop('password_confirm')
-        password = validated_data.pop('password')
+            # Extraer datos de contraseña
+            validated_data.pop('password_confirm')
+            password = validated_data.pop('password')
 
-        # Extraer datos de persona
-        persona_data = {
-            'nombre': validated_data.pop('nombres'),
-            'apellido': validated_data.pop('apellidos'), 
-            'documento_identidad': validated_data.pop('documento_identidad'),
-            'telefono': validated_data.pop('telefono', ''),
-            'email': validated_data.get('email'),  # El email se mantiene en ambos
-            'fecha_nacimiento': validated_data.pop('fecha_nacimiento', None),
-            'genero': validated_data.pop('genero', ''),
-            'pais': validated_data.pop('pais', ''),
-            'tipo_persona': validated_data.pop('tipo_persona', 'cliente'),
-            'direccion': validated_data.pop('direccion', ''),
-            'foto_perfil': validated_data.pop('foto_perfil'),
-        }
+            # Extraer datos de persona
+            foto_perfil_file = validated_data.pop('foto_perfil')
+            persona_data = {
+                'nombre': validated_data.pop('nombres'),
+                'apellido': validated_data.pop('apellidos'), 
+                'documento_identidad': validated_data.pop('documento_identidad'),
+                'telefono': validated_data.pop('telefono', ''),
+                'email': validated_data.get('email'),  # El email se mantiene en ambos
+                'fecha_nacimiento': validated_data.pop('fecha_nacimiento', None),
+                'genero': validated_data.pop('genero', ''),
+                'pais': validated_data.pop('pais', ''),
+                'tipo_persona': validated_data.pop('tipo_persona', 'cliente'),
+                'direccion': validated_data.pop('direccion', ''),
+            }
 
-        # Crear persona
-        persona = Persona.objects.create(**persona_data)
+            # Subir imagen a Dropbox y obtener URL pública
+            from core.utils.dropbox_upload import upload_image_to_dropbox
+            documento_identidad = persona_data['documento_identidad']
+            filename = f"{documento_identidad}_perfil.jpg"
+            folder = f"/Aplicaciones/FotoVisita/Propietarios/{documento_identidad}"
+            dropbox_result = upload_image_to_dropbox(foto_perfil_file, filename, folder=folder)
+            persona_data['foto_perfil'] = dropbox_result['url']
 
-        # Crear usuario
-        usuario = Usuario.objects.create(
-            persona=persona,
-            **validated_data
-        )
-        usuario.set_password(password)
-        usuario.save()
+            # Crear persona
+            persona = Persona.objects.create(**persona_data)
 
-        # Asignar rol por defecto
-        from .models import Rol
-        rol_cliente, _ = Rol.objects.get_or_create(
-            nombre="Inquilino",  # Cambiado de CLIENTE a Inquilino para consistencia
-            defaults={'descripcion': 'Rol de inquilino del sistema', 'activo': True}
-        )
-        usuario.roles.add(rol_cliente)
+            # Crear usuario
+            usuario = Usuario.objects.create(
+                persona=persona,
+                **validated_data
+            )
+            usuario.set_password(password)
+            usuario.save()
 
-        return usuario
+            # Asignar rol por defecto
+            from .models import Rol
+            rol_cliente, _ = Rol.objects.get_or_create(
+                nombre="Inquilino",  # Cambiado de CLIENTE a Inquilino para consistencia
+                defaults={'descripcion': 'Rol de inquilino del sistema', 'activo': True}
+            )
+            usuario.roles.add(rol_cliente)
+
+            return usuario
 
 
 # La clase UsuarioUpdateSerializer ya está definida arriba con soporte para roles

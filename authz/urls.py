@@ -8,7 +8,8 @@ from .views_propietario import (
     SolicitudesPendientesView,
     DetalleSolicitudView,
     AprobarSolicitudView,
-    RechazarSolicitudView
+    RechazarSolicitudView,
+    DetallePropietarioView
 )
 
 app_name = 'authz'
@@ -31,4 +32,6 @@ urlpatterns = [
     
     # URLs para funcionalidades administrativas
     path('', include('authz.urls_admin')),
+    # Endpoint de detalle de propietario por ID
+    path('propietarios/<int:propietario_id>/', DetallePropietarioView.as_view(), name='detalle-propietario'),
 ]
