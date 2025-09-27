@@ -513,29 +513,39 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
             encodings = []
             fotos_urls = getattr(solicitud, 'fotos_reconocimiento_urls', [])
             print(f"[DEBUG] INICIO: Procesando imágenes para solicitud {solicitud.id}")
+            import dropbox
+            from dotenv import load_dotenv
+            load_dotenv()
+            DROPBOX_TOKEN = os.getenv('DROPBOX_ACCESS_TOKEN')
+            print(f"[DEBUG] --- INICIO FLUJO DE PROCESAMIENTO DE IMÁGENES ---")
+            print(f"[DEBUG] Total de imágenes a procesar: {len(fotos_urls)}")
             for idx, foto_url_dict in enumerate(fotos_urls):
                 try:
-                    print(f"[DEBUG] Paso 1: Descargando imagen {idx} desde carpeta temporal: {foto_url_dict['path']}")
+                    print(f"[DEBUG] [IMG {idx}] Intentando descargar desde: {foto_url_dict['path']}")
                     img_bytes = download_image_from_url(foto_url_dict)
-                    print(f"[DEBUG] Paso 2: Imagen descargada correctamente. Preparando para subir a /FotoPropietario...")
-                    file_name = os.path.basename(foto_url_dict['path'])
+                    print(f"[DEBUG] [IMG {idx}] Descarga exitosa. Bytes: {len(img_bytes.getvalue())}")
                     file_name_final = f"propietario_{persona.documento_identidad}_{idx}.jpg"
+                    print(f"[DEBUG] [IMG {idx}] Nombre final para FotoPropietario: {file_name_final}")
                     file = ContentFile(img_bytes.read(), name=file_name_final)
-                    print(f"[DEBUG] Paso 3: Subiendo imagen {file_name_final} a /FotoPropietario...")
+                    print(f"[DEBUG] [IMG {idx}] Subiendo imagen a /FotoPropietario...")
                     url_final = upload_image_to_dropbox(file, file_name_final, folder="/FotoPropietario")
-                    print(f"[DEBUG] Paso 4: Imagen subida a /FotoPropietario. URL: {url_final}")
+                    print(f"[DEBUG] [IMG {idx}] Imagen subida. URL/Path: {url_final}")
                     nuevas_urls.append(url_final)
+                    dbx = dropbox.Dropbox(DROPBOX_TOKEN)
+                    dbx.files_delete_v2(foto_url_dict['path'])
+                    print(f"[DEBUG] [IMG {idx}] Imagen eliminada de carpeta temporal: {foto_url_dict['path']}")
                     b64data = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
                     foto_base64 = f"data:image/jpeg;base64,{b64data}"
-                    print(f"[DEBUG] Paso 5: Generando encoding facial para imagen {idx}")
+                    print(f"[DEBUG] [IMG {idx}] Generando encoding facial...")
                     encoding = generate_face_encoding_from_base64(foto_base64)
                     if encoding:
-                        print(f"[DEBUG] Paso 6: Encoding facial generado para imagen {idx}")
+                        print(f"[DEBUG] [IMG {idx}] Encoding facial generado correctamente.")
                         encodings.append(encoding)
                     else:
-                        print(f"[DEBUG] Paso 6: No se pudo generar encoding facial para imagen {idx}")
+                        print(f"[DEBUG] [IMG {idx}] ERROR: No se pudo generar encoding facial.")
                 except Exception as e:
-                    print(f"[DEBUG] ERROR procesando imagen {idx}: {e}")
+                    print(f"[DEBUG] [IMG {idx}] ERROR GENERAL: {e}")
+            print(f"[DEBUG] --- FIN FLUJO DE PROCESAMIENTO DE IMÁGENES ---")
             if encodings:
                 persona.encoding_facial = encodings
                 persona.reconocimiento_facial_activo = True
