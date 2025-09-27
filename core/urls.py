@@ -79,6 +79,8 @@ urlpatterns = [
 
     # Rutas para la gestión de áreas comunes (crud)
     path('api/areas-comunes/', include('reservas_areas.urls')),
+   path('api/', include('core.api.ocr.urls')),
+
 
     #mantenimiento
     path('api/mantenimiento/', include('mantenimiento.urls')),

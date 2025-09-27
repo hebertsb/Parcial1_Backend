@@ -3,6 +3,7 @@ Serializers específicos para el registro de propietarios
 Incluye formularios para propietarios, familiares y reconocimiento facial
 """
 from typing import cast, Dict, Any, Optional
+import os
 from rest_framework import serializers
 from django.core.files.base import ContentFile
 from django.contrib.auth.password_validation import validate_password
