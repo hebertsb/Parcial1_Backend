@@ -84,6 +84,10 @@ urlpatterns = [
 
     #mantenimiento
     path('api/mantenimiento/', include('mantenimiento.urls')),
+
+    #politicas
+    path('api/politicas/', include('politicas.urls')),
+
     
 ]
 
