@@ -512,28 +512,30 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
             nuevas_urls = []
             encodings = []
             fotos_urls = getattr(solicitud, 'fotos_reconocimiento_urls', [])
-            print(f"[DEBUG] Iniciando procesamiento de imágenes de reconocimiento facial para solicitud {solicitud.id}")
+            print(f"[DEBUG] INICIO: Procesando imágenes para solicitud {solicitud.id}")
             for idx, foto_url_dict in enumerate(fotos_urls):
                 try:
-                    print(f"[DEBUG] Descargando imagen {idx} desde carpeta temporal: {foto_url_dict['path']}")
+                    print(f"[DEBUG] Paso 1: Descargando imagen {idx} desde carpeta temporal: {foto_url_dict['path']}")
                     img_bytes = download_image_from_url(foto_url_dict)
-                    print(f"[DEBUG] Imagen descargada correctamente. Subiendo a carpeta definitiva...")
+                    print(f"[DEBUG] Paso 2: Imagen descargada correctamente. Preparando para subir a /FotoPropietario...")
                     file_name = os.path.basename(foto_url_dict['path'])
                     file_name_final = f"propietario_{persona.documento_identidad}_{idx}.jpg"
                     file = ContentFile(img_bytes.read(), name=file_name_final)
+                    print(f"[DEBUG] Paso 3: Subiendo imagen {file_name_final} a /FotoPropietario...")
                     url_final = upload_image_to_dropbox(file, file_name_final, folder="/FotoPropietario")
-                    print(f"[DEBUG] Imagen subida a /FotoPropietario: {url_final['path']}")
+                    print(f"[DEBUG] Paso 4: Imagen subida a /FotoPropietario. URL: {url_final}")
                     nuevas_urls.append(url_final)
                     b64data = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
                     foto_base64 = f"data:image/jpeg;base64,{b64data}"
+                    print(f"[DEBUG] Paso 5: Generando encoding facial para imagen {idx}")
                     encoding = generate_face_encoding_from_base64(foto_base64)
                     if encoding:
-                        print(f"[DEBUG] Encoding facial generado para imagen {idx}")
+                        print(f"[DEBUG] Paso 6: Encoding facial generado para imagen {idx}")
                         encodings.append(encoding)
                     else:
-                        print(f"[DEBUG] No se pudo generar encoding facial para imagen {idx}")
+                        print(f"[DEBUG] Paso 6: No se pudo generar encoding facial para imagen {idx}")
                 except Exception as e:
-                    print(f"[DEBUG] Error procesando imagen {idx}: {e}")
+                    print(f"[DEBUG] ERROR procesando imagen {idx}: {e}")
             if encodings:
                 persona.encoding_facial = encodings
                 persona.reconocimiento_facial_activo = True

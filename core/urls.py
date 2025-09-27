@@ -77,6 +77,9 @@ urlpatterns = [
     # Visitas (registro y gestión de visitantes)
     path('api/', include('core.api.visitas.urls')),
 
+    # Bitácora y logs del sistema (solo admin)
+    path('api/bitacora/', include('core.api.bitacora.urls')),
+
     # Rutas para la gestión de áreas comunes (crud)
     path('api/areas-comunes/', include('reservas_areas.urls')),
    path('api/', include('core.api.ocr.urls')),
