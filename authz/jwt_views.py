@@ -39,6 +39,9 @@ def verify_password(plain, stored_hash):
             fields={
                 "access": drf_serializers.CharField(),
                 "refresh": drf_serializers.CharField(),
+                "user": UsuarioSerializer(),
+                "roles": drf_serializers.ListField(child=drf_serializers.DictField()),
+                "primary_role": drf_serializers.CharField(),
             },
         ),
         401: OpenApiResponse(description="Credenciales inválidas"),
@@ -50,20 +53,46 @@ def login_view(request):
     password = request.data.get("password")
     try:
         u = Usuario.objects.get(email=email, estado="ACTIVO")
-        print("USUARIO ENCONTRADO:", u.email, "ROLES:", list(u.roles.values_list('nombre', flat=True)))
+        roles_list = list(u.roles.values_list('nombre', flat=True))
+        print("USUARIO ENCONTRADO:", u.email, "ROLES:", roles_list)
     except Usuario.DoesNotExist:
         print("NO SE ENCONTRÓ USUARIO:", email)
         return Response({"detail":"Credenciales inválidas"}, status=401)
     if not u.check_password(password):
         print("CONTRASEÑA INCORRECTA para:", email)
         return Response({"detail":"Credenciales inválidas"}, status=401)
+    
+    # CRÍTICO: Validar que el usuario tenga al menos un rol
+    if not u.roles.exists():
+        print(f"⚠️  WARNING: Usuario {u.email} no tiene roles asignados - asignando rol por defecto")
+        from .models import Rol
+        if u.is_superuser or u.is_staff:
+            default_role, _ = Rol.objects.get_or_create(
+                nombre="Administrador",
+                defaults={'descripcion': 'Rol de administrador del sistema', 'activo': True}
+            )
+        else:
+            default_role, _ = Rol.objects.get_or_create(
+                nombre="Inquilino",
+                defaults={'descripcion': 'Rol de inquilino del sistema', 'activo': True}
+            )
+        u.roles.add(default_role)
+        print(f"✅ Rol por defecto '{default_role.nombre}' asignado a {u.email}")
+    
     print("LOGIN EXITOSO:", email)
     refresh = RefreshToken.for_user(u)
     user_data = UsuarioSerializer(u).data
+    
+    # Obtener roles actualizados
+    roles_data = [{'id': role.id, 'nombre': role.nombre} for role in u.roles.all()]
+    primary_role = roles_data[0]['nombre'] if roles_data else 'Inquilino'
+    
     return Response({
         "access": str(refresh.access_token),
         "refresh": str(refresh),
-        "user": user_data
+        "user": user_data,
+        "roles": roles_data,
+        "primary_role": primary_role  # Nuevo campo para ayudar al frontend
     })
 
 @api_view(["POST"])

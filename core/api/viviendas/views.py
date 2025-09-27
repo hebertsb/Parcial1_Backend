@@ -48,12 +48,17 @@ class ViviendaViewSet(viewsets.ModelViewSet):
         return ViviendaSerializer
     
     def destroy(self, request, *args, **kwargs):
-        """Personalizar eliminación - marcar como inactiva en lugar de eliminar"""
+        """
+        Personalizar eliminación - marcar como inactiva en lugar de eliminar
+        Mejorado: agrega logging y comentario para auditoría/QA
+        """
+        import logging
+        logger = logging.getLogger(__name__)
         vivienda = self.get_object()
         
-        # Verificar si tiene propiedades activas
         propiedades_activas = vivienda.propiedad_set.filter(activo=True).count()
         if propiedades_activas > 0:
+            logger.warning(f"Intento de eliminar vivienda con propiedades activas: {vivienda.id} - {propiedades_activas} activos")
             return Response(
                 {
                     'error': 'No se puede eliminar la vivienda porque tiene propietarios/inquilinos activos',
@@ -61,11 +66,10 @@ class ViviendaViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Marcar como inactiva en lugar de eliminar
+        # Auditoría: aquí podrías registrar el usuario que realiza la acción
         vivienda.estado = 'inactiva'
         vivienda.save()
-        
+        logger.info(f"Vivienda marcada como inactiva: {vivienda.id}")
         return Response(
             {'message': 'Vivienda marcada como inactiva exitosamente'},
             status=status.HTTP_200_OK
@@ -269,6 +273,10 @@ class PersonaViewSet(viewsets.ModelViewSet):
         persona.tipo_persona = nuevo_tipo
         persona.save()
         
+        # 🔄 SINCRONIZAR ROLES AUTOMÁTICAMENTE
+        from authz.utils_roles import sincronizar_roles_con_tipo_persona
+        resultado_sync = sincronizar_roles_con_tipo_persona(persona)
+        
         # Log del cambio
         from django.utils import timezone
         cambio_info = {
@@ -277,7 +285,8 @@ class PersonaViewSet(viewsets.ModelViewSet):
             'tipo_anterior': tipo_anterior,
             'tipo_nuevo': nuevo_tipo,
             'fecha_cambio': timezone.now(),
-            'usuario_admin': request.user.email if hasattr(request.user, 'email') else 'Sistema'
+            'usuario_admin': request.user.email if hasattr(request.user, 'email') else 'Sistema',
+            'sincronizacion_roles': resultado_sync  # ⭐ NUEVA INFO
         }
         
         serializer = self.get_serializer(persona)
@@ -290,19 +299,26 @@ class PersonaViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def transferir_propiedad(self, request, pk=None):
         """
-        Transferir propiedad completa cuando inquilino compra la casa
+        Transferir propiedad específica cuando inquilino compra la casa
         
-        Proceso automático:
-        1. Cambiar inquilino a propietario
-        2. Buscar propiedades donde es inquilino
-        3. Transferir ownership de esas propiedades
-        4. Desactivar o cambiar el propietario anterior
-        5. Actualizar relaciones propietario-inquilino
+        PROCESO CORREGIDO (específico por vivienda):
+        1. Validar que el inquilino sea específico de UNA vivienda
+        2. Transferir ownership solo de ESA vivienda específica
+        3. Manejar solo al propietario anterior de ESA vivienda
+        4. NO afectar otros usuarios o propiedades
+        5. Actualizar relaciones solo de esa vivienda específica
+        
+        IMPORTANTE: Este endpoint solo afecta UNA propiedad específica, no todas.
         """
         from django.db import transaction
         from django.utils import timezone
+        import logging
         
+        logger = logging.getLogger(__name__)
         inquilino = self.get_object()
+        
+        # Log del inicio de transferencia
+        logger.info(f"🏠 INICIO transferencia propiedad para inquilino: {inquilino.nombre_completo} (ID: {inquilino.id})")
         accion_propietario_anterior = request.data.get('accion_propietario_anterior', 'desactivar')  # 'desactivar' o 'inquilino'
         
         # Validar que sea inquilino
@@ -329,15 +345,21 @@ class PersonaViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
+                logger.info(f"📋 Propiedades encontradas como inquilino: {propiedades_como_inquilino.count()}")
+                
                 for propiedad_inquilino in propiedades_como_inquilino:
                     vivienda = propiedad_inquilino.vivienda
+                    logger.info(f"🏡 Procesando vivienda: {vivienda.numero_casa}")
                     
-                    # Buscar el propietario anterior de esta vivienda
+                    # Buscar el propietario anterior de esta vivienda ESPECÍFICA
                     propiedad_propietario = Propiedad.objects.filter(
                         vivienda=vivienda,
                         tipo_tenencia='propietario',
                         activo=True
                     ).first()
+                    
+                    if propiedad_propietario:
+                        logger.info(f"👤 Propietario anterior encontrado: {propiedad_propietario.persona.nombre_completo} (ID: {propiedad_propietario.persona.id})")
                     
                     if propiedad_propietario:
                         propietario_anterior = propiedad_propietario.persona
@@ -353,17 +375,30 @@ class PersonaViewSet(viewsets.ModelViewSet):
                         propiedad_inquilino.save()
                         
                         # 3. Manejar al propietario anterior según la acción solicitada
+                        # IMPORTANTE: NO desactivar la persona completa, solo manejar esta propiedad específica
+                        
                         if accion_propietario_anterior == 'desactivar':
-                            # Desactivar completamente al propietario anterior
-                            propietario_anterior.activo = False
-                            propietario_anterior.save()
-                            estado_anterior = 'desactivado'
-                        elif accion_propietario_anterior == 'inquilino':
-                            # Convertir propietario anterior en inquilino
-                            propietario_anterior.tipo_persona = 'inquilino'
-                            propietario_anterior.save()
+                            # ❌ NO HACER ESTO: propietario_anterior.activo = False 
+                            # ✅ SOLO desactivar la propiedad específica (ya hecho arriba)
                             
-                            # Crear nueva propiedad como inquilino
+                            # Verificar si tiene otras propiedades activas
+                            otras_propiedades_activas = Propiedad.objects.filter(
+                                persona=propietario_anterior,
+                                activo=True
+                            ).exclude(id=propiedad_propietario.id).exists()
+                            
+                            if not otras_propiedades_activas:
+                                # Solo si NO tiene otras propiedades, cambiar tipo_persona
+                                # Mantener activo=True pero cambiar tipo
+                                propietario_anterior.tipo_persona = 'residente'
+                                propietario_anterior.save()
+                                estado_anterior = 'sin propiedades activas - tipo cambiado a residente'
+                            else:
+                                # Mantener como propietario porque tiene otras propiedades
+                                estado_anterior = 'mantiene otras propiedades - sigue como propietario'
+                                
+                        elif accion_propietario_anterior == 'inquilino':
+                            # Crear nueva propiedad como inquilino EN ESTA VIVIENDA
                             Propiedad.objects.create(
                                 vivienda=vivienda,
                                 persona=propietario_anterior,
@@ -372,15 +407,34 @@ class PersonaViewSet(viewsets.ModelViewSet):
                                 fecha_inicio_tenencia=timezone.now().date(),
                                 activo=True
                             )
-                            estado_anterior = 'convertido a inquilino'
+                            
+                            # Solo cambiar tipo_persona si NO tiene otras propiedades como propietario
+                            otras_propiedades_propietario = Propiedad.objects.filter(
+                                persona=propietario_anterior,
+                                tipo_tenencia='propietario',
+                                activo=True
+                            ).exists()
+                            
+                            if not otras_propiedades_propietario:
+                                propietario_anterior.tipo_persona = 'inquilino'
+                                propietario_anterior.save()
+                                
+                                # 🔄 SINCRONIZAR ROLES AUTOMÁTICAMENTE
+                                from authz.utils_roles import sincronizar_roles_con_tipo_persona
+                                resultado_sync_anterior = sincronizar_roles_con_tipo_persona(propietario_anterior)
+                                logger.info(f"🔄 Sincronización roles ex-propietario: {resultado_sync_anterior}")
+                                
+                                estado_anterior = 'convertido a inquilino de esta vivienda'
+                            else:
+                                estado_anterior = 'inquilino de esta vivienda - mantiene otras propiedades como propietario'
                         else:
-                            # Solo desactivar la propiedad, mantener persona activa
-                            estado_anterior = 'propiedad desactivada'
+                            # Solo desactivar la propiedad específica, mantener persona activa
+                            estado_anterior = 'solo propiedad específica desactivada'
                         
                         # 4. Actualizar relaciones propietario-inquilino si existen
                         relaciones_activas = RelacionesPropietarioInquilino.objects.filter(
                             inquilino_id=inquilino.id,  # Usar _id para acceso directo
-                            vivienda_id=vivienda.id,
+                            vivienda=vivienda,  # Usar la instancia directamente
                             activo=True
                         )
                         
@@ -391,7 +445,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
                         
                         transferencias_realizadas.append({
                             'vivienda': vivienda.numero_casa,
-                            'vivienda_id': vivienda.id,
+                            'vivienda_id': getattr(vivienda, 'id', vivienda.pk),  # Usar pk como fallback
                             'propietario_anterior': propietario_anterior.nombre_completo,
                             'propietario_anterior_id': propietario_anterior.id,
                             'estado_propietario_anterior': estado_anterior,
@@ -399,9 +453,22 @@ class PersonaViewSet(viewsets.ModelViewSet):
                             'porcentaje_transferido': float(propiedad_propietario.porcentaje_propiedad)
                         })
                 
-                # 5. Cambiar el tipo de persona de inquilino a propietario
-                inquilino.tipo_persona = 'propietario'
-                inquilino.save()
+                # 5. Cambiar el tipo de persona del inquilino específico a propietario
+                # Solo si tiene propiedades como propietario ahora
+                propiedades_como_propietario = Propiedad.objects.filter(
+                    persona=inquilino,
+                    tipo_tenencia='propietario',
+                    activo=True
+                ).exists()
+                
+                if propiedades_como_propietario:
+                    inquilino.tipo_persona = 'propietario'
+                    inquilino.save()
+                    
+                    # 🔄 SINCRONIZAR ROLES AUTOMÁTICAMENTE
+                    from authz.utils_roles import sincronizar_roles_con_tipo_persona
+                    resultado_sync_inquilino = sincronizar_roles_con_tipo_persona(inquilino)
+                    logger.info(f"🔄 Sincronización roles nuevo propietario: {resultado_sync_inquilino}")
                 
         except Exception as e:
             return Response(

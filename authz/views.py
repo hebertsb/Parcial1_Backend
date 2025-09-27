@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny
 from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Usuario, Rol
-from .serializers import UsuarioSerializer, UsuarioCreateSerializer, RolSerializer, UsuarioRegistroSerializer
+from .serializers import UsuarioSerializer, UsuarioCreateSerializer, UsuarioUpdateSerializer, RolSerializer, UsuarioRegistroSerializer
 # --- FIN IMPORTS ---
 
 # Endpoint para cambio de contraseña autenticado
@@ -154,7 +154,44 @@ class RolViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 class UsuarioViewSet(viewsets.ModelViewSet):
-    @action(detail=True, methods=["put", "patch"], url_path="editar-datos", permission_classes=[permissions.IsAuthenticated])
+    serializer_class = UsuarioSerializer  # Serializer por defecto
+    queryset = Usuario.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Override del método PATCH para añadir logs de depuración"""
+        import os
+        log_path = os.path.join(os.path.dirname(__file__), '..', 'debug_partial_update.log')
+        
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"\n🔍 PARTIAL_UPDATE llamado!\n")
+            f.write(f"   Usuario: {request.user.email if hasattr(request.user, 'email') else 'ANONIMO'}\n")
+            f.write(f"   Datos recibidos: {request.data}\n")
+            f.write(f"   Args: {args}\n")
+            f.write(f"   Kwargs: {kwargs}\n")
+        
+        print(f"🔍 PARTIAL_UPDATE llamado!")
+        print(f"   Usuario: {request.user.email if hasattr(request.user, 'email') else 'ANONIMO'}")
+        print(f"   Datos recibidos: {request.data}")
+        print(f"   Args: {args}")
+        print(f"   Kwargs: {kwargs}")
+        
+        # Obtener el serializer para verificar
+        serializer_class = self.get_serializer_class()
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"   Serializer class: {serializer_class.__name__}\n")
+        print(f"   Serializer class: {serializer_class.__name__}")
+        
+        # Llamar al método padre
+        result = super().partial_update(request, *args, **kwargs)
+        
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"   Resultado status: {result.status_code}\n")
+            f.write(f"   Resultado data: {result.data}\n")
+            f.write("-" * 50 + "\n")
+        
+        return result
+    @action(detail=True, methods=["put"], url_path="editar-datos", permission_classes=[permissions.IsAuthenticated])
     def editar_datos_admin(self, request, pk=None):
         """Permite al admin editar los datos de cualquier usuario."""
         usuario_actual = request.user
@@ -165,7 +202,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
             print("NO TIENE ROL ADMIN")
             return Response({"detail": "No tienes permisos para editar usuarios."}, status=403)
         usuario = self.get_object()
-        serializer = UsuarioSerializer(usuario, data=request.data, partial=(request.method=="PATCH"))
+        # Usar el serializer que permite editar roles
+        serializer = UsuarioUpdateSerializer(usuario, data=request.data, partial=True)  # Always partial for admin edits
         if serializer.is_valid():
             serializer.save()
             print("EDICIÓN EXITOSA DE USUARIO:", usuario.email)
@@ -222,12 +260,31 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 serializer.save()
                 return Response(serializer.data)
             return Response(serializer.errors, status=400)
-    queryset = Usuario.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
-
-    from rest_framework.serializers import Serializer
-    def get_serializer_class(self):  # type: ignore
-        return UsuarioCreateSerializer if self.action in ["create"] else UsuarioSerializer
+    def get_serializer_class(self):
+        """Seleccionar serializer según la acción"""
+        import os
+        log_path = os.path.join(os.path.dirname(__file__), '..', 'debug_serializer.log')
+        
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"🔧 get_serializer_class() - Acción actual: {self.action}\n")
+        
+        print(f"🔧 get_serializer_class() - Acción actual: {self.action}")
+        
+        if self.action == "create":
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write("   → Usando UsuarioCreateSerializer\n")
+            print("   → Usando UsuarioCreateSerializer")
+            return UsuarioCreateSerializer
+        elif self.action in ["update", "partial_update"]:
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write("   → Usando UsuarioUpdateSerializer\n")
+            print("   → Usando UsuarioUpdateSerializer")
+            return UsuarioUpdateSerializer
+        else:
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write("   → Usando UsuarioSerializer (por defecto)\n")
+            print("   → Usando UsuarioSerializer (por defecto)")
+            return UsuarioSerializer
 
     @extend_schema(
         summary="Asignar rol a usuario",

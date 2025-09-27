@@ -62,6 +62,98 @@ class UsuarioSerializer(serializers.ModelSerializer):
         ]
 
 
+class UsuarioUpdateSerializer(serializers.ModelSerializer):
+    """Serializer completo para actualizar usuarios, roles y datos personales"""
+    # Campo para roles (gestión de administradores)
+    roles = serializers.PrimaryKeyRelatedField(
+        many=True, 
+        queryset=Rol.objects.all(),
+        required=False
+    )
+    
+    # Campos de persona opcionales para actualización
+    nombres = serializers.CharField(required=False)
+    apellidos = serializers.CharField(required=False)
+    telefono = serializers.CharField(required=False, allow_blank=True)
+    fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
+    genero = serializers.CharField(required=False, allow_blank=True)
+    pais = serializers.CharField(required=False, allow_blank=True)
+    direccion = serializers.CharField(required=False, allow_blank=True)
+    
+    class Meta:
+        model = Usuario  
+        fields = [
+            "id", "email", "estado", "roles",
+            # Campos de persona para compatibilidad
+            "nombres", "apellidos", "telefono", "fecha_nacimiento", 
+            "genero", "pais", "direccion"
+        ]
+    
+    def update(self, instance, validated_data):
+        """Método completo para manejar roles Y datos personales"""
+        import os
+        log_path = os.path.join(os.path.dirname(__file__), '..', 'debug_update_completo.log')
+        
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"\n🔄 UPDATE COMPLETO llamado!\n")
+            f.write(f"   Instance: {instance.email}\n")
+            f.write(f"   Validated data: {validated_data}\n")
+        
+        print(f"🔄 UPDATE COMPLETO llamado para {instance.email}")
+        print(f"   Validated data: {validated_data}")
+        
+        # 1. MANEJAR ROLES (para admin panel)
+        roles = validated_data.pop('roles', None)
+        if roles is not None:
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(f"   🔧 Asignando roles: {[r.id for r in roles]}\n")
+            print(f"   🔧 Asignando roles: {[r.id for r in roles]}")
+            instance.roles.set(roles)
+        
+        # 2. MANEJAR DATOS DE PERSONA (para editar-datos)
+        persona_data = {}
+        persona_fields = ['nombres', 'apellidos', 'telefono', 'fecha_nacimiento', 
+                         'genero', 'pais', 'direccion']
+        
+        for field in persona_fields:
+            if field in validated_data:
+                if field == 'nombres':
+                    persona_data['nombre'] = validated_data.pop(field)
+                elif field == 'apellidos':
+                    persona_data['apellido'] = validated_data.pop(field)
+                else:
+                    persona_data[field] = validated_data.pop(field)
+        
+        # Actualizar persona si hay datos
+        if persona_data and instance.persona:
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(f"   👤 Actualizando persona: {persona_data}\n")
+            print(f"   👤 Actualizando persona: {persona_data}")
+            
+            for key, value in persona_data.items():
+                setattr(instance.persona, key, value)
+            instance.persona.save()
+        
+        # 3. ACTUALIZAR CAMPOS BÁSICOS DEL USUARIO
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # 4. RECARGAR Y VERIFICAR
+        instance.refresh_from_db()
+        roles_finales = [r.nombre for r in instance.roles.all()]
+        
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"   ✅ Roles finales: {roles_finales}\n")
+            f.write(f"   ✅ Usuario actualizado completamente\n")
+            f.write("-" * 50 + "\n")
+        
+        print(f"   ✅ Roles finales: {roles_finales}")
+        print(f"   ✅ Usuario actualizado completamente")
+        
+        return instance
+
+
 class UsuarioCreateSerializer(serializers.ModelSerializer):
     """Serializer para crear usuarios con sus datos personales"""
     password = serializers.CharField(write_only=True)
@@ -139,50 +231,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         return usuario
 
 
-class UsuarioUpdateSerializer(serializers.ModelSerializer):
-    """Serializer para actualizar usuarios y sus datos personales"""
-    
-    # Campos de persona opcionales para actualización
-    nombres = serializers.CharField(required=False)
-    apellidos = serializers.CharField(required=False)
-    telefono = serializers.CharField(required=False, allow_blank=True)
-    fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
-    genero = serializers.CharField(required=False, allow_blank=True)
-    pais = serializers.CharField(required=False, allow_blank=True)
-    direccion = serializers.CharField(required=False, allow_blank=True)
-    
-    class Meta:
-        model = Usuario
-        fields = [
-            "email", "estado",
-            # Campos de persona
-            "nombres", "apellidos", "telefono", "fecha_nacimiento", 
-            "genero", "pais", "direccion"
-        ]
-    
-    def update(self, instance, validated_data):
-        # Extraer datos de persona
-        persona_data = {}
-        persona_fields = ['nombres', 'apellidos', 'telefono', 'fecha_nacimiento', 
-                         'genero', 'pais', 'direccion']
-        
-        for field in persona_fields:
-            if field in validated_data:
-                if field == 'nombres':
-                    persona_data['nombre'] = validated_data.pop(field)
-                elif field == 'apellidos':
-                    persona_data['apellido'] = validated_data.pop(field)
-                else:
-                    persona_data[field] = validated_data.pop(field)
-        
-        # Actualizar persona si hay datos
-        if persona_data and instance.persona:
-            for key, value in persona_data.items():
-                setattr(instance.persona, key, value)
-            instance.persona.save()
-        
-        # Actualizar usuario
-        return super().update(instance, validated_data)
+# La clase UsuarioUpdateSerializer ya está definida arriba con soporte para roles
 
 
 class UsuarioRegistroSerializer(UsuarioCreateSerializer):
