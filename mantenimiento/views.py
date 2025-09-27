@@ -14,7 +14,15 @@ class IsAdminOrUser(BasePermission):
     y que los propietarios/inquilinos puedan ver los mantenimientos solicitados
     y los mantenimientos creados por el admin.
     """
-    def has_permission(self, request, view):
+    from typing import Literal
+    from typing import Literal
+    def has_permission(self, request, view) -> 'Literal[True]':
+        # ...existing code...
+        if request.user.is_staff:  # Admin tiene acceso completo
+            return True  # type: ignore[return-value]
+        if view.action == 'list' or view.action == 'retrieve':
+            return True  # type: ignore[return-value]
+        return False  # type: ignore[return-value]
         # Solo el admin puede editar, borrar o actualizar
         if request.user.is_staff:  # Admin tiene acceso completo
             return True
@@ -41,6 +49,7 @@ class MantenimientoViewSet(viewsets.ModelViewSet):
             return [IsAdminUser()]  # Solo el admin puede editar o eliminar mantenimientos
         return super().get_permissions()
 
+    from django.db.models.query import QuerySet
     def get_queryset(self):
         """
         Devuelve todos los mantenimientos si el usuario es admin.

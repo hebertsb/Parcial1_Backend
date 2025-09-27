@@ -9,11 +9,11 @@ class MantenimientoSerializer(serializers.ModelSerializer):
         model = Mantenimiento
         fields = '__all__'
     
-    def validate(self, data):
+    def validate(self, attrs):
         # Validación adicional de que la fecha programada no esté en el pasado
-        if data.get('fecha_programada') and data['fecha_programada'] < timezone.now().date():
+        if attrs.get('fecha_programada') and attrs['fecha_programada'] < timezone.now().date():
             raise serializers.ValidationError("La fecha programada no puede ser en el pasado.")
-        return data
+        return attrs
     
     def create(self, validated_data):
         """Creación del mantenimiento y asignación automática de persona y vivienda."""        
@@ -33,9 +33,9 @@ class TareaMantenimientoSerializer(serializers.ModelSerializer):
         model = TareaMantenimiento
         fields = '__all__'
 
-    def validate(self, data):
+    def validate(self, attrs):
         # Validación de que las fechas no se superpongan
-        if data.get('fecha_inicio') and data.get('fecha_fin'):
-            if data['fecha_inicio'] > data['fecha_fin']:
+        if attrs.get('fecha_inicio') and attrs.get('fecha_fin'):
+            if attrs['fecha_inicio'] > attrs['fecha_fin']:
                 raise serializers.ValidationError("La fecha de inicio no puede ser posterior a la fecha de fin.")
-        return data
+        return attrs

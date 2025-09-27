@@ -235,4 +235,8 @@ class RegistrarPagoSerializer(serializers.Serializer):
         return pago
 
     def to_representation(self, instance):
-        return PagoDetailSerializer(instance).data
+        # Garantiza que siempre se retorna un dict, compatible con DRF
+        data = PagoDetailSerializer(instance).data
+        if not isinstance(data, dict):
+            data = dict(data)
+        return data

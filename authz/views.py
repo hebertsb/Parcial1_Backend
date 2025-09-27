@@ -260,7 +260,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
                 serializer.save()
                 return Response(serializer.data)
             return Response(serializer.errors, status=400)
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type:
         """Seleccionar serializer según la acción"""
         import os
         log_path = os.path.join(os.path.dirname(__file__), '..', 'debug_serializer.log')

@@ -106,13 +106,12 @@ class FaceEnrollView(APIView):
             copropietario_id = validated_data['copropietario_id']
             imagen = validated_data['imagen']
             update_existing = validated_data.get('update_existing', False)
-            
-            # Obtener copropietario
+            # Buscar copropietario (puede ser inquilino registrado como copropietario)
             try:
                 copropietario = Copropietarios.objects.get(id=copropietario_id, activo=True)
             except Copropietarios.DoesNotExist:
                 return Response(
-                    {'error': 'Copropietario no encontrado'},
+                    {'error': 'Copropietario/Inquilino no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -285,8 +284,7 @@ class FaceVerifyView(APIView):
             
             copropietario_id = validated_data['copropietario_id']
             imagen = validated_data['imagen']
-            
-            # Obtener copropietario y reconocimiento facial
+            # Buscar copropietario (puede ser inquilino registrado como copropietario)
             try:
                 copropietario = Copropietarios.objects.get(id=copropietario_id, activo=True)
                 reconocimiento = ReconocimientoFacial.objects.get(
@@ -295,12 +293,12 @@ class FaceVerifyView(APIView):
                 )
             except Copropietarios.DoesNotExist:
                 return Response(
-                    {'error': 'Copropietario no encontrado'},
+                    {'error': 'Copropietario/Inquilino no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             except ReconocimientoFacial.DoesNotExist:
                 return Response(
-                    {'error': 'Copropietario no tiene enrolamiento facial activo'},
+                    {'error': 'No tiene enrolamiento facial activo'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -440,12 +438,12 @@ class FaceDeleteView(APIView):
                 )
             except Copropietarios.DoesNotExist:
                 return Response(
-                    {'error': 'Copropietario no encontrado'},
+                    {'error': 'Copropietario/Inquilino no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             except ReconocimientoFacial.DoesNotExist:
                 return Response(
-                    {'error': 'Copropietario no tiene enrolamiento facial activo'},
+                    {'error': 'No tiene enrolamiento facial activo'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -517,7 +515,7 @@ class FaceStatusView(APIView):
                 copropietario = Copropietarios.objects.get(id=copropietario_id, activo=True)
             except Copropietarios.DoesNotExist:
                 return Response(
-                    {'error': 'Copropietario no encontrado'},
+                    {'error': 'Copropietario/Inquilino no encontrado'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             

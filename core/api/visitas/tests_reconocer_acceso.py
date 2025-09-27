@@ -24,9 +24,16 @@ class ReconocerAccesoVisitaTest(APITestCase):
                 format='multipart',
                 HTTP_AUTHORIZATION=f'Bearer {access_token}'
             )
-        print("RESPONSE DATA (NO REGISTRADA):", response.data)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertFalse(response.data.get("autorizado", True))
+        # Manejar ambos tipos de respuesta
+        data = getattr(response, "data", None)
+        if data is None:
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+        print("RESPONSE DATA (NO REGISTRADA):", data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, f"Código inesperado: {response.status_code}, data: {data}")
+        self.assertFalse(data.get("autorizado", True), f"Se autorizó acceso cuando no debía. Data: {data}")
 
     def setUp(self):
         # Crear usuario de seguridad para autenticación
@@ -90,11 +97,17 @@ class ReconocerAccesoVisitaTest(APITestCase):
                 format='multipart',
                 HTTP_AUTHORIZATION=f'Bearer {access_token}'
             )
-        print("RESPONSE DATA:", response.data)
+        data = getattr(response, "data", None)
+        if data is None:
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+        print("RESPONSE DATA:", data)
         # Solo validamos que la respuesta sea 200 o 403 (autorizado o no)
-        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_403_FORBIDDEN])
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_403_FORBIDDEN], f"Código inesperado: {response.status_code}, data: {data}")
 
-    def test_reconocimiento_acceso(self):
+    def test_reconocimiento_acceso_exitoso(self):
         # Obtener token JWT para el usuario de seguridad
         refresh = RefreshToken.for_user(self.usuario_seguridad)
         access_token = str(refresh.access_token)
@@ -109,13 +122,19 @@ class ReconocerAccesoVisitaTest(APITestCase):
                 format='multipart',
                 HTTP_AUTHORIZATION=f'Bearer {access_token}'
             )
-        print("RESPONSE DATA:", response.data)  # Para depuración
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data["autorizado"])
+        data = getattr(response, "data", None)
+        if data is None:
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+        print("RESPONSE DATA:", data)  # Para depuración
+        self.assertEqual(response.status_code, status.HTTP_200_OK, f"Código inesperado: {response.status_code}, data: {data}")
+        self.assertTrue(data.get("autorizado", False), f"No se autorizó el acceso cuando debía. Data: {data}")
         self.visita.refresh_from_db()
-        self.assertEqual(self.visita.estado, "en_curso")
-        self.assertIsNotNone(self.visita.fecha_hora_llegada)
+        self.assertEqual(self.visita.estado, "en_curso", f"Estado inesperado: {self.visita.estado}")
+        self.assertIsNotNone(self.visita.fecha_hora_llegada, "No se registró la llegada.")
         # Verificar que encoding_facial es None o tiene al menos un encoding
         self.persona.refresh_from_db()
         if self.persona.encoding_facial is not None:
-            self.assertTrue(len(self.persona.encoding_facial) >= 1)
+            self.assertTrue(len(self.persona.encoding_facial) >= 1, "encoding_facial vacío")

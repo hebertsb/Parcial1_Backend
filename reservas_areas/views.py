@@ -20,6 +20,8 @@ class ReservaEspacioViewSet(viewsets.ModelViewSet):
         Filtra las reservas para que cada usuario solo vea sus propias reservas.
         """
         user = self.request.user
+        if not user.is_authenticated or not hasattr(user, 'persona'):
+            return ReservaEspacio.objects.none()
         return ReservaEspacio.objects.filter(persona=user.persona)
     
     def perform_create(self, serializer):
@@ -45,7 +47,9 @@ class ReservaEspacioViewSet(viewsets.ModelViewSet):
             raise ValidationError("La reserva no se puede realizar, el horario ya está ocupado.")
         
         # Si no hay conflicto, guardamos la reserva
-        serializer.save(persona=user.persona, fecha_solicitud=timezone.now())
+        if not user.is_authenticated or not hasattr(user, 'persona'):
+            raise ValidationError("El usuario no tiene persona asociada.")
+        serializer.save(persona=getattr(user, 'persona', None), fecha_solicitud=timezone.now())
         return super().perform_create(serializer)
 
     @action(detail=True, methods=['post'])

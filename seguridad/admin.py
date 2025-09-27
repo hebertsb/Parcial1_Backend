@@ -9,9 +9,9 @@ class CopropietariosAdmin(admin.ModelAdmin):
     search_fields = ['nombres', 'apellidos', 'numero_documento', 'unidad_residencial', 'email']
     ordering = ['apellidos', 'nombres']
     
+    @admin.display(description='Nombre Completo')
     def nombre_completo(self, obj):
         return obj.nombre_completo
-    nombre_completo.short_description = 'Nombre Completo'
 
 
 @admin.register(ReconocimientoFacial)

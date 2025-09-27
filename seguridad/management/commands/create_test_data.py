@@ -23,8 +23,11 @@ class Command(BaseCommand):
 
         # Debug: Verificar usuarios existentes
         self.stdout.write('🔍 USUARIOS EXISTENTES EN DB:')
-        for user in User.objects.all():
-            self.stdout.write(f'  - {user.email} (ID: {user.id})')
+        if User is not None:
+            for user in User.objects.all():
+                self.stdout.write(f'  - {user.email} (ID: {user.id})')
+        else:
+            self.stdout.write('  (No hay modelo de usuario disponible)')
 
         # Verificar que el sistema authz esté disponible
         if User is None:
@@ -155,7 +158,7 @@ class Command(BaseCommand):
         self.stdout.write('\n🎯 ROLES DISPONIBLES:')
         if Rol:
             for rol in Rol.objects.all():
-                usuarios_count = rol.usuarios.count()
-                self.stdout.write(f'  - {rol.nombre}: {usuarios_count} usuarios')
+                # Si la relación usuarios no existe, solo muestra el nombre del rol
+                self.stdout.write(f'  - {rol.nombre}')
         
         self.stdout.write('\n🚀 ¡Sistema listo para pruebas de reconocimiento facial!')

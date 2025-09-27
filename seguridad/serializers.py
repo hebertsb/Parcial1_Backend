@@ -11,105 +11,107 @@ from .models import Copropietarios, ReconocimientoFacial
 
 
 class FaceEnrollSerializer(serializers.Serializer):
-    """Serializer para enrolamiento de rostros"""
-    
-    copropietario_id = serializers.IntegerField()
+    """Serializer para enrolamiento de rostros (copropietario o inquilino)"""
+    copropietario_id = serializers.IntegerField(required=False)
+    inquilino_id = serializers.IntegerField(required=False)
     imagen = serializers.ImageField()
-    
-    def validate_copropietario_id(self, value):
-        """Valida que el copropietario exista"""
-        try:
-            copropietario = Copropietarios.objects.get(id=value, activo=True)
-            return value
-        except Copropietarios.DoesNotExist:
-            raise serializers.ValidationError("Copropietario no encontrado o inactivo")
-    
-    def validate_imagen(self, value):
-        """Valida la imagen"""
-        if not isinstance(value, InMemoryUploadedFile):
-            raise serializers.ValidationError("Debe proporcionar un archivo de imagen válido")
-        
-        # Validar tamaño (máximo 5MB)
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("La imagen no debe superar 5MB")
-        
-        # Validar formato
+
+    def validate(self, attrs):
+        copropietario_id = attrs.get('copropietario_id')
+        inquilino_id = attrs.get('inquilino_id')
+        if not copropietario_id and not inquilino_id:
+            raise serializers.ValidationError("Debe proporcionar copropietario_id o inquilino_id")
+
+        # Buscar copropietario (puede ser inquilino registrado como copropietario)
+        if copropietario_id:
+            try:
+                copropietario = Copropietarios.objects.get(id=copropietario_id, activo=True)
+            except Copropietarios.DoesNotExist:
+                raise serializers.ValidationError("Copropietario no encontrado o inactivo")
+        elif inquilino_id:
+            try:
+                copropietario = Copropietarios.objects.get(id=inquilino_id, tipo_residente="Inquilino", activo=True)
+            except Copropietarios.DoesNotExist:
+                raise serializers.ValidationError("Inquilino no encontrado o inactivo (debe estar registrado como copropietario tipo Inquilino)")
+            attrs['copropietario_id'] = inquilino_id  # Unificar para lógica de backend
+        else:
+            raise serializers.ValidationError("Debe proporcionar copropietario_id o inquilino_id")
+
+        # Validar imagen
+        imagen = attrs.get('imagen')
+        if not isinstance(imagen, InMemoryUploadedFile):
+            raise serializers.ValidationError({"imagen": "Debe proporcionar un archivo de imagen válido"})
+        if imagen.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError({"imagen": "La imagen no debe superar 5MB"})
         allowed_formats = ['JPEG', 'JPG', 'PNG', 'BMP', 'GIF']
         try:
-            image = Image.open(value)
+            image = Image.open(imagen)
             if image.format not in allowed_formats:
-                raise serializers.ValidationError(
-                    f"Formato no soportado. Formatos permitidos: {', '.join(allowed_formats)}"
-                )
+                raise serializers.ValidationError({"imagen": f"Formato no soportado. Formatos permitidos: {', '.join(allowed_formats)}"})
         except Exception:
-            raise serializers.ValidationError("Archivo de imagen inválido")
-        
-        # Resetear puntero del archivo
-        value.seek(0)
-        return value
-    
-    def validate(self, attrs):
-        """Validaciones a nivel de objeto"""
-        copropietario_id = attrs['copropietario_id']
-        
+            raise serializers.ValidationError({"imagen": "Archivo de imagen inválido"})
+        imagen.seek(0)
+
         # Verificar si ya tiene enrolamiento activo
         if ReconocimientoFacial.objects.filter(
-            copropietario_id=copropietario_id, 
+            copropietario_id=attrs['copropietario_id'], 
             activo=True
         ).exists():
-            # Permitir actualización, pero informar
             attrs['update_existing'] = True
         else:
             attrs['update_existing'] = False
-        
         return attrs
 
 
 class FaceVerifySerializer(serializers.Serializer):
-    """Serializer para verificación de rostros"""
-    
-    copropietario_id = serializers.IntegerField()
+    """Serializer para verificación de rostros (copropietario o inquilino)"""
+    copropietario_id = serializers.IntegerField(required=False)
+    inquilino_id = serializers.IntegerField(required=False)
     imagen = serializers.ImageField()
-    
-    def validate_copropietario_id(self, value):
-        """Valida que el copropietario exista y tenga enrolamiento"""
-        try:
-            copropietario = Copropietarios.objects.get(id=value, activo=True)
-        except Copropietarios.DoesNotExist:
-            raise serializers.ValidationError("Copropietario no encontrado o inactivo")
-        
-        # Verificar que tenga enrolamiento activo
-        if not ReconocimientoFacial.objects.filter(
-            copropietario_id=value, 
-            activo=True
-        ).exists():
-            raise serializers.ValidationError("Copropietario no tiene enrolamiento facial activo")
-        
-        return value
-    
-    def validate_imagen(self, value):
-        """Valida la imagen"""
-        if not isinstance(value, InMemoryUploadedFile):
-            raise serializers.ValidationError("Debe proporcionar un archivo de imagen válido")
-        
-        # Validar tamaño (máximo 5MB)
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("La imagen no debe superar 5MB")
-        
-        # Validar formato
+
+    def validate(self, attrs):
+        copropietario_id = attrs.get('copropietario_id')
+        inquilino_id = attrs.get('inquilino_id')
+        if not copropietario_id and not inquilino_id:
+            raise serializers.ValidationError("Debe proporcionar copropietario_id o inquilino_id")
+
+        # Buscar copropietario (puede ser inquilino registrado como copropietario)
+        if copropietario_id:
+            try:
+                copropietario = Copropietarios.objects.get(id=copropietario_id, activo=True)
+            except Copropietarios.DoesNotExist:
+                raise serializers.ValidationError("Copropietario no encontrado o inactivo")
+        elif inquilino_id:
+            try:
+                copropietario = Copropietarios.objects.get(id=inquilino_id, tipo_residente="Inquilino", activo=True)
+            except Copropietarios.DoesNotExist:
+                raise serializers.ValidationError("Inquilino no encontrado o inactivo (debe estar registrado como copropietario tipo Inquilino)")
+            attrs['copropietario_id'] = inquilino_id  # Unificar para lógica de backend
+        else:
+            raise serializers.ValidationError("Debe proporcionar copropietario_id o inquilino_id")
+
+        # Validar imagen
+        imagen = attrs.get('imagen')
+        if not isinstance(imagen, InMemoryUploadedFile):
+            raise serializers.ValidationError({"imagen": "Debe proporcionar un archivo de imagen válido"})
+        if imagen.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError({"imagen": "La imagen no debe superar 5MB"})
         allowed_formats = ['JPEG', 'JPG', 'PNG', 'BMP', 'GIF']
         try:
-            image = Image.open(value)
+            image = Image.open(imagen)
             if image.format not in allowed_formats:
-                raise serializers.ValidationError(
-                    f"Formato no soportado. Formatos permitidos: {', '.join(allowed_formats)}"
-                )
+                raise serializers.ValidationError({"imagen": f"Formato no soportado. Formatos permitidos: {', '.join(allowed_formats)}"})
         except Exception:
-            raise serializers.ValidationError("Archivo de imagen inválido")
-        
-        # Resetear puntero del archivo
-        value.seek(0)
-        return value
+            raise serializers.ValidationError({"imagen": "Archivo de imagen inválido"})
+        imagen.seek(0)
+
+        # Verificar enrolamiento activo
+        if not ReconocimientoFacial.objects.filter(
+            copropietario_id=attrs['copropietario_id'], 
+            activo=True
+        ).exists():
+            raise serializers.ValidationError("No tiene enrolamiento facial activo")
+        return attrs
 
 
 class CopropietarioSerializer(serializers.ModelSerializer):
