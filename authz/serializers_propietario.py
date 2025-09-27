@@ -391,7 +391,7 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
         validated_data.pop('acepta_tratamiento_datos')
         fotos_base64 = validated_data.pop('fotos_base64', None)
 
-        # Subir fotos a Dropbox y guardar URLs
+        # Subir fotos a Dropbox y guardar URLs en carpeta temporal
         fotos_urls = []
         if fotos_base64:
             from core.utils.dropbox_upload import upload_image_to_dropbox
@@ -412,7 +412,7 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
                     img_data = base64.b64decode(b64data)
                     file_name = f"solicitud_propietario_reconocimiento_{validated_data.get('documento_identidad','')}_{uuid4().hex[:8]}_{idx}.{ext}"
                     file = ContentFile(img_data, name=file_name)
-                    url_foto = upload_image_to_dropbox(file, file_name, folder="/FotoPropietario")
+                    url_foto = upload_image_to_dropbox(file, file_name, folder="/SolicitudesPendientes")
                     fotos_urls.append(url_foto)
                 except Exception:
                     pass
@@ -501,34 +501,75 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
                 fecha_nacimiento=getattr(solicitud, 'fecha_nacimiento', None),
                 tipo_persona='propietario'
             )
-            
-            # Procesar foto si se proporciona
+
+            # Procesar imágenes de reconocimiento facial desde la solicitud
+            from core.utils.dropbox_upload import upload_image_to_dropbox
+            from core.utils.download_image import download_image_from_url
+            from core.utils.face_encoding import generate_face_encoding_from_base64
+            import base64
+            from django.core.files.base import ContentFile
+            nuevas_urls = []
+            encodings = []
+            fotos_urls = getattr(solicitud, 'fotos_reconocimiento_urls', [])
+            print(f"[DEBUG] Iniciando procesamiento de imágenes de reconocimiento facial para solicitud {solicitud.id}")
+            for idx, foto_url_dict in enumerate(fotos_urls):
+                try:
+                    print(f"[DEBUG] Descargando imagen {idx} desde carpeta temporal: {foto_url_dict['path']}")
+                    img_bytes = download_image_from_url(foto_url_dict)
+                    print(f"[DEBUG] Imagen descargada correctamente. Subiendo a carpeta definitiva...")
+                    file_name = os.path.basename(foto_url_dict['path'])
+                    file_name_final = f"propietario_{persona.documento_identidad}_{idx}.jpg"
+                    file = ContentFile(img_bytes.read(), name=file_name_final)
+                    url_final = upload_image_to_dropbox(file, file_name_final, folder="/FotoPropietario")
+                    print(f"[DEBUG] Imagen subida a /FotoPropietario: {url_final['path']}")
+                    nuevas_urls.append(url_final)
+                    b64data = base64.b64encode(img_bytes.getvalue()).decode('utf-8')
+                    foto_base64 = f"data:image/jpeg;base64,{b64data}"
+                    encoding = generate_face_encoding_from_base64(foto_base64)
+                    if encoding:
+                        print(f"[DEBUG] Encoding facial generado para imagen {idx}")
+                        encodings.append(encoding)
+                    else:
+                        print(f"[DEBUG] No se pudo generar encoding facial para imagen {idx}")
+                except Exception as e:
+                    print(f"[DEBUG] Error procesando imagen {idx}: {e}")
+            if encodings:
+                persona.encoding_facial = encodings
+                persona.reconocimiento_facial_activo = True
+                print(f"[DEBUG] Encodings faciales guardados en Persona {persona.documento_identidad}")
+            else:
+                print(f"[DEBUG] No se generaron encodings faciales válidos")
+            persona.save()
+            solicitud.fotos_reconocimiento_urls = nuevas_urls
+            print(f"[DEBUG] URLs de fotos actualizadas en la solicitud {solicitud.id}")
+
+            # Procesar foto si se proporciona (flujo antiguo)
             if foto_base64:
                 self._procesar_foto_reconocimiento(persona, foto_base64)
-            
+
             # Crear usuario
             usuario = Usuario.objects.create_user(
                 email=getattr(solicitud, 'email', ''),
                 persona=persona,
                 password=password
             )
-            
+
             # Asignar rol de propietario
             rol_propietario, _ = Rol.objects.get_or_create(
                 nombre='Propietario',
                 defaults={'descripcion': 'Propietario de vivienda'}
             )
             usuario.roles.add(rol_propietario)
-            
+
             # Crear familiares
             for familiar_data in familiares_data:
                 self._crear_familiar(usuario, familiar_data)
-            
+
             # Actualizar solicitud
             if hasattr(solicitud, 'usuario_creado') and hasattr(solicitud, 'save'):
                 solicitud.usuario_creado = usuario  # type: ignore
                 solicitud.save()  # type: ignore
-            
+
             return usuario
 
     def _procesar_fotos_reconocimiento(self, persona, fotos_base64):
