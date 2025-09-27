@@ -15,9 +15,15 @@ def get_current_user():
 def bitacora_solicitud_propietario(sender, instance, created, **kwargs):
     usuario = get_current_user() or getattr(instance, 'usuario_creado', None)
     accion_tipo = 'CREATE' if created else 'UPDATE'
+    rol = None
+    if usuario and hasattr(usuario, 'roles'):
+        rol = usuario.roles.first()
+    if not rol:
+        from authz.models import Rol
+        rol, _ = Rol.objects.get_or_create(nombre='Invitado', defaults={'descripcion': 'Rol por defecto'})
     BitacoraAcciones.objects.create(
         usuario=usuario,
-        rol=None,
+        rol=rol,
         descripcion=f'{accion_tipo} de solicitud de registro de propietario',
         ip_address='127.0.0.1',
         modulo_afectado='SolicitudRegistroPropietario',
@@ -31,9 +37,15 @@ def bitacora_solicitud_propietario(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=SolicitudRegistroPropietario)
 def bitacora_delete_solicitud(sender, instance, **kwargs):
     usuario = get_current_user() or getattr(instance, 'usuario_creado', None)
+    rol = None
+    if usuario and hasattr(usuario, 'roles'):
+        rol = usuario.roles.first()
+    if not rol:
+        from authz.models import Rol
+        rol, _ = Rol.objects.get_or_create(nombre='Invitado', defaults={'descripcion': 'Rol por defecto'})
     BitacoraAcciones.objects.create(
         usuario=usuario,
-        rol=None,
+        rol=rol,
         descripcion='DELETE de solicitud de registro de propietario',
         ip_address='127.0.0.1',
         modulo_afectado='SolicitudRegistroPropietario',
@@ -48,9 +60,15 @@ def bitacora_delete_solicitud(sender, instance, **kwargs):
 def bitacora_relacion_inquilino(sender, instance, created, **kwargs):
     usuario = get_current_user() or getattr(instance, 'propietario', None)
     accion_tipo = 'CREATE' if created else 'UPDATE'
+    rol = None
+    if usuario and hasattr(usuario, 'roles'):
+        rol = usuario.roles.first()
+    if not rol:
+        from authz.models import Rol
+        rol, _ = Rol.objects.get_or_create(nombre='Invitado', defaults={'descripcion': 'Rol por defecto'})
     BitacoraAcciones.objects.create(
         usuario=usuario,
-        rol=None,
+        rol=rol,
         descripcion=f'{accion_tipo} de relación propietario-inquilino',
         ip_address='127.0.0.1',
         modulo_afectado='RelacionesPropietarioInquilino',
