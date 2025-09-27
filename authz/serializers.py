@@ -16,15 +16,16 @@ class PersonaSerializer(serializers.ModelSerializer):
     """Serializer para manejar datos de persona"""
     edad = serializers.SerializerMethodField()
     nombre_completo = serializers.SerializerMethodField()
-    
+    foto_perfil = serializers.ImageField(required=True)
+
     class Meta:
         model = Persona
         fields = [
             "id", "nombre", "apellido", "documento_identidad", "telefono", 
             "email", "fecha_nacimiento", "genero", "pais", "tipo_persona",
-            "direccion", "edad", "nombre_completo", "activo", "created_at", "updated_at"
+            "direccion", "foto_perfil", "edad", "nombre_completo", "activo", "created_at", "updated_at"
         ]
-        
+
     def get_edad(self, obj):
         if obj.fecha_nacimiento:
             today = date.today()
@@ -32,7 +33,7 @@ class PersonaSerializer(serializers.ModelSerializer):
                 (today.month, today.day) < (obj.fecha_nacimiento.month, obj.fecha_nacimiento.day)
             )
         return None
-    
+
     def get_nombre_completo(self, obj):
         return obj.nombre_completo
 
@@ -169,6 +170,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
     pais = serializers.CharField(required=False, allow_blank=True)
     tipo_persona = serializers.CharField(required=False, default='cliente')
     direccion = serializers.CharField(required=False, allow_blank=True)
+    foto_perfil = serializers.ImageField(write_only=True, required=True)
     
     class Meta:
         model = Usuario
@@ -176,7 +178,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             "email", "password", "password_confirm",
             # Campos de persona
             "nombres", "apellidos", "documento_identidad", "telefono", 
-            "fecha_nacimiento", "genero", "pais", "tipo_persona", "direccion"
+            "fecha_nacimiento", "genero", "pais", "tipo_persona", "direccion", "foto_perfil"
         ]
     
     def validate(self, attrs):
@@ -194,7 +196,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         # Extraer datos de contraseña
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
-        
+
         # Extraer datos de persona
         persona_data = {
             'nombre': validated_data.pop('nombres'),
@@ -207,11 +209,12 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             'pais': validated_data.pop('pais', ''),
             'tipo_persona': validated_data.pop('tipo_persona', 'cliente'),
             'direccion': validated_data.pop('direccion', ''),
+            'foto_perfil': validated_data.pop('foto_perfil'),
         }
-        
+
         # Crear persona
         persona = Persona.objects.create(**persona_data)
-        
+
         # Crear usuario
         usuario = Usuario.objects.create(
             persona=persona,
@@ -219,7 +222,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         )
         usuario.set_password(password)
         usuario.save()
-        
+
         # Asignar rol por defecto
         from .models import Rol
         rol_cliente, _ = Rol.objects.get_or_create(
@@ -227,7 +230,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             defaults={'descripcion': 'Rol de inquilino del sistema', 'activo': True}
         )
         usuario.roles.add(rol_cliente)
-        
+
         return usuario
 
 

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'avisos_comunicados',
     'areas_comunes',
     'reservas_areas',
+    'mantenimiento',
 
 ]
 

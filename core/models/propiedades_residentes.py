@@ -77,6 +77,12 @@ class Mantenimiento(models.Model):
     titulo = models.CharField(max_length=200)
     descripcion = models.TextField()
     tipo = models.CharField(max_length=50, choices=[('preventivo', 'Preventivo'), ('correctivo', 'Correctivo')])
+
+    # Hacer frecuencia opcional para inquilinos y propietarios
+    frecuencia = models.CharField(max_length=50, choices=[('diario', 'Diario'), ('semanal', 'Semanal'), ('mensual', 'Mensual'), ('anual', 'Anual')],
+                                  null=True, blank=True,  # Hacerlo opcional para propietarios e inquilinos
+                                  default=None)
+    
     fecha_programada = models.DateField(null=True, blank=True)
     fecha_realizacion = models.DateField(null=True, blank=True)
     costo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
@@ -87,6 +93,7 @@ class Mantenimiento(models.Model):
 
     def __str__(self):
         return self.titulo
+
 
 # Tabla de tareas de mantenimiento
 class TareaMantenimiento(models.Model):
@@ -327,6 +334,7 @@ class Visita(models.Model):
     llamada_confirmacion_realizada = models.BooleanField(default=False)
     foto_ingreso_url = models.URLField(null=True, blank=True)
     foto_salida_url = models.URLField(null=True, blank=True)
+    fotos_reconocimiento = models.JSONField(default=list, blank=True, help_text="Lista de dicts con path y url de fotos para reconocimiento facial")
     registro_automatico_ia = models.BooleanField(default=False)
     observaciones = models.TextField(null=True, blank=True)
 
