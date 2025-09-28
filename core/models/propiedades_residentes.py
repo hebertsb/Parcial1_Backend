@@ -205,7 +205,7 @@ class Notificacion(models.Model):
 # Tabla de expensas mensuales
 class ExpensasMensuales(models.Model):
    
-    vivienda = models.ForeignKey('core.Vivienda', on_delete=models.CASCADE, related_name='expensas')
+    vivienda = models.ForeignKey('core.Propiedad', on_delete=models.CASCADE, related_name='expensas')
     periodo_year = models.IntegerField()
     periodo_month = models.IntegerField()
     monto_base_administracion = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))

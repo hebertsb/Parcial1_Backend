@@ -150,10 +150,16 @@ class RegistrarPagoSerializer(serializers.Serializer):
         if tipo == 'expensa':
             expensa = ExpensasMensuales.objects.filter(
                 id=objetivo_id,
-                vivienda__propiedad__persona=persona,
+                #vivienda__propiedad__persona=persona,                        este es del chifu
+                                      vivienda__persona=persona,  # <- CORREGIDO                      #agregando un cambio para probar del chifu
             ).first()
             if not expensa:
                 raise serializers.ValidationError('La expensa indicada no existe o no pertenece al usuario.')
+            
+        
+        
+
+
             pendiente = max(Decimal('0'), expensa.monto_total - total_pagado_expensa(expensa))
             if pendiente <= 0:
                 raise serializers.ValidationError('La expensa seleccionada ya se encuentra pagada.')
