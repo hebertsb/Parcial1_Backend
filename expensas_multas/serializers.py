@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from core.models import ExpensasMensuales
+from core.models.propiedades_residentes import ExpensasMensuales
 from decimal import Decimal
+
 
 class ExpensasMensualesSerializer(serializers.ModelSerializer):
     
