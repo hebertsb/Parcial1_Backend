@@ -34,4 +34,6 @@ urlpatterns = [
     path('', include('authz.urls_admin')),
     # Endpoint de detalle de propietario por ID
     path('propietarios/<int:propietario_id>/', DetallePropietarioView.as_view(), name='detalle-propietario'),
+    # Endpoints para registro y consulta de familiares
+    path('familiares/', include('authz.urls_familiares')),
 ]
