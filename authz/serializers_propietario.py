@@ -59,40 +59,52 @@ from .models import (
     SolicitudRegistroPropietario, Rol,
     RelacionesPropietarioInquilino
 )
-from core.models import Vivienda
-from core.models.propiedades_residentes import Vivienda as ViviendaPropiedades
-import base64
-import uuid
-
+from core.models.propiedades_residentes import Vivienda, Propiedad
 
 class RegistroPropietarioInicialSerializer(serializers.Serializer):
-    """Serializer para el registro inicial de un propietario en la plataforma"""
-    
-    # Información de Identificación del Propietario
-    primer_nombre = serializers.CharField(
-        max_length=100,
-        help_text="Primer nombre del propietario"
-    )
-    primer_apellido = serializers.CharField(
-        max_length=100,
-        help_text="Primer apellido del propietario"
-    )
-    cedula = serializers.CharField(
+    numero_casa = serializers.CharField(
         max_length=20,
-        help_text="Cédula de identidad"
+        help_text="Número de casa o departamento"
     )
-    fecha_nacimiento = serializers.DateField(
-        help_text="Fecha de nacimiento (YYYY-MM-DD)"
+    password = serializers.CharField(
+        min_length=8,
+        help_text="Contraseña para la cuenta"
     )
-    email = serializers.EmailField(
-        help_text="Correo electrónico - será su username"
+    confirm_password = serializers.CharField(
+        min_length=8,
+        help_text="Confirmar contraseña"
     )
-    telefono = serializers.CharField(
-        max_length=20,
-        help_text="Teléfono de contacto"
-    )
-    
-    # Información de la Propiedad
+    # ... otros campos ...
+
+    def validate_numero_casa(self, value):
+        try:
+            # Verificar que la vivienda existe
+            vivienda = Vivienda.objects.get(numero_casa=value)
+            # Verificar que no hay propietario registrado
+            propietario_existente = Propiedad.objects.filter(
+                vivienda=vivienda,
+                tipo_tenencia='propietario',
+                activo=True
+            ).exists()
+            if propietario_existente:
+                raise serializers.ValidationError(
+                    f"La vivienda {value} ya tiene un propietario registrado en el sistema."
+                )
+            # Verificar que no hay solicitud pendiente/aprobada para esta vivienda
+            solicitud_existente = SolicitudRegistroPropietario.objects.filter(
+                numero_casa=value,
+                estado__in=['PENDIENTE', 'EN_REVISION', 'APROBADA']
+            ).exists()
+            if solicitud_existente:
+                raise serializers.ValidationError(
+                    f"Ya existe una solicitud activa para la vivienda {value}."
+                )
+            return value
+        except Vivienda.DoesNotExist:
+            raise serializers.ValidationError(
+                f"No existe la vivienda {value} en el sistema. "
+                "Verifique el número con la administración."
+            )
     numero_casa = serializers.CharField(
         max_length=20,
         help_text="Número de casa o departamento"
@@ -155,81 +167,75 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
         """Crear la solicitud de registro inicial"""
         print("🔍 DEBUG: Iniciando create() del serializer")
         print(f"🔍 DEBUG: validated_data recibido: {validated_data}")
-        try:
-            # Remover campos que no van al modelo
-            password = validated_data.pop('password')
-            validated_data.pop('confirm_password', None)
-            numero_casa = validated_data.pop('numero_casa')
-            print(f"🔍 DEBUG: Campos removidos - numero_casa: {numero_casa}")
+        # Remover campos que no van al modelo
+        password = validated_data.pop('password')
+        validated_data.pop('confirm_password', None)
+        numero_casa = validated_data.pop('numero_casa')
+        print(f"🔍 DEBUG: Campos removidos - numero_casa: {numero_casa}")
 
-            # Eliminar fotos_base64 ANTES de cualquier uso de validated_data para modelos
-            fotos_base64 = validated_data.pop('fotos_base64', None)
+        # Eliminar fotos_base64 ANTES de cualquier uso de validated_data para modelos
+        fotos_base64 = validated_data.pop('fotos_base64', None)
 
-            # Obtener la vivienda
-            print(f"🔍 DEBUG: Buscando vivienda con numero_casa: {numero_casa}")
-            vivienda = Vivienda.objects.get(numero_casa=numero_casa)
-            print(f"🔍 DEBUG: Vivienda encontrada: {vivienda}")
+        # Obtener la vivienda
+        print(f"🔍 DEBUG: Buscando vivienda con numero_casa: {numero_casa}")
+        vivienda = Vivienda.objects.get(numero_casa=numero_casa)
+        print(f"🔍 DEBUG: Vivienda encontrada: {vivienda}")
 
-            # Crear persona
-            persona_data = {
-                'nombre': validated_data['primer_nombre'],
-                'apellido': validated_data['primer_apellido'],
-                'documento_identidad': validated_data['cedula'],
-                'fecha_nacimiento': validated_data['fecha_nacimiento'],
-                'telefono': validated_data['telefono'],
-                'email': validated_data['email'],
-                'genero': validated_data.get('genero', '')
-            }
-            print(f"🔍 DEBUG: Datos para crear persona: {persona_data}")
-            persona = Persona.objects.create(**persona_data)
-            print(f"🔍 DEBUG: Persona creada: {persona}")
+        # Crear persona
+        persona_data = {
+            'nombre': validated_data['primer_nombre'],
+            'apellido': validated_data['primer_apellido'],
+            'documento_identidad': validated_data['cedula'],
+            'fecha_nacimiento': validated_data['fecha_nacimiento'],
+            'telefono': validated_data['telefono'],
+            'email': validated_data['email'],
+            'genero': validated_data.get('genero', '')
+        }
+        print(f"🔍 DEBUG: Datos para crear persona: {persona_data}")
+        persona = Persona.objects.create(**persona_data)
+        print(f"🔍 DEBUG: Persona creada: {persona}")
 
-            # Procesar fotos si se proporcionan
-            if fotos_base64:
-                self._procesar_fotos_reconocimiento(persona, fotos_base64)
+        # Procesar fotos si se proporcionan
+        if fotos_base64:
+            self._procesar_fotos_reconocimiento(persona, fotos_base64)
 
-            # Crear usuario
-            print(f"🔍 DEBUG: Creando usuario con email: {validated_data['email']}")
-            usuario = Usuario.objects.create_user(
-                email=validated_data['email'],
-                password=password,
-                persona=persona,
-                estado='ACTIVO'
-            )
-            print(f"🔍 DEBUG: Usuario creado: {usuario}")
+        # Crear usuario
+        print(f"🔍 DEBUG: Creando usuario con email: {validated_data['email']}")
+        usuario = Usuario.objects.create_user(
+            email=validated_data['email'],
+            password=password,
+            persona=persona,
+            estado='ACTIVO'
+        )
+        print(f"🔍 DEBUG: Usuario creado: {usuario}")
 
-            # Crear solicitud de registro con los campos correctos del modelo
-            solicitud_data = {
-                'nombres': validated_data['primer_nombre'],
-                'apellidos': validated_data['primer_apellido'],
-                'documento_identidad': validated_data['cedula'],
-                'fecha_nacimiento': validated_data['fecha_nacimiento'],
-                'email': validated_data['email'],
-                'telefono': validated_data['telefono'],
-                'numero_casa': numero_casa,
-                'vivienda_validada': vivienda,
-                'usuario_creado': usuario,  # ✅ AGREGAR ESTA LÍNEA
-                'estado': 'PENDIENTE',
-                'comentarios_admin': f"Registro inicial desde formulario web - Usuario ID: {usuario.id}"
-            }
-            print(f"🔍 DEBUG: Datos para crear solicitud: {solicitud_data}")
+        # Crear solicitud de registro con los campos correctos del modelo
+        solicitud_data = {
+            'nombres': validated_data['primer_nombre'],
+            'apellidos': validated_data['primer_apellido'],
+            'documento_identidad': validated_data['cedula'],
+            'fecha_nacimiento': validated_data['fecha_nacimiento'],
+            'email': validated_data['email'],
+            'telefono': validated_data['telefono'],
+            'numero_casa': numero_casa,
+            'vivienda_validada': vivienda,
+            'usuario_creado': usuario,  # ✅ AGREGAR ESTA LÍNEA
+            'estado': 'PENDIENTE',
+            'comentarios_admin': f"Registro inicial desde formulario web - Usuario ID: {usuario.id}"
+        }
+        print(f"🔍 DEBUG: Datos para crear solicitud: {solicitud_data}")
 
-            solicitud = SolicitudRegistroPropietario.objects.create(**solicitud_data)
-            print(f"🔍 DEBUG: Solicitud creada exitosamente: {solicitud}")
+        solicitud = SolicitudRegistroPropietario.objects.create(**solicitud_data)
+        print(f"🔍 DEBUG: Solicitud creada exitosamente: {solicitud}")
 
-            resultado = {
-                'usuario': usuario,
-                'persona': persona,
-                'solicitud': solicitud,
-                'vivienda': vivienda
-            }
-            print(f"🔍 DEBUG: Retornando resultado: {type(resultado)}")
-            return resultado
-        except Exception as e:
-            print(f"❌ ERROR en create(): {type(e).__name__}: {str(e)}")
-            import traceback
-            print(f"❌ TRACEBACK: {traceback.format_exc()}")
-            raise
+        resultado = {
+            'usuario': usuario,
+            'persona': persona,
+            'solicitud': solicitud,
+            'vivienda': vivienda
+        }
+        print(f"🔍 DEBUG: Retornando resultado: {type(resultado)}")
+        return resultado
 
 
 class FamiliarRegistroSerializer(serializers.Serializer):
@@ -326,48 +332,35 @@ class SolicitudRegistroPropietarioSerializer(serializers.ModelSerializer):
 
     def validate_numero_casa(self, value):
         """Valida que la vivienda existe y está disponible"""
+        from core.models import Vivienda, Propiedad
+        # Verificar que la vivienda existe
         try:
-            from core.models import Vivienda, Propiedad
-            
-            # Verificar que la vivienda existe
-            try:
-                vivienda = Vivienda.objects.get(numero_casa=value)
-            except Vivienda.DoesNotExist:
-                raise serializers.ValidationError(
-                    f"No existe la vivienda {value} en el sistema. "
-                    "Verifique el número con la administración."
-                )
-            
-            # Verificar que no hay propietario registrado
-            propietario_existente = Propiedad.objects.filter(
-                vivienda=vivienda,
-                tipo_tenencia='propietario',
-                activo=True
-            ).exists()
-            
-            if propietario_existente:
-                raise serializers.ValidationError(
-                    f"La vivienda {value} ya tiene un propietario registrado en el sistema."
-                )
-            
-            # Verificar que no hay solicitud pendiente/aprobada para esta vivienda
-            solicitud_existente = SolicitudRegistroPropietario.objects.filter(
-                numero_casa=value,
-                estado__in=['PENDIENTE', 'EN_REVISION', 'APROBADA']
-            ).exists()
-            
-            if solicitud_existente:
-                raise serializers.ValidationError(
-                    f"Ya existe una solicitud activa para la vivienda {value}."
-                )
-            
-            return value
-            
-        except ImportError:
-            # Si no se puede importar core.models, solo validar formato
-            if not value or len(value.strip()) == 0:
-                raise serializers.ValidationError("El número de casa es requerido")
-            return value.strip().upper()
+            vivienda = Vivienda.objects.get(numero_casa=value)
+        except Vivienda.DoesNotExist:
+            raise serializers.ValidationError(
+                f"No existe la vivienda {value} en el sistema. "
+                "Verifique el número con la administración."
+            )
+        # Verificar que no hay propietario registrado
+        propietario_existente = Propiedad.objects.filter(
+            vivienda=vivienda,
+            tipo_tenencia='propietario',
+            activo=True
+        ).exists()
+        if propietario_existente:
+            raise serializers.ValidationError(
+                f"La vivienda {value} ya tiene un propietario registrado en el sistema."
+            )
+        # Verificar que no hay solicitud pendiente/aprobada para esta vivienda
+        solicitud_existente = SolicitudRegistroPropietario.objects.filter(
+            numero_casa=value,
+            estado__in=['PENDIENTE', 'EN_REVISION', 'APROBADA']
+        ).exists()
+        if solicitud_existente:
+            raise serializers.ValidationError(
+                f"Ya existe una solicitud activa para la vivienda {value}."
+            )
+        return value
 
     def validate(self, attrs):
         # Validar contraseñas coincidan (soportar ambos nombres de campo)
@@ -897,6 +890,7 @@ class RegistroInquilinoSerializer(serializers.Serializer):
     telefono = serializers.CharField(max_length=20, required=False, allow_blank=True)
     email = serializers.EmailField()
     fecha_nacimiento = serializers.DateField()
+    foto_perfil = serializers.ImageField(write_only=True, required=False)
     
     # Datos de la cuenta del inquilino
     password = serializers.CharField(
@@ -977,86 +971,66 @@ class RegistroInquilinoSerializer(serializers.Serializer):
         if vivienda_id:
             # Usar la vivienda específica del payload
             try:
-                vivienda = ViviendaPropiedades.objects.get(id=vivienda_id)
-            except ViviendaPropiedades.DoesNotExist:
+                vivienda = Vivienda.objects.get(id=vivienda_id)
+            except Vivienda.DoesNotExist:
                 raise serializers.ValidationError(f"No se encontró la vivienda con ID {vivienda_id}.")
         else:
             # Usar la vivienda del propietario de su solicitud aprobada
-            try:
-                solicitud = SolicitudRegistroPropietario.objects.get(
-                    usuario_creado=propietario,
-                    estado='APROBADA'
-                )
-                vivienda = solicitud.vivienda_validada
-                
-                if not vivienda:
-                    raise serializers.ValidationError("No se encontró una vivienda asociada al propietario.")
-                    
-            except SolicitudRegistroPropietario.DoesNotExist:
+            solicitud = SolicitudRegistroPropietario.objects.filter(
+                usuario_creado=propietario,
+                estado='APROBADA'
+            ).first()
+            if not solicitud:
                 raise serializers.ValidationError("No se encontró una solicitud aprobada para este propietario.")
-        
-        # Extraer contraseña
+            vivienda = solicitud.vivienda_validada
+            if not vivienda:
+                raise serializers.ValidationError("No se encontró una vivienda asociada al propietario.")
         password = validated_data.pop('password')
-        validated_data.pop('confirm_password')  # Remover confirm_password
-        
-        # Extraer datos de persona y relación
+        validated_data.pop('confirm_password')
+        foto_perfil_file = validated_data.pop('foto_perfil', None)
         persona_data = {
             'nombre': validated_data.pop('nombre'),
             'apellido': validated_data.pop('apellido'),
-            'documento_identidad': validated_data.pop('documento_identidad'),
-            'telefono': validated_data.pop('telefono', ''),
-            'email': validated_data.pop('email'),
-            'fecha_nacimiento': validated_data.pop('fecha_nacimiento'),
-            'genero': validated_data.pop('genero', ''),
-            'tipo_persona': 'inquilino'
-        }
-        
-        relacion_data = validated_data  # Lo que queda son datos de la relación
-        
+                        'documento_identidad': validated_data.pop('documento_identidad'),
+                        'telefono': validated_data.pop('telefono', ''),
+                        'email': validated_data.pop('email'),
+                        'fecha_nacimiento': validated_data.pop('fecha_nacimiento'),
+                        'genero': validated_data.pop('genero', ''),
+                        'tipo_persona': 'inquilino'
+                    }
+        # Subir imagen a Dropbox si se envía
+        if foto_perfil_file:
+            from core.utils.dropbox_upload import upload_image_to_dropbox
+            filename = f"{persona_data['documento_identidad']}_perfil.jpg"
+            folder = f"/Aplicaciones/FotoVisita/Inquilinos/{persona_data['documento_identidad']}"
+            dropbox_result = upload_image_to_dropbox(foto_perfil_file, filename, folder=folder)
+            persona_data['foto_perfil'] = dropbox_result['url']
+        relacion_data = validated_data
         try:
             with transaction.atomic():
-                # Crear la persona
                 persona = Persona.objects.create(**persona_data)
-                
-                # Crear usuario para el inquilino
                 usuario_inquilino = Usuario.objects.create_user(
                     email=persona.email,
-                    password=password,  # Usar la contraseña proporcionada
+                    password=password,
                     estado='ACTIVO'
                 )
-                
-                # Asignar la persona creada al usuario
                 usuario_inquilino.persona = persona
                 usuario_inquilino.save()
-                
-                # Asignar rol de inquilino
                 rol_inquilino, _ = Rol.objects.get_or_create(nombre='Inquilino')
                 usuario_inquilino.roles.add(rol_inquilino)
-                
-                # Crear la relación propietario-inquilino
                 relacion = RelacionesPropietarioInquilino.objects.create(
                     propietario=propietario,
                     inquilino=usuario_inquilino,
                     vivienda=vivienda,
                     **relacion_data
                 )
-                
                 return {
                     'inquilino': usuario_inquilino,
                     'relacion': relacion,
                     'mensaje': 'Inquilino registrado exitosamente con la contraseña proporcionada.'
                 }
-                
         except Exception as e:
             raise serializers.ValidationError(f"Error al crear el inquilino: {str(e)}")
-
-
-class ListarFamiliaresSerializer(serializers.ModelSerializer):
-    """Serializer para listar familiares del propietario"""
-    
-    persona_info = serializers.SerializerMethodField()
-    parentesco_display = serializers.CharField(source='get_parentesco_display', read_only=True)
-    
     class Meta:
         model = FamiliarPropietario
         fields = [
@@ -1096,7 +1070,8 @@ class ListarInquilinosSerializer(serializers.ModelSerializer):
                 'apellido': obj.inquilino.persona.apellido,
                 'documento_identidad': obj.inquilino.persona.documento_identidad,
                 'telefono': obj.inquilino.persona.telefono,
-                'email': obj.inquilino.email
+                'email': obj.inquilino.email,
+                'foto_perfil': obj.inquilino.persona.foto_perfil if obj.inquilino.persona.foto_perfil else None
             }
         return {'email': obj.inquilino.email}
     
