@@ -295,12 +295,6 @@ class SolicitudRegistroPropietario(models.Model):
                 logger.warning(f"Error obteniendo URL pública de Dropbox para foto_perfil: {e}")
                 return None
         return None
-    @property
-    def foto_perfil_url(self):
-        """Devuelve la URL pública de Dropbox para foto_perfil si existe."""
-        if self.foto_perfil:
-            return self.foto_perfil
-        return None
     """Modelo para gestionar solicitudes de registro de propietarios"""
     ESTADO_CHOICES = [
         ('PENDIENTE', 'Pendiente de Revisión'),
@@ -554,6 +548,65 @@ class SolicitudRegistroPropietario(models.Model):
                         estado='ACTIVO'
                     )
                     usuario.roles.add(rol_propietario)
+
+                # 🆕 CREAR COPROPIETARIO AUTOMÁTICO para reconocimiento facial
+                try:
+                    from seguridad.models import Copropietarios, ReconocimientoFacial
+                    
+                    # Determinar número de casa: usar vivienda validada si existe, sino numero_casa
+                    numero_casa_final = self.numero_casa
+                    if self.vivienda_validada:
+                        numero_casa_final = self.vivienda_validada.numero_casa  # ✅ Corregido
+                    
+                    copropietario = Copropietarios.objects.create(
+                        nombres=self.nombres,
+                        apellidos=self.apellidos,
+                        numero_documento=self.documento_identidad,
+                        email=self.email,
+                        telefono=self.telefono or "000000000",
+                        unidad_residencial=numero_casa_final,  # ✅ Usar el número correcto
+                        tipo_residente='Propietario',
+                        usuario_sistema=usuario,
+                        activo=True
+                    )
+                    logger.info(f"Copropietario creado automáticamente: ID {copropietario.id} para usuario {usuario.email} - Casa: {numero_casa_final}")
+                    
+                    # 🔧 CREAR RECONOCIMIENTO FACIAL AUTOMÁTICO (usando SQL directo)
+                    try:
+                        from django.db import connection
+                        with connection.cursor() as cursor:
+                            fecha_actual = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+                            sql = f"""
+                            INSERT INTO reconocimiento_facial (
+                                copropietario_id, 
+                                proveedor_ia, 
+                                vector_facial, 
+                                activo, 
+                                fecha_enrolamiento, 
+                                fecha_modificacion, 
+                                fecha_actualizacion,
+                                intentos_verificacion
+                            ) VALUES (
+                                {copropietario.id}, 
+                                'Local', 
+                                '[]', 
+                                1, 
+                                '{fecha_actual}', 
+                                '{fecha_actual}', 
+                                '{fecha_actual}',
+                                0
+                            )
+                            """
+                            cursor.execute(sql)
+                            reconocimiento_id = cursor.lastrowid
+                            logger.info(f"ReconocimientoFacial creado automáticamente: ID {reconocimiento_id} para copropietario {copropietario.id}")
+                    except Exception as e:
+                        logger.warning(f"Error creando reconocimiento facial automático: {e}")
+                        # No interrumpir el proceso si falla la creación del reconocimiento facial
+                        
+                except Exception as e:
+                    logger.warning(f"Error creando copropietario automático: {e}")
+                    # No interrumpir el proceso si falla la creación del copropietario
 
                 # Actualizar solicitud
                 self.estado = 'APROBADA'

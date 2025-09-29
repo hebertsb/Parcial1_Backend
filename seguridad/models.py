@@ -75,6 +75,11 @@ class ReconocimientoFacial(models.Model):
     fecha_enrolamiento = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
     
+    # Campos agregados por migración para compatibilidad
+    persona_id = models.IntegerField(blank=True, null=True, help_text='ID de persona en sistema authz')
+    fotos_urls = models.TextField(blank=True, null=True, help_text='URLs de fotos en Dropbox (JSON)')
+    fecha_actualizacion = models.DateTimeField(auto_now=True, help_text='Última actualización de fotos')
+    
     # Metadatos adicionales
     confianza_enrolamiento = models.FloatField(blank=True, null=True)
     intentos_verificacion = models.PositiveIntegerField(default=0)

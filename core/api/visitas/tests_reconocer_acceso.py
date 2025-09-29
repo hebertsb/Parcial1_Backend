@@ -6,7 +6,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from authz.models import Persona, Usuario, Rol
 from core.models.propiedades_residentes import Visita
 import numpy as np
-import face_recognition
 
 class ReconocerAccesoVisitaTest(APITestCase):
     def test_rechazo_acceso_persona_no_registrada(self):

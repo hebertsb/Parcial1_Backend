@@ -57,3 +57,6 @@ class DisponibilidadEspacioComunViewSet(viewsets.ModelViewSet):
         # Solo mostramos las disponibilidades para los espacios comunes activos
         return DisponibilidadEspacioComun.objects.filter(espacio_comun__activo=True)
 
+
+
+

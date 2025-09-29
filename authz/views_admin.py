@@ -8,12 +8,13 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema, OpenApiExample
-from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 from .models import Usuario, Persona, Rol
 from .serializers import UsuarioSerializer, PersonaSerializer
 from .permissions import IsAdministrador
+from seguridad.models import Copropietarios
 
 
 class CrearUsuarioSeguridadAPIView(APIView):
@@ -406,4 +407,253 @@ class ResetPasswordSeguridadAPIView(APIView):
             return Response({
                 'success': False,
                 'message': f'Error reseteando password: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ListarPropietariosAdminAPIView(APIView):
+    """
+    Vista para listar todos los propietarios con información combinada.
+    Muestra datos de Usuario + Copropietarios + información de vivienda.
+    Solo administradores pueden acceder.
+    """
+    permission_classes = [IsAuthenticated, IsAdministrador]
+    
+    @extend_schema(
+        summary="Listar propietarios con información completa",
+        description="Obtiene lista de todos los usuarios con rol de propietario, combinando información de Usuario y Copropietarios",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'usuario_id': {'type': 'integer'},
+                                'copropietario_id': {'type': 'integer', 'nullable': True},
+                                'email': {'type': 'string'},
+                                'nombres_completos': {'type': 'string'},
+                                'documento_identidad': {'type': 'string'},
+                                'telefono': {'type': 'string'},
+                                'unidad_residencial': {'type': 'string'},
+                                'tipo_residente': {'type': 'string'},
+                                'foto_perfil_url': {'type': 'string', 'nullable': True},
+                                'tiene_perfil_copropietario': {'type': 'boolean'},
+                                'puede_subir_fotos': {'type': 'boolean'},
+                                'estado_usuario': {'type': 'string'},
+                                'fecha_creacion': {'type': 'string'},
+                                'ultimo_login': {'type': 'string', 'nullable': True}
+                            }
+                        }
+                    },
+                    'total': {'type': 'integer'}
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Listar propietarios con información combinada"""
+        try:
+            # Obtener usuarios con rol de propietario
+            usuarios_propietarios = Usuario.objects.filter(
+                roles__nombre='Propietario'
+            ).select_related('persona').prefetch_related('copropietario_perfil').order_by('-date_joined')
+            
+            datos = []
+            for usuario in usuarios_propietarios:
+                # Obtener información del copropietario si existe
+                copropietario = getattr(usuario, 'copropietario_perfil', None)
+                
+                # Obtener información de vivienda desde solicitud si no tiene copropietario
+                unidad_residencial = "Sin asignar"
+                if copropietario:
+                    unidad_residencial = copropietario.unidad_residencial
+                else:
+                    # Buscar en solicitudes aprobadas
+                    from .models import SolicitudRegistroPropietario
+                    solicitud = SolicitudRegistroPropietario.objects.filter(
+                        usuario_creado=usuario,
+                        estado='APROBADA'
+                    ).first()
+                    if solicitud:
+                        unidad_residencial = solicitud.numero_casa
+                
+                datos.append({
+                    'usuario_id': usuario.id,
+                    'copropietario_id': copropietario.id if copropietario else None,
+                    'email': usuario.email,
+                    'nombres_completos': usuario.persona.nombre_completo if usuario.persona else f"{usuario.email}",
+                    'documento_identidad': usuario.persona.documento_identidad if usuario.persona else 'N/A',
+                    'telefono': usuario.persona.telefono if usuario.persona else '',
+                    'unidad_residencial': unidad_residencial,
+                    'tipo_residente': copropietario.tipo_residente if copropietario else 'Propietario',
+                    'foto_perfil_url': usuario.persona.foto_perfil_url if usuario.persona else None,
+                    'tiene_perfil_copropietario': bool(copropietario),
+                    'puede_subir_fotos': bool(copropietario),
+                    'estado_usuario': usuario.estado,
+                    'fecha_creacion': usuario.date_joined.isoformat(),
+                    'ultimo_login': usuario.last_login.isoformat() if usuario.last_login else None
+                })
+            
+            return Response({
+                'success': True,
+                'data': datos,
+                'total': len(datos)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo propietarios: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class EditarPropietarioAdminAPIView(APIView):
+    """
+    Vista para editar información de propietarios desde panel admin.
+    Permite editar tanto Usuario como Copropietario asociado.
+    Solo administradores pueden acceder.
+    """
+    permission_classes = [IsAuthenticated, IsAdministrador]
+    
+    @extend_schema(
+        summary="Editar información de propietario",
+        description="Permite editar información completa de un propietario (Usuario + Copropietario)",
+        parameters=[
+            OpenApiParameter(
+                name='usuario_id',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description='ID del usuario propietario'
+            )
+        ],
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'nombres': {'type': 'string'},
+                    'apellidos': {'type': 'string'},
+                    'telefono': {'type': 'string'},
+                    'unidad_residencial': {'type': 'string'},
+                    'estado_usuario': {
+                        'type': 'string',
+                        'enum': ['ACTIVO', 'INACTIVO', 'SUSPENDIDO', 'BLOQUEADO']
+                    }
+                }
+            }
+        },
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'message': {'type': 'string'},
+                    'data': {'type': 'object'}
+                }
+            }
+        }
+    )
+    def put(self, request, usuario_id):
+        """Editar información del propietario"""
+        try:
+            # Verificar que el usuario existe y tiene rol de propietario
+            usuario = Usuario.objects.filter(
+                id=usuario_id,
+                roles__nombre='Propietario'
+            ).select_related('persona').first()
+            
+            if not usuario:
+                return Response({
+                    'success': False,
+                    'message': 'Usuario propietario no encontrado'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Obtener datos del request
+            nombres = request.data.get('nombres')
+            apellidos = request.data.get('apellidos')
+            telefono = request.data.get('telefono')
+            unidad_residencial = request.data.get('unidad_residencial')
+            estado_usuario = request.data.get('estado_usuario')
+            
+            # Usar transacción para mantener consistencia
+            with transaction.atomic():
+                # Actualizar Persona si existe
+                if usuario.persona:
+                    if nombres:
+                        usuario.persona.nombre = nombres
+                    if apellidos:
+                        usuario.persona.apellido = apellidos
+                    if telefono:
+                        usuario.persona.telefono = telefono
+                    usuario.persona.save()
+                
+                # Actualizar Usuario
+                if estado_usuario and estado_usuario in ['ACTIVO', 'INACTIVO', 'SUSPENDIDO', 'BLOQUEADO']:
+                    usuario.estado = estado_usuario
+                    usuario.save()
+                
+                # Actualizar o crear Copropietario
+                copropietario = getattr(usuario, 'copropietario_perfil', None)
+                if copropietario:
+                    # Actualizar copropietario existente
+                    if nombres:
+                        copropietario.nombres = nombres
+                    if apellidos:
+                        copropietario.apellidos = apellidos
+                    if telefono:
+                        copropietario.telefono = telefono
+                    if unidad_residencial:
+                        copropietario.unidad_residencial = unidad_residencial
+                    copropietario.save()
+                else:
+                    # Verificar si ya existe un copropietario con el mismo documento
+                    if usuario.persona:
+                        copropietario_existente = Copropietarios.objects.filter(
+                            numero_documento=usuario.persona.documento_identidad
+                        ).first()
+                        
+                        if copropietario_existente:
+                            # Asociar copropietario existente al usuario
+                            copropietario_existente.usuario_sistema = usuario
+                            if nombres:
+                                copropietario_existente.nombres = nombres
+                            if apellidos:
+                                copropietario_existente.apellidos = apellidos
+                            if telefono:
+                                copropietario_existente.telefono = telefono
+                            if unidad_residencial:
+                                copropietario_existente.unidad_residencial = unidad_residencial
+                            copropietario_existente.save()
+                            copropietario = copropietario_existente
+                        else:
+                            # Crear nuevo copropietario
+                            copropietario = Copropietarios.objects.create(
+                                nombres=nombres or usuario.persona.nombre,
+                                apellidos=apellidos or usuario.persona.apellido,
+                                numero_documento=usuario.persona.documento_identidad,
+                                email=usuario.email,
+                                telefono=telefono or usuario.persona.telefono or "000000000",
+                                unidad_residencial=unidad_residencial or f"Unidad-{usuario.id}",
+                                tipo_residente='Propietario',
+                                usuario_sistema=usuario,
+                                activo=True
+                            )
+            
+            return Response({
+                'success': True,
+                'message': 'Propietario actualizado exitosamente',
+                'data': {
+                    'usuario_id': usuario.id,
+                    'copropietario_id': copropietario.id if copropietario else None,
+                    'nombres_completos': usuario.persona.nombre_completo if usuario.persona else usuario.email,
+                    'unidad_residencial': copropietario.unidad_residencial if copropietario else unidad_residencial
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error actualizando propietario: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 
 from .models import (
     FamiliarPropietario, RelacionesPropietarioInquilino, 
@@ -237,6 +238,100 @@ class GestionarInquilinosView(APIView, PropietarioPermissionMixin):
         
         print(f"❌ DEBUG: Errores de validación: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PerfilCompletoPropietarioView(APIView, PropietarioPermissionMixin):
+    """Vista para obtener perfil completo del propietario incluyendo vivienda"""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Obtener perfil completo del propietario",
+        description="Obtiene información completa del propietario incluyendo vivienda y reconocimiento facial"
+    )
+    def get(self, request):
+        try:
+            usuario = request.user
+            
+            # Obtener solicitud aprobada
+            solicitud = SolicitudRegistroPropietario.objects.filter(
+                usuario_creado=usuario,
+                estado='APROBADA'
+            ).first()
+            
+            # Obtener copropietario
+            copropietario = getattr(usuario, 'copropietario_perfil', None)
+            
+            # Obtener fotos de reconocimiento
+            fotos_count = 0
+            ultima_subida = None
+            if copropietario:
+                from seguridad.models import ReconocimientoFacial
+                fotos = ReconocimientoFacial.objects.filter(copropietario=copropietario)
+                fotos_count = fotos.count()
+                if fotos.exists():
+                    ultima_subida = fotos.latest('fecha_enrolamiento').fecha_enrolamiento
+            
+            data = {
+                'usuario': {
+                    'id': usuario.id,
+                    'email': usuario.email,
+                    'estado': usuario.estado,
+                    'fecha_registro': usuario.date_joined
+                },
+                'persona': {
+                    'nombres': usuario.persona.nombre if usuario.persona else '',
+                    'apellidos': usuario.persona.apellido if usuario.persona else '',
+                    'documento_identidad': usuario.persona.documento_identidad if usuario.persona else '',
+                    'telefono': usuario.persona.telefono if usuario.persona else '',
+                    'email': usuario.persona.email if usuario.persona else usuario.email,
+                    'foto_perfil_url': usuario.persona.foto_perfil_url if usuario.persona else None
+                },
+                'vivienda': None,
+                'copropietario': {
+                    'id': copropietario.id if copropietario else None,
+                    'unidad_residencial': copropietario.unidad_residencial if copropietario else 'No asignada',
+                    'tipo_residente': copropietario.tipo_residente if copropietario else 'Propietario',
+                    'activo': copropietario.activo if copropietario else False,
+                    'puede_subir_fotos': bool(copropietario)
+                },
+                'solicitud_original': None,
+                'reconocimiento_facial': {
+                    'habilitado': bool(copropietario),
+                    'total_fotos': fotos_count,
+                    'ultima_subida': ultima_subida
+                }
+            }
+            
+            # Agregar información de vivienda si existe
+            if solicitud and solicitud.vivienda_validada:
+                vivienda = solicitud.vivienda_validada
+                data['vivienda'] = {
+                    'numero_casa': vivienda.numero_casa,
+                    'bloque': vivienda.bloque,
+                    'tipo_vivienda': vivienda.tipo_vivienda,
+                    'metros_cuadrados': str(vivienda.metros_cuadrados),
+                    'estado': vivienda.estado
+                }
+                
+            # Agregar información de solicitud
+            if solicitud:
+                data['solicitud_original'] = {
+                    'numero_casa': solicitud.numero_casa,
+                    'fecha_solicitud': solicitud.created_at,
+                    'fecha_aprobacion': solicitud.fecha_aprobacion
+                }
+            
+            return Response({
+                'success': True,
+                'data': data
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo perfil: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class MenuPropietarioView(APIView, PropietarioPermissionMixin):
