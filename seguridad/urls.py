@@ -17,6 +17,7 @@ from . import facial_recognition_views_temp
 
 def panel_guardia(request):
     return facial_recognition_views_temp.panel_guardia(request)
+#subete
 
 urlpatterns = [
     # Face Recognition Endpoints originales
