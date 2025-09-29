@@ -28,3 +28,24 @@ class VisitaViewSet(viewsets.ModelViewSet):
         visitas = Visita.objects.filter(estado='programada').order_by('fecha_hora_programada')
         serializer = self.get_serializer(visitas, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='del-dia-seguridad')
+    def visitas_del_dia_seguridad(self, request):
+        """
+        Endpoint para listar todas las visitas del día actual.
+        Solo usuarios con rol Seguridad pueden acceder.
+        """
+        from datetime import datetime, timedelta
+        hoy = datetime.now().date()
+        visitas = Visita.objects.filter(
+            fecha_hora_programada__date=hoy
+        ).order_by('fecha_hora_programada')
+
+        # Validar rol Seguridad
+        usuario = request.user
+        tiene_rol_seguridad = hasattr(usuario, 'roles') and usuario.roles.filter(nombre='Seguridad').exists()
+        if not tiene_rol_seguridad:
+            return Response({'detail': 'No tiene permisos para ver las visitas del día.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(visitas, many=True)
+        return Response(serializer.data)

@@ -16,11 +16,15 @@
 
 # expensas_multas/urls.py
 from rest_framework.routers import DefaultRouter
-from .views import ExpensasMensualesViewSet
+from .views import ExpensasMensualesViewSet, enviar_alerta_expensa_vencida
 
 app_name = 'expensas_multas'
 
 router = DefaultRouter()
 router.register(r'expensas', ExpensasMensualesViewSet, basename='expensas')
 
-urlpatterns = router.urls
+from django.urls import path
+
+urlpatterns = [
+	path('enviar-alerta-expensa-vencida/', enviar_alerta_expensa_vencida, name='enviar_alerta_expensa_vencida'),
+] + router.urls

@@ -1,3 +1,46 @@
+
+import firebase_admin
+from firebase_admin import credentials, messaging
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework import status
+
+# Inicializa firebase-admin solo una vez
+import os
+FIREBASE_CRED_PATH = r'D:/ParcialBackend/Parcial_1/parcial-aee35-d3ddb4b24d21.json'
+if not firebase_admin._apps:
+    cred = credentials.Certificate(FIREBASE_CRED_PATH)
+    firebase_admin.initialize_app(cred)
+
+def send_push_fcm_v1(token, title, body):
+    message = messaging.Message(
+        notification=messaging.Notification(
+            title=title,
+            body=body,
+        ),
+        token=token,
+    )
+    response = messaging.send(message)
+    return response
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def enviar_alerta_expensa_vencida(request):
+    """
+    Endpoint para enviar notificación push de expensa vencida a un usuario.
+    Requiere: token_fcm, mensaje
+    Solo admin puede usarlo.
+    """
+    token_fcm = request.data.get('token_fcm')
+    mensaje = request.data.get('mensaje', 'Tiene expensas vencidas. Si no paga, perderá beneficios.')
+    if not token_fcm:
+        return Response({'error': 'Falta token_fcm'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        resultado = send_push_fcm_v1(token_fcm, 'Alerta de Expensa', mensaje)
+        return Response({'resultado': resultado})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -9,6 +52,24 @@ from decimal import Decimal, InvalidOperation
 from rest_framework.decorators import action
 
 class ExpensasMensualesViewSet(viewsets.ModelViewSet):
+    @action(detail=False, methods=['get'], url_path='alerta-vencidas')
+    def alerta_expensas_vencidas(self, request):
+        """
+        Endpoint para que el móvil consulte expensas vencidas/no pagadas y reciba una advertencia de pérdida de beneficios.
+        Devuelve expensas con estado 'vencida' o 'morosa' asociadas al usuario autenticado.
+        """
+        user = request.user
+        expensas_vencidas = ExpensasMensuales.objects.filter(
+            vivienda__persona=user.persona,
+            estado__in=['vencida', 'morosa']
+        )
+        serializer = self.get_serializer(expensas_vencidas, many=True)
+        advertencia = "Tiene expensas vencidas o morosas. Si no realiza el pago, se le quitarán beneficios como uso de áreas comunes y reservas."
+        return Response({
+            "alerta": True,
+            "mensaje": advertencia,
+            "expensas": serializer.data
+        })
     queryset = ExpensasMensuales.objects.all()
     serializer_class = ExpensasMensualesSerializer
     permission_classes = [IsAuthenticated]

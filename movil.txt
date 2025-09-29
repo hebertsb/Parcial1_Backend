@@ -1,0 +1,22 @@
+AVISO PARA EQUIPO FLUTTER
+=========================
+
+El backend ya está correctamente configurado y envía notificaciones push a través de FCM.
+
+Si no reciben la notificación en la app móvil, revisen lo siguiente:
+
+1. Verifiquen que el token FCM usado sea el actual y válido del dispositivo.
+2. Confirmen que el listener de notificaciones esté activo:
+   ```dart
+   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+     print('Notificación recibida: ${message.notification?.title} - ${message.notification?.body}');
+   });
+   ```
+3. Revisen los permisos de notificaciones en el dispositivo.
+4. Validar que la configuración de Firebase en la app (google-services.json / GoogleService-Info.plist) sea correcta.
+5. Prueben con un token FCM nuevo si es necesario.
+6. Revisen la consola de Firebase Cloud Messaging para posibles errores.
+
+El backend responde 200 OK y el envío es exitoso. Si no llega la notificación, el problema está en la app o en la configuración de Firebase.
+
+Para dudas técnicas, consulten este archivo o contacten al responsable del backend.

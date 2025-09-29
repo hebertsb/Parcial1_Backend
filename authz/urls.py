@@ -1,3 +1,4 @@
+from .views_acceso import ListarAccesosCondominioAPIView
 """
 URLs para el sistema de autenticación y autorización
 """
@@ -36,4 +37,6 @@ urlpatterns = [
     path('propietarios/<int:propietario_id>/', DetallePropietarioView.as_view(), name='detalle-propietario'),
     # Endpoints para registro y consulta de familiares
     path('familiares/', include('authz.urls_familiares')),
+    # Endpoint para listar personas con acceso al condominio (solo seguridad)
+    path('acceso/listar/', ListarAccesosCondominioAPIView.as_view(), name='listar-accesos-condominio'),
 ]
