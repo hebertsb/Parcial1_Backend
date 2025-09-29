@@ -7,7 +7,9 @@ from .views_admin import (
     CrearUsuarioSeguridadAPIView,
     ListarUsuariosSeguridadAPIView,
     ActualizarEstadoUsuarioSeguridadAPIView,
-    ResetPasswordSeguridadAPIView
+    ResetPasswordSeguridadAPIView,
+    ListarPropietariosAdminAPIView,
+    EditarPropietarioAdminAPIView
 )
 
 urlpatterns = [
@@ -31,5 +33,17 @@ urlpatterns = [
         'admin/seguridad/<int:usuario_id>/reset-password/', 
         ResetPasswordSeguridadAPIView.as_view(), 
         name='admin-reset-password-seguridad'
+    ),
+    
+    # Gestión de propietarios
+    path(
+        'admin/propietarios/listar/', 
+        ListarPropietariosAdminAPIView.as_view(), 
+        name='admin-listar-propietarios'
+    ),
+    path(
+        'admin/propietarios/<int:usuario_id>/editar/', 
+        EditarPropietarioAdminAPIView.as_view(), 
+        name='admin-editar-propietario'
     ),
 ]

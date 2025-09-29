@@ -62,8 +62,8 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # Face Recognition API
-    path('', include('seguridad.urls')),
+    # Face Recognition API + Seguridad
+    path('seguridad/', include('seguridad.urls')),
 
        # Rutas para Expensas y Multas (CRUD)
     path('api/pagos/', include('expensas_multas.urls')),

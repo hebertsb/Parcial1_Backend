@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Guardia - Sistema de Reconocimiento Facial</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            transition: transform 0.3s;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .upload-zone {
+            border: 3px dashed #007bff;
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+            background: linear-gradient(45deg, #f8f9ff, #e3f2fd);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-zone:hover {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            transform: scale(1.02);
+        }
+        
+        .upload-zone.dragover {
+            border-color: #28a745;
+            background: linear-gradient(45deg, #f8fff8, #e8f5e8);
+        }
+        
+        .result-card {
+            margin-top: 2rem;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .result-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+        
+        .result-denied {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            color: white;
+        }
+        
+        .user-photo {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .user-list-card {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .user-list-card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .search-box {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            background: none;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 1rem 2rem;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: white;
+            color: #1e3c72;
+            border-bottom-color: #1e3c72;
+            font-weight: bold;
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .status-active {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status-inactive {
+            background: #ffc107;
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-shield-alt"></i> Panel del Guardia</h1>
+                    <p class="mb-0">Sistema de Reconocimiento Facial - Condominio</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end gap-3">
+                        <span class="badge bg-success fs-6">
+                            <i class="fas fa-clock"></i> <span id="hora-actual"></span>
+                        </span>
+                        <span class="badge bg-info fs-6">
+                            <i class="fas fa-calendar"></i> <span id="fecha-actual"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <!-- Navegación por pestañas -->
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="recognition-tab" data-bs-toggle="tab" data-bs-target="#recognition" type="button">
+                    <i class="fas fa-camera"></i> Reconocimiento Facial
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">
+                    <i class="fas fa-users"></i> Lista de Residentes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button">
+                    <i class="fas fa-chart-bar"></i> Estadísticas
+                </button>
+            </li>
+        </ul>
+
+        <!-- Contenido de las pestañas -->
+        <div class="tab-content" id="mainTabsContent">
+            
+            <!-- PESTAÑA 1: RECONOCIMIENTO FACIAL -->
+            <div class="tab-pane fade show active" id="recognition" role="tabpanel">
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="stats-card">
+                            <h3><i class="fas fa-upload text-primary"></i> Subir Imagen para Reconocimiento</h3>
+                            <p class="text-muted">Simule el escaneo de la cámara subiendo una imagen</p>
+                            
+                            <!-- Zona de arrastrar y soltar -->
+                            <div class="upload-zone" id="uploadZone">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                <h4>Arrastra una imagen aquí</h4>
+                                <p class="text-muted">o haz clic para seleccionar archivo</p>
+                                <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                                <button class="btn btn-primary btn-lg mt-2" onclick="document.getElementById('imageInput').click()">
+                                    <i class="fas fa-folder-open"></i> Seleccionar Imagen
+                                </button>
+                            </div>
+                            
+                            <!-- Vista previa de imagen -->
+                            <div id="imagePreview" style="display: none; margin-top: 2rem;">
+                                <h5>Imagen cargada:</h5>
+                                <img id="previewImg" style="max-width: 100%; height: 200px; object-fit: cover; border-radius: 10px;">
+                                <div class="mt-3">
+                                    <button class="btn btn-success btn-lg" id="processBtn">
+                                        <i class="fas fa-search"></i> Procesar Reconocimiento
+                                    </button>
+                                    <button class="btn btn-secondary" id="clearBtn">
+                                        <i class="fas fa-times"></i> Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Loading -->
+                            <div class="loading-spinner" id="loadingSpinner">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Procesando...</span>
+                                </div>
+                                <p class="mt-2">Analizando imagen...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <!-- Resultados del reconocimiento -->
+                        <div id="resultContainer" style="display: none;">
+                            <div class="result-card" id="resultCard">
+                                <div class="card-body text-center p-4">
+                                    <div id="resultContent">
+                                        <!-- El contenido se genera dinámicamente -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Información adicional -->
+                        <div class="stats-card mt-3">
+                            <h5><i class="fas fa-info-circle text-info"></i> Información del Sistema</h5>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Umbral de confianza: 70%</li>
+                                <li><i class="fas fa-check text-success"></i> Formatos soportados: JPG, PNG</li>
+                                <li><i class="fas fa-check text-success"></i> Tamaño máximo: 5MB</li>
+                                <li><i class="fas fa-check text-success"></i> Resolución recomendada: 500x500px</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 2: LISTA DE USUARIOS -->
+            <div class="tab-pane fade" id="users" role="tabpanel">
+                <div class="mt-4">
+                    <!-- Barra de búsqueda -->
+                    <div class="search-box">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="searchInput" placeholder="Buscar por nombre, documento o casa...">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary" id="searchBtn">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                                <button class="btn btn-secondary" id="clearSearchBtn">
+                                    <i class="fas fa-eraser"></i> Limpiar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted" id="userCount">Cargando usuarios...</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista de usuarios -->
+                    <div id="usersList">
+                        <div class="text-center p-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando usuarios...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 3: ESTADÍSTICAS -->
+            <div class="tab-pane fade" id="stats" role="tabpanel">
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                            <h3 id="totalUsers">-</h3>
+                            <p class="text-muted">Total Usuarios</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-home fa-3x text-success mb-3"></i>
+                            <h3 id="totalCopropietarios">-</h3>
+                            <p class="text-muted">Copropietarios</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-user-friends fa-3x text-info mb-3"></i>
+                            <h3 id="totalInquilinos">-</h3>
+                            <p class="text-muted">Inquilinos</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
+                            <h3 id="reconocimientosHoy">0</h3>
+                            <p class="text-muted">Escaneos Hoy</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="stats-card">
+                            <h5><i class="fas fa-history text-primary"></i> Últimos Registros</h5>
+                            <div id="lastRecords">
+                                <p class="text-muted">Cargando registros...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Variables globales
+        let usuariosCargados = [];
+        let reconocimientosRealizados = 0;
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', function() {
+            actualizarReloj();
+            setInterval(actualizarReloj, 1000);
+            cargarUsuarios();
+            cargarEstadisticas();
+            configurarReconocimientoFacial();
+        });
+
+        // Actualizar reloj
+        function actualizarReloj() {
+            const ahora = new Date();
+            document.getElementById('hora-actual').textContent = ahora.toLocaleTimeString();
+            document.getElementById('fecha-actual').textContent = ahora.toLocaleDateString();
+        }
+
+        // Configurar reconocimiento facial
+        function configurarReconocimientoFacial() {
+            const uploadZone = document.getElementById('uploadZone');
+            const imageInput = document.getElementById('imageInput');
+            const imagePreview = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImg');
+            const processBtn = document.getElementById('processBtn');
+            const clearBtn = document.getElementById('clearBtn');
+
+            // Eventos de drag and drop
+            uploadZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    manejarArchivo(files[0]);
+                }
+            });
+
+            // Clic en zona de subida
+            uploadZone.addEventListener('click', function() {
+                imageInput.click();
+            });
+
+            // Cambio en input de archivo
+            imageInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    manejarArchivo(e.target.files[0]);
+                }
+            });
+
+            // Procesar reconocimiento
+            processBtn.addEventListener('click', function() {
+                procesarReconocimiento();
+            });
+
+            // Limpiar imagen
+            clearBtn.addEventListener('click', function() {
+                limpiarImagen();
+            });
+        }
+
+        // Manejar archivo subido
+        function manejarArchivo(archivo) {
+            if (!archivo.type.startsWith('image/')) {
+                alert('Por favor selecciona una imagen válida');
+                return;
+            }
+
+            if (archivo.size > 5 * 1024 * 1024) { // 5MB
+                alert('La imagen es demasiado grande. Máximo 5MB.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+                document.getElementById('resultContainer').style.display = 'none';
+            };
+            reader.readAsDataURL(archivo);
+        }
+
+        // Procesar reconocimiento facial
+        async function procesarReconocimiento() {
+            const previewImg = document.getElementById('previewImg');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const resultContainer = document.getElementById('resultContainer');
+
+            if (!previewImg.src) {
+                alert('Por favor selecciona una imagen primero');
+                return;
+            }
+
+            // Mostrar loading
+            loadingSpinner.style.display = 'block';
+            resultContainer.style.display = 'none';
+
+            try {
+                // Convertir imagen a base64
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                img.onload = async function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+                    
+                    // Enviar al backend
+                    const response = await fetch('/api/seguridad/reconocimiento-facial/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            imagen: base64
+                        })
+                    });
+
+                    const resultado = await response.json();
+                    
+                    // Ocultar loading
+                    loadingSpinner.style.display = 'none';
+                    
+                    // Mostrar resultado
+                    mostrarResultado(resultado);
+                    
+                    // Actualizar contador
+                    reconocimientosRealizados++;
+                    document.getElementById('reconocimientosHoy').textContent = reconocimientosRealizados;
+                };
+                
+                img.src = previewImg.src;
+
+            } catch (error) {
+                console.error('Error:', error);
+                loadingSpinner.style.display = 'none';
+                alert('Error procesando la imagen. Intenta nuevamente.');
+            }
+        }
+
+        // Mostrar resultado del reconocimiento
+        function mostrarResultado(resultado) {
+            const resultContainer = document.getElementById('resultContainer');
+            const resultCard = document.getElementById('resultCard');
+            const resultContent = document.getElementById('resultContent');
+
+            if (resultado.reconocido) {
+                // Acceso permitido
+                resultCard.className = 'result-card result-success';
+                resultContent.innerHTML = `
+                    <h2><i class="fas fa-check-circle fa-2x mb-3"></i></h2>
+                    <h3>ACCESO PERMITIDO</h3>
+                    <div class="row align-items-center mt-4">
+                        <div class="col-md-4">
+                            <img src="${resultado.persona.foto_perfil || '/static/img/default-avatar.png'}" 
+                                 class="user-photo" alt="Foto de perfil">
+                        </div>
+                        <div class="col-md-8 text-start">
+                            <h4>${resultado.persona.nombre} ${resultado.persona.apellido}</h4>
+                            <p><i class="fas fa-home"></i> <strong>Casa:</strong> ${resultado.persona.numero_casa}</p>
+                            <p><i class="fas fa-id-card"></i> <strong>Documento:</strong> ${resultado.persona.documento}</p>
+                            <p><i class="fas fa-phone"></i> <strong>Teléfono:</strong> ${resultado.persona.telefono || 'No disponible'}</p>
+                            <p><i class="fas fa-user-tag"></i> <strong>Tipo:</strong> ${resultado.persona.tipo}</p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge bg-light text-dark fs-6">
+                            <i class="fas fa-percentage"></i> Confianza: ${resultado.confianza}%
+                        </span>
+                        <span class="badge bg-light text-dark fs-6">
+                            <i class="fas fa-clock"></i> ${resultado.hora_acceso}
+                        </span>
+                    </div>
+                `;
+            } else {
+                // Acceso denegado
+                resultCard.className = 'result-card result-denied';
+                resultContent.innerHTML = `
+                    <h2><i class="fas fa-times-circle fa-2x mb-3"></i></h2>
+                    <h3>ACCESO DENEGADO</h3>
+                    <div class="mt-4">
+                        <p><i class="fas fa-exclamation-triangle"></i> ${resultado.mensaje}</p>
+                        <p class="mt-3"><strong>Instrucciones:</strong></p>
+                        <ul class="text-start">
+                            <li>Verificar manualmente la identidad</li>
+                            <li>Consultar la lista de residentes</li>
+                            <li>Contactar administración si es necesario</li>
+                        </ul>
+                        ${resultado.sugerencia ? '<p class="mt-2"><em>' + resultado.sugerencia + '</em></p>' : ''}
+                    </div>
+                `;
+            }
+
+            resultContainer.style.display = 'block';
+        }
+
+        // Limpiar imagen
+        function limpiarImagen() {
+            document.getElementById('imageInput').value = '';
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'none';
+        }
+
+        // Cargar lista de usuarios
+        async function cargarUsuarios() {
+            try {
+                const response = await fetch('/api/seguridad/lista-usuarios-activos/');
+                const data = await response.json();
+                usuariosCargados = data.usuarios || [];
+                mostrarUsuarios(usuariosCargados);
+                document.getElementById('userCount').textContent = 
+                    `${usuariosCargados.length} usuarios con reconocimiento facial activo`;
+            } catch (error) {
+                console.error('Error cargando usuarios:', error);
+                document.getElementById('usersList').innerHTML = 
+                    '<div class="alert alert-danger">Error cargando usuarios</div>';
+            }
+        }
+
+        // Mostrar usuarios en la lista
+        function mostrarUsuarios(usuarios) {
+            const usersList = document.getElementById('usersList');
+            
+            if (usuarios.length === 0) {
+                usersList.innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5>No se encontraron usuarios</h5>
+                        <p class="text-muted">No hay usuarios con reconocimiento facial activo</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            usuarios.forEach(usuario => {
+                html += `
+                    <div class="user-list-card">
+                        <div class="row align-items-center">
+                            <div class="col-md-2">
+                                <img src="${usuario.foto_perfil || '/static/img/default-avatar.png'}" 
+                                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;" 
+                                     alt="Foto">
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="mb-1">${usuario.nombre} ${usuario.apellido}</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-home"></i> ${usuario.numero_casa} | 
+                                    <i class="fas fa-id-card"></i> ${usuario.documento_identidad} |
+                                    <i class="fas fa-phone"></i> ${usuario.telefono}
+                                </small>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="badge ${usuario.tipo_usuario === 'Copropietario' ? 'bg-primary' : 'bg-info'}">
+                                    ${usuario.tipo_usuario}
+                                </span>
+                            </div>
+                            <div class="col-md-2">
+                                <span class="status-badge ${usuario.reconocimiento_facial_activo ? 'status-active' : 'status-inactive'}">
+                                    ${usuario.reconocimiento_facial_activo ? 'ACTIVO' : 'INACTIVO'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            usersList.innerHTML = html;
+        }
+
+        // Cargar estadísticas
+        async function cargarEstadisticas() {
+            try {
+                const response = await fetch('/api/seguridad/estadisticas/');
+                const data = await response.json();
+                
+                document.getElementById('totalUsers').textContent = data.total_usuarios_activos;
+                document.getElementById('totalCopropietarios').textContent = data.copropietarios_activos;
+                document.getElementById('totalInquilinos').textContent = data.inquilinos_activos;
+                
+                // Mostrar últimos registros
+                if (data.ultimos_registros && data.ultimos_registros.length > 0) {
+                    let html = '<div class="list-group">';
+                    data.ultimos_registros.forEach(registro => {
+                        html += `
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${registro.nombre}</strong>
+                                        <br><small class="text-muted">${registro.casa} - ${registro.tipo}</small>
+                                    </div>
+                                    <span class="badge bg-secondary">${registro.fecha}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    document.getElementById('lastRecords').innerHTML = html;
+                } else {
+                    document.getElementById('lastRecords').innerHTML = 
+                        '<p class="text-muted">No hay registros recientes</p>';
+                }
+                
+            } catch (error) {
+                console.error('Error cargando estadísticas:', error);
+            }
+        }
+
+        // Búsqueda de usuarios
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            const termino = document.getElementById('searchInput').value.trim();
+            if (termino) {
+                buscarUsuarios(termino);
+            } else {
+                mostrarUsuarios(usuariosCargados);
+            }
+        });
+
+        document.getElementById('clearSearchBtn').addEventListener('click', function() {
+            document.getElementById('searchInput').value = '';
+            mostrarUsuarios(usuariosCargados);
+            document.getElementById('userCount').textContent = 
+                `${usuariosCargados.length} usuarios con reconocimiento facial activo`;
+        });
+
+        // Búsqueda en tiempo real
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const termino = e.target.value.trim().toLowerCase();
+            if (termino === '') {
+                mostrarUsuarios(usuariosCargados);
+                return;
+            }
+            
+            const usuariosFiltrados = usuariosCargados.filter(usuario => 
+                usuario.nombre.toLowerCase().includes(termino) ||
+                usuario.apellido.toLowerCase().includes(termino) ||
+                usuario.documento_identidad.includes(termino) ||
+                usuario.numero_casa.toLowerCase().includes(termino)
+            );
+            
+            mostrarUsuarios(usuariosFiltrados);
+            document.getElementById('userCount').textContent = 
+                `${usuariosFiltrados.length} de ${usuariosCargados.length} usuarios encontrados`;
+        });
+
+        // Buscar usuarios en servidor
+        async function buscarUsuarios(termino) {
+            try {
+                const response = await fetch(`/api/seguridad/buscar-usuarios/?q=${encodeURIComponent(termino)}`);
+                const data = await response.json();
+                mostrarUsuarios(data.usuarios);
+                document.getElementById('userCount').textContent = 
+                    `${data.usuarios.length} usuarios encontrados para "${termino}"`;
+            } catch (error) {
+                console.error('Error en búsqueda:', error);
+            }
+        }
+    </script>
+</body>
+</html>

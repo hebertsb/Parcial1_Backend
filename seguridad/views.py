@@ -556,3 +556,615 @@ class FaceStatusView(APIView):
                 {'error': 'Error interno del servidor', 'detail': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ListarUsuariosReconocimientoFacialView(APIView):
+    """
+    Vista para listar todos los usuarios que tienen reconocimiento facial habilitado.
+    Para uso del panel de seguridad y administración.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Listar usuarios con reconocimiento facial",
+        description="Obtiene lista de todos los copropietarios con reconocimiento facial habilitado, incluyendo sus fotos",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'copropietario_id': {'type': 'integer'},
+                                'usuario_id': {'type': 'integer', 'nullable': True},
+                                'nombres_completos': {'type': 'string'},
+                                'documento_identidad': {'type': 'string'},
+                                'unidad_residencial': {'type': 'string'},
+                                'tipo_residente': {'type': 'string'},
+                                'email': {'type': 'string'},
+                                'telefono': {'type': 'string'},
+                                'foto_perfil_url': {'type': 'string', 'nullable': True},
+                                'reconocimiento_facial': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'total_fotos': {'type': 'integer'},
+                                        'fecha_ultimo_enrolamiento': {'type': 'string', 'nullable': True},
+                                        'ultima_verificacion': {'type': 'string', 'nullable': True},
+                                        'fotos_urls': {
+                                            'type': 'array',
+                                            'items': {'type': 'string'}
+                                        }
+                                    }
+                                },
+                                'activo': {'type': 'boolean'},
+                                'fecha_creacion': {'type': 'string'}
+                            }
+                        }
+                    },
+                    'total': {'type': 'integer'},
+                    'estadisticas': {
+                        'type': 'object',
+                        'properties': {
+                            'total_usuarios': {'type': 'integer'},
+                            'con_fotos': {'type': 'integer'},
+                            'propietarios': {'type': 'integer'},
+                            'inquilinos': {'type': 'integer'},
+                            'familiares': {'type': 'integer'}
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Listar usuarios con reconocimiento facial"""
+        try:
+            # Obtener todos los copropietarios activos
+            copropietarios = Copropietarios.objects.filter(activo=True).order_by('unidad_residencial')
+            
+            datos = []
+            estadisticas = {
+                'total_usuarios': 0,
+                'con_fotos': 0,
+                'propietarios': 0,
+                'inquilinos': 0,
+                'familiares': 0
+            }
+            
+            for coprop in copropietarios:
+                # Obtener fotos de reconocimiento
+                fotos_reconocimiento = ReconocimientoFacial.objects.filter(
+                    copropietario=coprop
+                ).order_by('-fecha_enrolamiento')
+                
+                # Solo incluir si tiene fotos
+                if fotos_reconocimiento.exists():
+                    # Obtener URLs de fotos
+                    fotos_urls = []
+                    for foto in fotos_reconocimiento:
+                        if foto.imagen_referencia_url:
+                            fotos_urls.append(foto.imagen_referencia_url)
+                    
+                    # Obtener información del usuario del sistema si existe
+                    usuario_sistema = coprop.usuario_sistema
+                    foto_perfil_url = None
+                    
+                    if usuario_sistema and usuario_sistema.persona:
+                        foto_perfil_url = usuario_sistema.persona.foto_perfil_url
+                    
+                    # Obtener fechas de forma segura
+                    primera_foto = fotos_reconocimiento.first()
+                    fecha_ultimo_enrolamiento = None
+                    ultima_verificacion = None
+                    
+                    if primera_foto:
+                        fecha_ultimo_enrolamiento = primera_foto.fecha_enrolamiento.isoformat()
+                        if hasattr(primera_foto, 'ultima_verificacion') and primera_foto.ultima_verificacion:
+                            ultima_verificacion = primera_foto.ultima_verificacion.isoformat()
+                    
+                    datos.append({
+                        'copropietario_id': coprop.id,
+                        'usuario_id': usuario_sistema.id if usuario_sistema else None,
+                        'nombres_completos': f"{coprop.nombres} {coprop.apellidos}",
+                        'documento_identidad': coprop.numero_documento,
+                        'unidad_residencial': coprop.unidad_residencial,
+                        'tipo_residente': coprop.tipo_residente,
+                        'email': coprop.email or (usuario_sistema.email if usuario_sistema else ''),
+                        'telefono': coprop.telefono or '',
+                        'foto_perfil_url': foto_perfil_url,
+                        'reconocimiento_facial': {
+                            'total_fotos': fotos_reconocimiento.count(),
+                            'fecha_ultimo_enrolamiento': fecha_ultimo_enrolamiento,
+                            'ultima_verificacion': ultima_verificacion,
+                            'fotos_urls': fotos_urls[:3]  # Solo las primeras 3 fotos para el preview
+                        },
+                        'activo': coprop.activo,
+                        'fecha_creacion': coprop.fecha_creacion.isoformat()
+                    })
+                    
+                    # Actualizar estadísticas
+                    estadisticas['con_fotos'] += 1
+                    if coprop.tipo_residente == 'Propietario':
+                        estadisticas['propietarios'] += 1
+                    elif coprop.tipo_residente == 'Inquilino':
+                        estadisticas['inquilinos'] += 1
+                    elif coprop.tipo_residente == 'Familiar':
+                        estadisticas['familiares'] += 1
+                
+                estadisticas['total_usuarios'] += 1
+            
+            return Response({
+                'success': True,
+                'data': datos,
+                'total': len(datos),
+                'estadisticas': estadisticas
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error listando usuarios con reconocimiento facial: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo usuarios: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============================================================================
+# VISTAS DEL DASHBOARD DE SEGURIDAD
+# ============================================================================
+
+class DashboardSeguridadView(APIView):
+    """
+    Vista para el dashboard principal de seguridad
+    GET /api/seguridad/dashboard/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Dashboard de Seguridad",
+        description="Obtiene estadísticas generales para el dashboard de seguridad",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'object',
+                        'properties': {
+                            'estadisticas': {
+                                'type': 'object',
+                                'properties': {
+                                    'usuarios_activos': {'type': 'integer'},
+                                    'usuarios_con_reconocimiento': {'type': 'integer'},
+                                    'incidentes_hoy': {'type': 'integer'},
+                                    'visitas_activas': {'type': 'integer'},
+                                    'alertas_pendientes': {'type': 'integer'}
+                                }
+                            },
+                            'actividad_reciente': {
+                                'type': 'array',
+                                'items': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'tipo': {'type': 'string'},
+                                        'descripcion': {'type': 'string'},
+                                        'timestamp': {'type': 'string'},
+                                        'usuario': {'type': 'string'}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Obtener datos del dashboard de seguridad"""
+        try:
+            # Verificar permisos de seguridad
+            if not self._verificar_permisos_seguridad(request.user):
+                return Response({
+                    'success': False,
+                    'error': 'No tiene permisos para acceder al dashboard de seguridad'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Obtener estadísticas
+            from authz.models import Usuario
+            from datetime import date
+            
+            usuarios_activos = Usuario.objects.filter(is_active=True).count()
+            usuarios_con_reconocimiento = ReconocimientoFacial.objects.values('copropietario').distinct().count()
+            
+            # Estadísticas simuladas para incidentes, visitas y alertas
+            # TODO: Implementar con modelos reales cuando estén disponibles
+            incidentes_hoy = 0
+            visitas_activas = 0  
+            alertas_pendientes = 0
+            
+            # Actividad reciente simulada
+            actividad_reciente = [
+                {
+                    'tipo': 'reconocimiento',
+                    'descripcion': 'Sistema de reconocimiento facial inicializado',
+                    'timestamp': timezone.now().isoformat(),
+                    'usuario': 'Sistema'
+                }
+            ]
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'estadisticas': {
+                        'usuarios_activos': usuarios_activos,
+                        'usuarios_con_reconocimiento': usuarios_con_reconocimiento,
+                        'incidentes_hoy': incidentes_hoy,
+                        'visitas_activas': visitas_activas,
+                        'alertas_pendientes': alertas_pendientes
+                    },
+                    'actividad_reciente': actividad_reciente
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error en dashboard de seguridad: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo datos del dashboard: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _verificar_permisos_seguridad(self, user):
+        """Verificar si el usuario tiene permisos de seguridad"""
+        try:
+            from authz.models import Rol
+            security_role = Rol.objects.filter(nombre='security').first()
+            admin_role = Rol.objects.filter(nombre='Administrador').first()
+            
+            user_roles = user.roles.all()
+            return (security_role and security_role in user_roles) or (admin_role and admin_role in user_roles)
+        except:
+            return False
+
+
+class IncidentesSeguridadView(APIView):
+    """
+    Vista para listar incidentes de seguridad
+    GET /api/seguridad/incidentes/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Incidentes de Seguridad",
+        description="Lista los incidentes de seguridad registrados",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'tipo': {'type': 'string'},
+                                'descripcion': {'type': 'string'},
+                                'fecha': {'type': 'string'},
+                                'estado': {'type': 'string'},
+                                'prioridad': {'type': 'string'}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Obtener lista de incidentes"""
+        try:
+            # Verificar permisos de seguridad
+            if not self._verificar_permisos_seguridad(request.user):
+                return Response({
+                    'success': False,
+                    'error': 'No tiene permisos para ver incidentes de seguridad'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # TODO: Implementar con modelo real de incidentes
+            # Por ahora retornamos datos simulados
+            incidentes = [
+                {
+                    'id': 1,
+                    'tipo': 'Acceso no autorizado',
+                    'descripcion': 'Intento de acceso sin reconocimiento facial',
+                    'fecha': timezone.now().isoformat(),
+                    'estado': 'Pendiente',
+                    'prioridad': 'Media'
+                }
+            ]
+            
+            return Response({
+                'success': True,
+                'data': incidentes
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo incidentes: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo incidentes: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _verificar_permisos_seguridad(self, user):
+        """Verificar si el usuario tiene permisos de seguridad"""
+        try:
+            from authz.models import Rol
+            security_role = Rol.objects.filter(nombre='security').first()
+            admin_role = Rol.objects.filter(nombre='Administrador').first()
+            
+            user_roles = user.roles.all()
+            return (security_role and security_role in user_roles) or (admin_role and admin_role in user_roles)
+        except:
+            return False
+
+
+class VisitasActivasView(APIView):
+    """
+    Vista para listar visitas activas
+    GET /api/seguridad/visitas/activas/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Visitas Activas",
+        description="Lista las visitas actualmente en el condominio",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'visitante': {'type': 'string'},
+                                'unidad_destino': {'type': 'string'},
+                                'hora_ingreso': {'type': 'string'},
+                                'autorizado_por': {'type': 'string'},
+                                'estado': {'type': 'string'}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Obtener lista de visitas activas"""
+        try:
+            # Verificar permisos de seguridad
+            if not self._verificar_permisos_seguridad(request.user):
+                return Response({
+                    'success': False,
+                    'error': 'No tiene permisos para ver visitas activas'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # TODO: Implementar con modelo real de visitas
+            # Por ahora retornamos datos simulados
+            visitas = []
+            
+            return Response({
+                'success': True,
+                'data': visitas
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo visitas activas: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo visitas activas: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _verificar_permisos_seguridad(self, user):
+        """Verificar si el usuario tiene permisos de seguridad"""
+        try:
+            from authz.models import Rol
+            security_role = Rol.objects.filter(nombre='security').first()
+            admin_role = Rol.objects.filter(nombre='Administrador').first()
+            
+            user_roles = user.roles.all()
+            return (security_role and security_role in user_roles) or (admin_role and admin_role in user_roles)
+        except:
+            return False
+
+
+class AlertasActivasView(APIView):
+    """
+    Vista para listar alertas activas
+    GET /api/seguridad/alertas/activas/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Alertas Activas",
+        description="Lista las alertas activas del sistema de seguridad",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'tipo': {'type': 'string'},
+                                'mensaje': {'type': 'string'},
+                                'fecha': {'type': 'string'},
+                                'prioridad': {'type': 'string'},
+                                'estado': {'type': 'string'}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Obtener lista de alertas activas"""
+        try:
+            # Verificar permisos de seguridad
+            if not self._verificar_permisos_seguridad(request.user):
+                return Response({
+                    'success': False,
+                    'error': 'No tiene permisos para ver alertas activas'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # TODO: Implementar con modelo real de alertas
+            # Por ahora retornamos datos simulados
+            alertas = []
+            
+            return Response({
+                'success': True,
+                'data': alertas
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo alertas activas: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo alertas activas: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _verificar_permisos_seguridad(self, user):
+        """Verificar si el usuario tiene permisos de seguridad"""
+        try:
+            from authz.models import Rol
+            security_role = Rol.objects.filter(nombre='security').first()
+            admin_role = Rol.objects.filter(nombre='Administrador').first()
+            
+            user_roles = user.roles.all()
+            return (security_role and security_role in user_roles) or (admin_role and admin_role in user_roles)
+        except:
+            return False
+
+
+class ListaUsuariosActivosView(APIView):
+    """
+    Vista para listar usuarios activos del sistema
+    GET /api/seguridad/lista-usuarios-activos/
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Lista de Usuarios Activos",
+        description="Lista todos los usuarios activos del sistema para seguridad",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'properties': {
+                                'id': {'type': 'integer'},
+                                'email': {'type': 'string'},
+                                'nombre_completo': {'type': 'string'},
+                                'roles': {'type': 'array', 'items': {'type': 'string'}},
+                                'activo': {'type': 'boolean'},
+                                'ultima_conexion': {'type': 'string', 'nullable': True},
+                                'tiene_reconocimiento': {'type': 'boolean'}
+                            }
+                        }
+                    },
+                    'total': {'type': 'integer'}
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Obtener lista de usuarios activos"""
+        try:
+            # Verificar permisos de seguridad
+            if not self._verificar_permisos_seguridad(request.user):
+                return Response({
+                    'success': False,
+                    'error': 'No tiene permisos para ver la lista de usuarios'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            from authz.models import Usuario
+            
+            # Obtener todos los usuarios activos
+            usuarios = Usuario.objects.filter(is_active=True).select_related('persona').prefetch_related('roles')
+            
+            datos = []
+            for usuario in usuarios:
+                # Verificar si tiene reconocimiento facial
+                tiene_reconocimiento = False
+                if usuario.persona:
+                    try:
+                        copropietario = Copropietarios.objects.filter(
+                            email=usuario.email
+                        ).first()
+                        if copropietario:
+                            tiene_reconocimiento = ReconocimientoFacial.objects.filter(
+                                copropietario=copropietario
+                            ).exists()
+                    except:
+                        pass
+                
+                # Obtener roles
+                roles = [rol.nombre for rol in usuario.roles.all()]
+                
+                # Obtener nombre completo
+                nombre_completo = "Sin nombre"
+                if usuario.persona:
+                    try:
+                        nombres = getattr(usuario.persona, 'nombres', getattr(usuario.persona, 'nombre', ''))
+                        apellidos = getattr(usuario.persona, 'apellidos', getattr(usuario.persona, 'apellido', ''))
+                        nombre_completo = f"{nombres} {apellidos}".strip()
+                        if not nombre_completo:
+                            nombre_completo = "Sin nombre"
+                    except:
+                        nombre_completo = "Sin nombre"
+                
+                datos.append({
+                    'id': usuario.id,
+                    'email': usuario.email,
+                    'nombre_completo': nombre_completo,
+                    'roles': roles,
+                    'activo': usuario.is_active,
+                    'ultima_conexion': usuario.last_login.isoformat() if usuario.last_login else None,
+                    'tiene_reconocimiento': tiene_reconocimiento
+                })
+            
+            return Response({
+                'success': True,
+                'data': datos,
+                'total': len(datos)
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo lista de usuarios activos: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo usuarios activos: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _verificar_permisos_seguridad(self, user):
+        """Verificar si el usuario tiene permisos de seguridad"""
+        try:
+            from authz.models import Rol
+            security_role = Rol.objects.filter(nombre='security').first()
+            admin_role = Rol.objects.filter(nombre='Administrador').first()
+            
+            user_roles = user.roles.all()
+            return (security_role and security_role in user_roles) or (admin_role and admin_role in user_roles)
+        except:
+            return False

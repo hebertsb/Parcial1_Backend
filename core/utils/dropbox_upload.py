@@ -44,21 +44,18 @@ def upload_image_to_dropbox(file_obj, filename, folder="/FotoVisita"):
         except Exception as e2:
             print(f"[DROPBOX] Error obteniendo enlace existente: {e2}")
             return {"path": dropbox_path, "url": None}
-    # Convertir a enlace de descarga directa (dl=1)
+    # Convertir a URL directa para mostrar imágenes en frontend
     url = shared_link_metadata.url
-    if url.endswith('?dl=0'):
-        url = url.replace('?dl=0', '?dl=1')
-    elif url.endswith('?dl=1'):
-        pass
-    elif '?dl=0&' in url:
-        url = url.replace('?dl=0&', '?dl=1&')
-    elif '?dl=0' in url:
-        url = url.replace('?dl=0', '?dl=1')
-    else:
-        # Si no tiene ?dl=0 ni ?dl=1, forzar ?dl=1
-        if '?' in url:
-            url = url.split('?')[0]
-        url = url + '?dl=1'
+    
+    # Convertir de www.dropbox.com a dl.dropboxusercontent.com para descarga directa
+    if url.startswith("https://www.dropbox.com/scl/fi/"):
+        url = url.replace("https://www.dropbox.com/scl/fi/", "https://dl.dropboxusercontent.com/scl/fi/")
+        # Remover parámetros dl para URL directa
+        if "?dl=1" in url:
+            url = url.replace("?dl=1", "")
+        if "?dl=0" in url:
+            url = url.replace("?dl=0", "")
+    
     print(f"[DROPBOX] Enlace final para descarga directa: {url}")
     # Devolver path real y url
     return {"path": dropbox_path, "url": url}
