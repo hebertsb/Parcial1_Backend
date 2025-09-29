@@ -18,8 +18,9 @@ from .models import (
 )
 from .serializers_propietario import (
     RegistroFamiliarSerializer, RegistroInquilinoSerializer,
-    ListarFamiliaresSerializer, ListarInquilinosSerializer
+    ListarInquilinosSerializer
 )
+from .serializers_familiares import ListarFamiliaresSerializer
 
 
 

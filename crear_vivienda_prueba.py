@@ -16,6 +16,7 @@ print("=== CREAR VIVIENDA DE PRUEBA ===")
 try:
     vivienda, created = Vivienda.objects.get_or_create(
         numero_casa='A-4006',
+        numero_casa='A-127',
         defaults={
             'bloque': 'A',
             'tipo_vivienda': 'departamento',

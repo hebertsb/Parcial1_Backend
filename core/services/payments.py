@@ -217,3 +217,15 @@ def multas_pendientes(persona: Persona):
         estado__in=estados_pendientes,
     ).order_by('-fecha_infraccion')
 
+def total_pagado_reserva(reserva):
+    """
+    Calcula el total pagado por una reserva. 
+    Suma los montos de los pagos procesados que estén asociados a la reserva.
+    """
+    # Filtrar los pagos procesados asociados a la reserva
+    pagos_reserva = Pagos.objects.filter(reserva=reserva, estado='procesado')
+    
+    # Sumar los montos de todos los pagos asociados
+    total_pagado = sum(pago.monto for pago in pagos_reserva)
+    
+    return total_pagado

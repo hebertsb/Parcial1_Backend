@@ -65,7 +65,10 @@ urlpatterns = [
     # Face Recognition API + Seguridad
     path('seguridad/', include('seguridad.urls')),
 
-       # Rutas para Expensas y Multas (CRUD)
+    # #expensas
+    # path('api/expensas/', include('expensas_multas.urls')),
+
+     # Rutas para Expensas y Multas (CRUD)
     path('api/pagos/', include('expensas_multas.urls')),
 
         # Rutas para Avisos y Comunicados (CRUD)
