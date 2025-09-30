@@ -2,6 +2,15 @@
 # ENDPOINTS PARA PANEL PROPIETARIO
 # ================================
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+import json
+import uuid
+
 class MiInformacionPropietarioView(APIView):
     """Vista para obtener información completa del propietario autenticado"""
     authentication_classes = [JWTAuthentication]
@@ -24,9 +33,9 @@ class MiInformacionPropietarioView(APIView):
             
             usuario = request.user
             
-            # Buscar copropietario
+            # Buscar copropietario usando la relación usuario_sistema
             try:
-                copropietario = Copropietarios.objects.get(persona_id=usuario.id)
+                copropietario = Copropietarios.objects.get(usuario_sistema=usuario)
             except Copropietarios.DoesNotExist:
                 return Response({
                     'success': False,
@@ -49,9 +58,9 @@ class MiInformacionPropietarioView(APIView):
                 'usuario_id': usuario.id,
                 'email': usuario.email,
                 'copropietario_id': copropietario.id,
-                'nombre_completo': f"{copropietario.persona.nombre} {copropietario.persona.apellido}",
-                'telefono': copropietario.persona.telefono or '',
-                'ci': copropietario.persona.ci or '',
+                'nombre_completo': f"{copropietario.nombres} {copropietario.apellidos}",
+                'telefono': copropietario.telefono or '',
+                'ci': copropietario.numero_documento or '',
                 'tiene_reconocimiento': reconocimiento is not None,
                 'reconocimiento_id': reconocimiento.id if reconocimiento else None,
                 'total_fotos': total_fotos
@@ -91,9 +100,9 @@ class MisFotosPropietarioView(APIView):
             
             usuario = request.user
             
-            # Buscar copropietario
+            # Buscar copropietario usando la relación usuario_sistema
             try:
-                copropietario = Copropietarios.objects.get(persona_id=usuario.id)
+                copropietario = Copropietarios.objects.get(usuario_sistema=usuario)
             except Copropietarios.DoesNotExist:
                 return Response({
                     'success': False,
@@ -161,8 +170,6 @@ class SubirFotoPropietarioView(APIView):
         """Subir nueva foto de reconocimiento facial"""
         try:
             from seguridad.models import Copropietarios, ReconocimientoFacial
-            from core.services.dropbox_service import DropboxService
-            import json
             
             usuario = request.user
             
@@ -190,9 +197,9 @@ class SubirFotoPropietarioView(APIView):
                     'error': 'La imagen es demasiado grande. Máximo 5MB.'
                 }, status=400)
             
-            # Buscar copropietario
+            # Buscar copropietario usando la relación usuario_sistema
             try:
-                copropietario = Copropietarios.objects.get(persona_id=usuario.id)
+                copropietario = Copropietarios.objects.get(usuario_sistema=usuario)
             except Copropietarios.DoesNotExist:
                 return Response({
                     'success': False,
@@ -207,8 +214,26 @@ class SubirFotoPropietarioView(APIView):
             
             # Subir foto a Dropbox
             try:
-                dropbox_service = DropboxService()
-                foto_url = dropbox_service.subir_foto_reconocimiento(foto, usuario.id)
+                from core.utils.dropbox_upload import upload_image_to_dropbox
+                import uuid
+                
+                # Generar nombre único para la foto
+                file_extension = foto.name.lower().split('.')[-1]
+                filename = f"foto_{usuario.id}_{uuid.uuid4().hex[:8]}.{file_extension}"
+                
+                # Usar carpeta específica del propietario
+                folder = f"/Propietarios/{copropietario.numero_documento}" if copropietario.numero_documento else f"/Propietarios/{usuario.id}"
+                
+                # Subir a Dropbox
+                resultado = upload_image_to_dropbox(foto, filename, folder)
+                foto_url = resultado['url'] if resultado and resultado.get('url') else None
+                
+                if not foto_url:
+                    return Response({
+                        'success': False,
+                        'error': 'Error al obtener URL pública de Dropbox'
+                    }, status=500)
+                    
             except Exception as e:
                 return Response({
                     'success': False,

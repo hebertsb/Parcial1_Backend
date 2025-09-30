@@ -62,7 +62,7 @@ INSTALLED_APPS = [
     'areas_comunes',
     'reservas_areas',
     'mantenimiento',
-     'politicas',
+    'politicas',
 
 ]
 

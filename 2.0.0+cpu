@@ -1,0 +1,24 @@
+Collecting torch
+  Downloading torch-2.8.0-cp312-cp312-win_amd64.whl.metadata (30 kB)
+Collecting filelock (from torch)
+  Downloading filelock-3.19.1-py3-none-any.whl.metadata (2.1 kB)
+Requirement already satisfied: typing-extensions>=4.10.0 in c:\users\pc\appdata\local\programs\python\python312\lib\site-packages (from torch) (4.14.1)
+Collecting sympy>=1.13.3 (from torch)
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Requirement already satisfied: networkx in c:\users\pc\appdata\local\programs\python\python312\lib\site-packages (from torch) (3.5)
+Requirement already satisfied: jinja2 in c:\users\pc\appdata\local\programs\python\python312\lib\site-packages (from torch) (3.1.6)
+Requirement already satisfied: fsspec in c:\users\pc\appdata\local\programs\python\python312\lib\site-packages (from torch) (2025.7.0)
+Requirement already satisfied: setuptools in c:\users\pc\appdata\local\programs\python\python312\lib\site-packages (from torch) (80.9.0)
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch)
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Requirement already satisfied: MarkupSafe>=2.0 in c:\users\pc\appdata\local\programs\python\python312\lib\site-packages (from jinja2->torch) (3.0.2)
+Downloading torch-2.8.0-cp312-cp312-win_amd64.whl (241.3 MB)
+   ---------------------------------------- 241.3/241.3 MB 7.1 MB/s  0:00:43
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ---------------------------------------- 6.3/6.3 MB 6.8 MB/s  0:00:00
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ---------------------------------------- 536.2/536.2 kB 4.4 MB/s  0:00:00
+Downloading filelock-3.19.1-py3-none-any.whl (15 kB)
+Installing collected packages: mpmath, sympy, filelock, torch
+
+Successfully installed filelock-3.19.1 mpmath-1.3.0 sympy-1.14.0 torch-2.8.0

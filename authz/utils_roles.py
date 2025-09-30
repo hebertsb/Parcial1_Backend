@@ -132,8 +132,116 @@ def sincronizar_todos_los_usuarios():
         if resultado['success'] and resultado['accion'] != 'sin_cambios':
             sincronizaciones.append(resultado)
     
-    return {
+    errores = [s for s in sincronizaciones if not s['success']]
+    
+    resultado_final = {
         'total_usuarios': usuarios.count(),
         'sincronizaciones_realizadas': len(sincronizaciones),
-        'detalles': sincronizaciones
+        'sincronizaciones_exitosas': len([s for s in sincronizaciones if s['success']]),
+        'errores': len(errores),
+        'detalles': sincronizaciones,
+        'errores_detalle': errores
     }
+    
+    logger.info(f"✅ Sincronización masiva completada: {resultado_final['sincronizaciones_exitosas']}/{resultado_final['total_usuarios']} exitosas")
+    
+    return resultado_final
+
+
+def verificar_consistencia_roles():
+    """
+    Verifica la consistencia entre tipo_persona y roles asignados
+    
+    Returns:
+        dict: Reporte de inconsistencias encontradas
+    """
+    usuarios = Usuario.objects.filter(persona__isnull=False).select_related('persona')
+    inconsistencias = []
+    
+    MAPEO_TIPO_A_ROL = {
+        'administrador': 'Administrador',
+        'seguridad': 'Seguridad', 
+        'propietario': 'Propietario',
+        'inquilino': 'Inquilino',
+        'cliente': 'Inquilino',
+        'residente': 'Inquilino',
+        'familiar': 'Familiar'
+    }
+    
+    for usuario in usuarios:
+        tipo_persona = usuario.persona.tipo_persona
+        rol_esperado = MAPEO_TIPO_A_ROL.get(tipo_persona, 'Inquilino')
+        roles_actuales = list(usuario.roles.values_list('nombre', flat=True))
+        
+        if rol_esperado not in roles_actuales:
+            inconsistencias.append({
+                'usuario': usuario.email,
+                'persona': usuario.persona.nombre_completo,
+                'tipo_persona': tipo_persona,
+                'rol_esperado': rol_esperado,
+                'roles_actuales': roles_actuales,
+                'inconsistente': True
+            })
+    
+    return {
+        'total_usuarios_revisados': usuarios.count(),
+        'inconsistencias_encontradas': len(inconsistencias),
+        'porcentaje_consistencia': ((usuarios.count() - len(inconsistencias)) / usuarios.count() * 100) if usuarios.count() > 0 else 100,
+        'inconsistencias': inconsistencias
+    }
+
+
+def asignar_rol_seguro(usuario, nombre_rol):
+    """
+    Asigna un rol de forma segura, creándolo si no existe
+    
+    Args:
+        usuario: Instancia del usuario
+        nombre_rol: Nombre del rol a asignar
+    
+    Returns:
+        bool: True si se asignó correctamente
+    """
+    try:
+        rol, created = Rol.objects.get_or_create(
+            nombre=nombre_rol,
+            defaults={
+                'descripcion': f'Rol de {nombre_rol.lower()} del sistema',
+                'activo': True
+            }
+        )
+        
+        if created:
+            logger.info(f"📝 Rol '{nombre_rol}' creado automáticamente")
+        
+        usuario.roles.add(rol)
+        logger.info(f"✅ Rol '{nombre_rol}' asignado a {usuario.email}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error asignando rol '{nombre_rol}' a {usuario.email}: {e}")
+        return False
+
+
+def obtener_roles_por_tipo_persona(tipo_persona):
+    """
+    Obtiene el rol correspondiente a un tipo de persona
+    
+    Args:
+        tipo_persona: Tipo de persona
+    
+    Returns:
+        str: Nombre del rol correspondiente
+    """
+    MAPEO_TIPO_A_ROL = {
+        'administrador': 'Administrador',
+        'seguridad': 'Seguridad', 
+        'propietario': 'Propietario',
+        'inquilino': 'Inquilino',
+        'cliente': 'Inquilino',
+        'residente': 'Inquilino',
+        'familiar': 'Familiar'
+    }
+    
+    return MAPEO_TIPO_A_ROL.get(tipo_persona, 'Inquilino')

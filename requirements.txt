@@ -28,13 +28,27 @@ python-dotenv==1.1.1
 
 # === Image Processing & Face Recognition ===
 Pillow==11.3.0
-numpy==2.2.6
+numpy>=1.22.2
 opencv-python==4.12.0.88
 
 # === Face Recognition Library ===
 cmake==4.1.0
 dlib>=19.24.0
 face-recognition>=1.3.0
+
+# === Advanced AI & Computer Vision (Optional) ===
+# YOLO para detección avanzada de caras
+ultralytics==8.0.196
+
+# PyTorch para modelos de IA (requerido por YOLO)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# MediaPipe para detección facial alternativa
+# mediapipe==0.10.21  # Comentado temporalmente por conflictos de dependencias
+
+# TensorFlow (opcional para modelos custom)
+# tensorflow==2.13.0  # Descomenta si necesitas TensorFlow
 
 # === Dropbox SDK ===
 dropbox>=11.36.2

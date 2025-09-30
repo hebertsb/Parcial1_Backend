@@ -1,7 +1,22 @@
-from .models import Persona, SolicitudRegistroPropietario
-# ...existing code...
+"""
+Serializers específicos para el registro de propietarios
+Incluye formularios para propietarios, familiares y reconocimiento facial
+"""
+from typing import Dict, cast, Any
+import os
 from rest_framework import serializers
-# ...existing code...
+from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from .models import (
+    Usuario, Persona, FamiliarPropietario, 
+    SolicitudRegistroPropietario, Rol,
+    RelacionesPropietarioInquilino
+)
+from core.models.propiedades_residentes import Vivienda, Propiedad
+
+
 
 class PersonaSimpleSerializer(serializers.ModelSerializer):
     foto_perfil = serializers.SerializerMethodField()
@@ -42,24 +57,6 @@ class SolicitudRegistroPropietarioSimpleSerializer(serializers.ModelSerializer):
 class PropietarioDetalleSerializer(serializers.Serializer):
     persona = PersonaSimpleSerializer()
     solicitud = SolicitudRegistroPropietarioSimpleSerializer(allow_null=True)
-"""
-Serializers específicos para el registro de propietarios
-Incluye formularios para propietarios, familiares y reconocimiento facial
-"""
-from typing import cast, Dict, Any, Optional
-import os
-from rest_framework import serializers
-from django.core.files.base import ContentFile
-from django.contrib.auth.password_validation import validate_password
-from django.utils import timezone
-from django.core.exceptions import ValidationError
-from django.db import transaction
-from .models import (
-    Usuario, Persona, FamiliarPropietario, 
-    SolicitudRegistroPropietario, Rol,
-    RelacionesPropietarioInquilino
-)
-from core.models.propiedades_residentes import Vivienda, Propiedad
 
 class RegistroPropietarioInicialSerializer(serializers.Serializer):
     numero_casa = serializers.CharField(
@@ -137,14 +134,6 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
         """Validar que la cédula sea única"""
         if Persona.objects.filter(documento_identidad=value).exists():
             raise serializers.ValidationError("Esta cédula ya está registrada.")
-        return value
-    
-    def validate_numero_casa(self, value):
-        """Validar que la vivienda exista"""
-        try:
-            Vivienda.objects.get(numero_casa=value)
-        except Vivienda.DoesNotExist:
-            raise serializers.ValidationError(f"No existe la vivienda {value} en el sistema.")
         return value
     
     def validate(self, attrs):
@@ -236,6 +225,48 @@ class RegistroPropietarioInicialSerializer(serializers.Serializer):
         }
         print(f"🔍 DEBUG: Retornando resultado: {type(resultado)}")
         return resultado
+
+    def _procesar_fotos_reconocimiento(self, persona, fotos_base64):
+        """Procesar fotos de reconocimiento facial"""
+        if not fotos_base64:
+            return
+        
+        try:
+            # Intentar importar servicios necesarios
+            try:
+                from core.utils.face_encoding import generate_face_encoding_from_base64
+                # Servicio de reconocimiento facial disponible
+                print("Usando servicio de reconocimiento facial básico")
+            except ImportError:
+                # Si no existe el servicio, usar función dummy
+                print("Servicio de reconocimiento facial no disponible")
+                return
+            
+            encodings = []
+            
+            for idx, foto_base64 in enumerate(fotos_base64):
+                try:
+                    encoding = generate_face_encoding_from_base64(foto_base64)
+                    if encoding:
+                        encodings.append(encoding)
+                except Exception as e:
+                    print(f"Error procesando foto {idx}: {e}")
+            
+            if encodings:
+                # Usar el método del modelo para agregar encodings de forma segura
+                try:
+                    for enc in encodings:
+                        if persona.agregar_encoding_facial(enc):
+                            print(f"Encoding facial agregado correctamente para persona {persona.documento_identidad}")
+                        else:
+                            print(f"Error agregando encoding facial")
+                except Exception as e:
+                    print(f"Error guardando encodings: {e}")
+                    
+        except ImportError:
+            print("Servicio de reconocimiento facial no disponible")
+        except Exception as e:
+            print(f"Error procesando fotos: {e}")
 
 
 class FamiliarRegistroSerializer(serializers.Serializer):
@@ -586,12 +617,18 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
                     print(f"[DEBUG] [IMG {idx}] ERROR GENERAL: {e}")
             print(f"[DEBUG] --- FIN FLUJO DE PROCESAMIENTO DE IMÁGENES ---")
             if encodings:
-                persona.encoding_facial = encodings
-                persona.reconocimiento_facial_activo = True
-                print(f"[DEBUG] Encodings faciales guardados en Persona {persona.documento_identidad}")
+                # Usar el método del modelo para agregar encodings de forma segura
+                try:
+                    for enc in encodings:
+                        if persona.agregar_encoding_facial(enc):
+                            print(f"[DEBUG] Encoding facial agregado correctamente")
+                        else:
+                            print(f"[DEBUG] Error agregando encoding facial")
+                    print(f"[DEBUG] Encodings faciales guardados en Persona {persona.documento_identidad}")
+                except Exception as e:
+                    print(f"[DEBUG] Error guardando encodings: {e}")
             else:
                 print(f"[DEBUG] No se generaron encodings faciales válidos")
-            persona.save()
             solicitud.fotos_reconocimiento_urls = nuevas_urls
             print(f"[DEBUG] URLs de fotos actualizadas en la solicitud {solicitud.id}")
 
@@ -623,6 +660,34 @@ class PropietarioCompleteRegistrationSerializer(serializers.Serializer):
                 solicitud.save()  # type: ignore
 
             return usuario
+
+    def _procesar_foto_reconocimiento(self, persona, foto_base64):
+        """Procesa una sola foto para reconocimiento facial"""
+        try:
+            from django.core.files.base import ContentFile
+            import base64
+            from core.utils.face_encoding import generate_face_encoding_from_base64
+            
+            # Decodificar base64 y guardar como foto de perfil
+            format_str, imgstr = foto_base64.split(';base64,')
+            ext = format_str.split('/')[-1]
+            data = ContentFile(base64.b64decode(imgstr), name=f'perfil_{persona.documento_identidad}.{ext}')
+            persona.foto_perfil = data
+            
+            # Generar encoding facial
+            encoding = generate_face_encoding_from_base64(foto_base64)
+            if encoding:
+                try:
+                    if persona.agregar_encoding_facial(encoding):
+                        print(f"[DEBUG] Encoding facial agregado para persona {persona.documento_identidad}")
+                    else:
+                        print(f"[DEBUG] Error agregando encoding facial")
+                except Exception as e:
+                    print(f"[DEBUG] Error guardando encoding: {e}")
+            
+            persona.save()
+        except Exception as e:
+            print(f"[DEBUG] Error procesando foto de reconocimiento: {e}")
 
     def _procesar_fotos_reconocimiento(self, persona, fotos_base64):
         """Procesa varias fotos para reconocimiento facial y guarda todos los encodings"""

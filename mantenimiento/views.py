@@ -1,12 +1,11 @@
+from typing import Literal, Any
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, BasePermission
 from rest_framework.decorators import action
 from .serializers import MantenimientoSerializer, TareaMantenimientoSerializer
 from core.models.propiedades_residentes import Mantenimiento, TareaMantenimiento
 from django.utils import timezone
-from rest_framework.permissions import IsAdminUser
-from rest_framework.permissions import IsAdminUser, BasePermission
 
 class IsAdminOrUser(BasePermission):
     """
@@ -14,15 +13,8 @@ class IsAdminOrUser(BasePermission):
     y que los propietarios/inquilinos puedan ver los mantenimientos solicitados
     y los mantenimientos creados por el admin.
     """
-    from typing import Literal
-    from typing import Literal
-    def has_permission(self, request, view) -> 'Literal[True]':
-        # ...existing code...
-        if request.user.is_staff:  # Admin tiene acceso completo
-            return True  # type: ignore[return-value]
-        if view.action == 'list' or view.action == 'retrieve':
-            return True  # type: ignore[return-value]
-        return False  # type: ignore[return-value]
+    
+    def has_permission(self, request, view):  # type: ignore
         # Solo el admin puede editar, borrar o actualizar
         if request.user.is_staff:  # Admin tiene acceso completo
             return True
@@ -49,8 +41,7 @@ class MantenimientoViewSet(viewsets.ModelViewSet):
             return [IsAdminUser()]  # Solo el admin puede editar o eliminar mantenimientos
         return super().get_permissions()
 
-    from django.db.models.query import QuerySet
-    def get_queryset(self):
+    def get_queryset(self):  # type: ignore
         """
         Devuelve todos los mantenimientos si el usuario es admin.
         Los propietarios e inquilinos solo verán sus propios mantenimientos y los creados por el admin.

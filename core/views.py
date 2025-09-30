@@ -1,13 +1,11 @@
-from __future__ import annotations
-
-from decimal import Decimal, InvalidOperation
 from typing import cast
+from decimal import Decimal, InvalidOperation
 
 from django.db.models import Sum
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 
 from core.models.administracion import Pagos
 from core.serializers import (
@@ -132,6 +130,18 @@ class RegistrarPagoView(APIView):
                 context={'pagos_por_multa': {pago.multa.id: total_pagado_multa}},
             )
             payload['multa_actualizada'] = multa_serializer.data[0]
+
+        # Agregar manejo de reservas
+        if hasattr(pago, 'reserva') and pago.reserva:
+            from core.services.payments import total_pagado_reserva
+            total_pagado_reserva_actual = total_pagado_reserva(pago.reserva)
+            payload['reserva_actualizada'] = {
+                'id': pago.reserva.id,
+                'monto_total': pago.reserva.monto_total,
+                'monto_pagado': total_pagado_reserva_actual,
+                'monto_pendiente': max(Decimal('0'), pago.reserva.monto_total - total_pagado_reserva_actual),
+                'estado': 'pagada' if total_pagado_reserva_actual >= pago.reserva.monto_total else 'parcial'
+            }
 
         return Response(payload, status=status.HTTP_201_CREATED)
 

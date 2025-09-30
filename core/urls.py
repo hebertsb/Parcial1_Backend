@@ -33,10 +33,15 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
-    # Authz Authentication + Propietarios
+    # Authz Authentication + Propietarios (consolidado para evitar conflictos)
     path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
-    path('api/authz/', include('authz.urls')),        # registro, panel propietarios
+    path('api/authz/', include(('authz.urls', 'authz'), namespace='authz-api')),        # registro, panel propietarios
     path('api/authz/', include('authz.urls_admin')),  # funcionalidades administrativas
+    
+    # URLs directas authz (sin api/ prefix) para compatibilidad frontend
+    path('authz/', include('authz.auth_urls')),       # /authz/login/, /authz/refresh/
+    path('authz/', include(('authz.urls', 'authz'), namespace='authz-direct')),            # registro, panel propietarios
+    path('authz/', include('authz.urls_admin')),      # funcionalidades administrativas
     
     # URLs de administración también en path 'auth' para compatibilidad con frontend
     path('auth/', include('authz.auth_urls')),        # login, refresh compatibilidad
@@ -62,14 +67,17 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # Face Recognition API + Seguridad
-    path('seguridad/', include('seguridad.urls')),
+    # API de Seguridad - Endpoints para el frontend
+    path('api/seguridad/', include('seguridad.api_urls')),
+    
+    # URLs directas de seguridad (para compatibilidad con frontend)
+    path('seguridad/', include('seguridad.api_urls')),  # MISMO contenido que api/seguridad/
 
     # #expensas
     # path('api/expensas/', include('expensas_multas.urls')),
 
-     # Rutas para Expensas y Multas (CRUD)
-    path('api/pagos/', include('expensas_multas.urls')),
+     # Rutas para Expensas y Multas (CRUD) - Temporalmente comentado por error firebase_admin
+    # path('api/pagos/', include('expensas_multas.urls')),
 
         # Rutas para Avisos y Comunicados (CRUD)
 

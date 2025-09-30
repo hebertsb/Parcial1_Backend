@@ -61,15 +61,64 @@ class Persona(models.Model):
     foto_perfil = models.CharField(max_length=512, blank=True, null=True, help_text="URL pública de la foto de perfil (Dropbox)")
     encoding_facial = models.JSONField(blank=True, null=True, help_text="Lista de codificaciones faciales para reconocimiento (puede ser una lista de listas)")
     def agregar_encoding_facial(self, nuevo_encoding):
-        """Agrega un nuevo encoding facial a la lista de encodings."""
-        if not self.encoding_facial:
-            self.encoding_facial = []
-        # Si solo hay un encoding antiguo (no lista de listas), conviértelo
-        if self.encoding_facial and isinstance(self.encoding_facial[0], (float, int)):
-            self.encoding_facial = [self.encoding_facial]
-        self.encoding_facial.append(list(nuevo_encoding))
+        """
+        Agrega un nuevo encoding facial sin sobrescribir los existentes
+        
+        Args:
+            nuevo_encoding: Lista de números representando el encoding facial
+        
+        Returns:
+            bool: True si se agregó correctamente
+        """
+        try:
+            if not self.encoding_facial:
+                self.encoding_facial = []
+            
+            # Asegurar que es una lista de listas
+            if self.encoding_facial and isinstance(self.encoding_facial[0], (float, int)):
+                self.encoding_facial = [self.encoding_facial]
+            
+            # Agregar nuevo encoding
+            self.encoding_facial.append(list(nuevo_encoding))
+            self.reconocimiento_facial_activo = True
+            self.save()
+            return True
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error agregando encoding facial para {self.nombre_completo}: {e}")
+            return False
+    
+    def obtener_encodings_activos(self):
+        """Retorna todos los encodings faciales activos"""
+        if not self.encoding_facial or not self.reconocimiento_facial_activo:
+            return []
+        
+        # Si es una lista simple, convertir a lista de listas
+        if isinstance(self.encoding_facial[0], (float, int)):
+            return [self.encoding_facial]
+        
+        return self.encoding_facial
+    
+    def limpiar_encodings_faciales(self):
+        """Limpia todos los encodings faciales y desactiva reconocimiento"""
+        self.encoding_facial = []
+        self.reconocimiento_facial_activo = False
         self.save()
-    reconocimiento_facial_activo = models.BooleanField(default=False)
+    
+    def tiene_reconocimiento_activo(self):
+        """Verifica si el usuario tiene reconocimiento facial activo y configurado"""
+        return (
+            self.reconocimiento_facial_activo and 
+            self.encoding_facial and 
+            len(self.encoding_facial) > 0
+        )
+    
+    reconocimiento_facial_activo = models.BooleanField(
+        default=False,
+        help_text="Indica si el reconocimiento facial está activado para esta persona"
+    )
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -287,8 +336,10 @@ class SolicitudRegistroPropietario(models.Model):
                 dbx = dropbox.Dropbox(DROPBOX_TOKEN)
                 destino = self.foto_perfil.name if hasattr(self.foto_perfil, 'name') else str(self.foto_perfil)
                 shared_link_metadata = dbx.sharing_create_shared_link_with_settings(destino)
-                url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
-                return url
+                if shared_link_metadata and hasattr(shared_link_metadata, 'url'):
+                    url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
+                    return url
+                return None
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -433,8 +484,8 @@ class SolicitudRegistroPropietario(models.Model):
             nuevas_fotos_urls = []
             url_foto_perfil = None
             for idx, foto in enumerate(self.fotos_reconocimiento_urls):
-                foto_path = foto['path'] if isinstance(foto, dict) and 'path' in foto else foto
-                nombre_archivo = foto_path.split('/')[-1]
+                foto_path = foto['path'] if isinstance(foto, dict) and 'path' in foto else str(foto)
+                nombre_archivo = foto_path.split('/')[-1] if isinstance(foto_path, str) else f"foto_{idx}.jpg"
                 origen = foto_path
                 destino = f"{nueva_carpeta}/{nombre_archivo}"
                 try:
@@ -442,26 +493,32 @@ class SolicitudRegistroPropietario(models.Model):
                     if origen != destino:
                         dbx.files_move_v2(origen, destino, allow_shared_folder=True, autorename=True)
                     shared_link_metadata = dbx.sharing_create_shared_link_with_settings(destino)
-                    url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
-                    nuevas_fotos_urls.append({'path': destino, 'url': url})
-                    # Guardar la primera imagen como foto_perfil en Persona
-                    if idx == 0:
-                        url_foto_perfil = url
+                    if shared_link_metadata and hasattr(shared_link_metadata, 'url'):
+                        url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
+                        nuevas_fotos_urls.append({'path': destino, 'url': url})
+                        # Guardar la primera imagen como foto_perfil en Persona
+                        if idx == 0:
+                            url_foto_perfil = url
+                    else:
+                        nuevas_fotos_urls.append({'path': destino, 'url': None})
                 except Exception as e:
                     logger.warning(f"Error moviendo/compartiendo imagen en Dropbox: {e}")
                     # Intentar solo generar el enlace si el movimiento falla
                     try:
                         shared_link_metadata = dbx.sharing_create_shared_link_with_settings(destino)
-                        url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
-                        nuevas_fotos_urls.append({'path': destino, 'url': url})
-                        if idx == 0:
-                            url_foto_perfil = url
+                        if shared_link_metadata and hasattr(shared_link_metadata, 'url'):
+                            url = shared_link_metadata.url.replace('?dl=0', '?dl=1')
+                            nuevas_fotos_urls.append({'path': destino, 'url': url})
+                            if idx == 0:
+                                url_foto_perfil = url
+                        else:
+                            nuevas_fotos_urls.append({'path': destino, 'url': None})
                     except Exception as e2:
                         logger.warning(f"Error generando enlace público en Dropbox: {e2}")
                         # Si el error es 'shared_link_already_exists', intentar recuperar el enlace existente
                         try:
                             links = dbx.sharing_list_shared_links(path=destino, direct_only=True)
-                            if links.links:
+                            if links and hasattr(links, 'links') and links.links:
                                 url = links.links[0].url.replace('?dl=0', '?dl=1')
                                 nuevas_fotos_urls.append({'path': destino, 'url': url})
                                 if idx == 0:

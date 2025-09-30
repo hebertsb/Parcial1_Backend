@@ -21,7 +21,7 @@ def main():
     print("\n1. 🏠 BUSCANDO VIVIENDA DISPONIBLE")
     vivienda = Vivienda.objects.first()
     if vivienda:
-        print(f"   ✅ Vivienda encontrada: {vivienda.numero}")
+        print(f"   ✅ Vivienda encontrada: {vivienda.numero_casa}")
     else:
         print("   ❌ No hay viviendas disponibles")
         return
@@ -40,7 +40,7 @@ def main():
             nombres="María",
             apellidos="López",
             telefono="70987654",
-            numero_casa=vivienda.numero,
+            numero_casa=vivienda.numero_casa,
             fecha_nacimiento=date(1985, 5, 15),
             documento_identidad="87654321",
             estado="PENDIENTE"
@@ -100,7 +100,7 @@ def main():
         print("   " + "="*35)
         print(f"   👤 Usuario: {usuario.email}")
         print(f"   🔑 Password: (generada automáticamente)")
-        print(f"   🏠 Vivienda: {vivienda.numero}")
+        print(f"   🏠 Vivienda: {vivienda.numero_casa}")
         print(f"   📸 Fotos: {len(fotos_demo)} subidas")
         print(f"   🔐 Login: ✅ Habilitado")
         print(f"   📱 Panel: ✅ Acceso inmediato")
