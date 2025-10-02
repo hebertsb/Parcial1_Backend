@@ -25,14 +25,14 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 # from core.views import DemoView, HealthCheckView  # DESHABILITADO: core app comentada
-from core.test_views import health_check, simple_test
+# from core.test_views import health_check, simple_test  # DESHABILITADO: archivo no existe
 
 urlpatterns = [
     # Health Check para Railway - TEMPORALMENTE DESHABILITADO
     # path('api/health/', HealthCheckView.as_view(), name='health-check'),
-    # Test endpoints temporales
-    path('api/test/health/', health_check, name='test-health'),
-    path('api/test/simple/', simple_test, name='test-simple'),
+    # Test endpoints temporales - DESHABILITADOS
+    # path('api/test/health/', health_check, name='test-health'),
+    # path('api/test/simple/', simple_test, name='test-simple'),
     
     # Admin
     path('admin/', admin.site.urls),

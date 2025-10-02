@@ -328,7 +328,7 @@ class PobladorBaseDatos:
         parentescos = ['conyugue', 'hijo', 'padre', 'hermano', 'abuelo', 'nieto']
         propietarios_con_familiares = random.sample(self.propietarios_creados, min(15, len(self.propietarios_creados)))
         
-        familiares_creados = 0
+        familiares_creados = 5
         for propietario in propietarios_con_familiares:
             # Cada propietario puede tener 1-3 familiares
             num_familiares = min(random.randint(1, 3), cantidad - familiares_creados)

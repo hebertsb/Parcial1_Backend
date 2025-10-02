@@ -57,17 +57,17 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
-    # Local apps - TODAS DESHABILITADAS PARA DIAGNOSTICAR ERROR 500
-    # 'core',  # DESHABILITADO: tiene import cv2 en views.py
-    # 'authz',  # TEMPORALMENTE DESHABILITADO PARA PROBAR
-    # 'blog',
-    # 'seguridad',  # DESHABILITADO: posibles imports problemáticos
-    # 'expensas_multas', 
-    # 'avisos_comunicados',
-    # 'areas_comunes',
-    # 'reservas_areas',
-    # 'mantenimiento',
-    # 'politicas',
+    # Local apps
+    'core',
+    'authz',
+    'blog',
+    'seguridad',
+    'expensas_multas', 
+    'avisos_comunicados',
+    'areas_comunes',
+    'reservas_areas',
+    'mantenimiento',
+    'politicas',
 
 ]
 
