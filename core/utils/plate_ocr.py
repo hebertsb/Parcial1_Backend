@@ -1,9 +1,38 @@
-import cv2
-import numpy as np
-import pytesseract
+# Importaciones seguras para Railway
 import re
+import logging
 from typing import List, Tuple
-from pytesseract import Output, TesseractError, TesseractNotFoundError
+
+# Importación segura de OpenCV
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError as e:
+    cv2 = None
+    CV2_AVAILABLE = False
+    logging.warning(f"⚠️ OpenCV no disponible: {e} - funciones OCR deshabilitadas")
+
+# Importación segura de numpy
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError as e:
+    np = None
+    NUMPY_AVAILABLE = False
+    logging.warning(f"⚠️ NumPy no disponible: {e}")
+
+# Importación segura de pytesseract
+try:
+    import pytesseract
+    from pytesseract import Output, TesseractError, TesseractNotFoundError
+    PYTESSERACT_AVAILABLE = True
+except ImportError as e:
+    pytesseract = None
+    Output = None
+    TesseractError = Exception
+    TesseractNotFoundError = Exception
+    PYTESSERACT_AVAILABLE = False
+    logging.warning(f"⚠️ PyTesseract no disponible: {e}")
 
 
 class PlateOCRException(Exception):
@@ -42,27 +71,36 @@ class PlateOCRService:
         return unique_candidates, raw_text
 
     @staticmethod
-    def _load_image(image_bytes: bytes) -> np.ndarray:
-        array = np.frombuffer(image_bytes, dtype=np.uint8)
-        image = cv2.imdecode(array, cv2.IMREAD_COLOR)
+    def _load_image(image_bytes: bytes):
+        if not CV2_AVAILABLE or not NUMPY_AVAILABLE:
+            raise PlateOCRException('OpenCV o NumPy no están disponibles para procesamiento de imágenes.')
+        
+        array = np.frombuffer(image_bytes, dtype=np.uint8)  # type: ignore
+        image = cv2.imdecode(array, cv2.IMREAD_COLOR)  # type: ignore
         if image is None:
             raise PlateOCRException('No se pudo decodificar la imagen recibida.')
         return image
 
     @staticmethod
-    def _preprocess(image: np.ndarray) -> np.ndarray:
+    def _preprocess(image):
         """Aplica transformaciones suaves para resaltar caracteres de la placa."""
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        gray = cv2.bilateralFilter(gray, 9, 75, 75)
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        if not CV2_AVAILABLE:
+            raise PlateOCRException('OpenCV no está disponible para preprocesamiento.')
+            
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # type: ignore
+        gray = cv2.bilateralFilter(gray, 9, 75, 75)  # type: ignore
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  # type: ignore
         return thresh
 
     @classmethod
-    def _run_ocr(cls, image: np.ndarray) -> Tuple[str, List[str]]:
+    def _run_ocr(cls, image) -> Tuple[str, List[str]]:
+        if not PYTESSERACT_AVAILABLE:
+            raise PlateOCRException('PyTesseract no está disponible para OCR.')
+            
         config = f"{cls.PSM_CONFIG} {cls.WHITELIST}".strip()
         try:
-            text = pytesseract.image_to_string(image, config=config)
-            data = pytesseract.image_to_data(image, output_type=Output.DICT, config=config)
+            text = pytesseract.image_to_string(image, config=config)  # type: ignore
+            data = pytesseract.image_to_data(image, output_type=Output.DICT, config=config)  # type: ignore
         except (TesseractError, TesseractNotFoundError) as exc:
             raise PlateOCRException(f'Error ejecutando Tesseract: {exc}') from exc
 

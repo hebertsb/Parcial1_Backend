@@ -111,7 +111,8 @@ urlpatterns = [
 
     # Rutas para la gestión de áreas comunes (crud)
     path('api/areas-comunes/', include('reservas_areas.urls')),
-   path('api/', include('core.api.ocr.urls')),
+    # TEMPORALMENTE DESHABILITADO: OCR requiere OpenCV que no está disponible en Railway
+    # path('api/', include('core.api.ocr.urls')),
 
 
     #mantenimiento
