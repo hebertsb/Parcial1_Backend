@@ -18,11 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
+# JWT views removidas - usando sistema authz personalizado
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -58,10 +54,8 @@ urlpatterns = [
     path('auth/', include('authz.auth_urls')),        # login, refresh compatibilidad
     path('auth/', include('authz.urls_admin')),       # admin endpoints sin api/ prefix
     
-    # JWT Authentication (TEMPORALMENTE DESHABILITADO para diagnosticar error 500)
-    # path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    # path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    # path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    # JWT Authentication: REMOVIDO - usando sistema authz personalizado
+    # El login funcional está en /api/authz/login/ y /auth/login/
     
     # Pagos (Expensas y Multas)
     path('api/pagos/', include('core.api_urls')),
