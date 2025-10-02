@@ -147,9 +147,7 @@ Dockerfile.dev
 docker-compose.override.yml
 .dockerignore_dev
 
-# === Bases de Datos ===
-*.rdb
-dump.rdb
+
 
 # === Logs ===
 logs/
