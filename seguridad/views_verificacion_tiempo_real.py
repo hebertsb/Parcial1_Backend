@@ -16,7 +16,11 @@ from PIL import Image
 
 from .models import Copropietarios, ReconocimientoFacial
 from .services.face_provider import FaceProviderFactory, FaceVerificationError
-from .services.realtime_face_provider import RealTimeFaceProviderFactory
+try:
+    from .services.realtime_face_provider import RealTimeFaceProviderFactory
+except ImportError:
+    from .services.robust_face_provider import get_face_provider
+    RealTimeFaceProviderFactory = None
 
 logger = logging.getLogger('seguridad')
 
@@ -365,7 +369,10 @@ class VerificacionFacialEnTiempoRealView(APIView):
         """
         try:
             # Crear proveedor de IA real
-            provider = RealTimeFaceProviderFactory.crear_proveedor('opencv')
+            if RealTimeFaceProviderFactory:
+                provider = RealTimeFaceProviderFactory.create_provider()
+            else:
+                provider = get_face_provider()
             
             # Leer bytes de la imagen subida
             foto_verificacion.seek(0)

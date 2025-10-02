@@ -20,10 +20,24 @@ from .serializers import (
     FaceEnrollResponseSerializer, FaceVerifyResponseSerializer,
     ErrorResponseSerializer, ReconocimientoFacialSerializer
 )
-from .services.face_provider import (
-    FaceProviderFactory, FaceDetectionError, FaceVerificationError, 
-    FaceEnrollmentError
-)
+try:
+    from .services.face_provider import (
+        FaceProviderFactory, FaceDetectionError, FaceVerificationError, 
+        FaceEnrollmentError
+    )
+except ImportError:
+    # Fallback cuando face_provider no está disponible
+    from .services.robust_face_provider import OpenCVFaceProvider
+    FaceProviderFactory = None
+    
+    class FaceDetectionError(Exception):
+        pass
+    
+    class FaceVerificationError(Exception):
+        pass
+    
+    class FaceEnrollmentError(Exception):
+        pass
 
 logger = logging.getLogger('seguridad')
 
@@ -117,7 +131,10 @@ class FaceEnrollView(APIView):
             imagen_bytes = imagen.read()
             
             # Crear proveedor de reconocimiento facial
-            face_provider = FaceProviderFactory.create_provider()
+            if FaceProviderFactory:
+                face_provider = FaceProviderFactory.create_provider()
+            else:
+                face_provider = OpenCVFaceProvider()
             
             # Enrolar rostro
             try:
@@ -1455,7 +1472,10 @@ class ReconocerTiempoRealView(APIView):
             imagen_bytes = imagen.read()
             
             # Usar el proveedor de reconocimiento existente
-            from .services.realtime_face_provider import OpenCVFaceProvider
+            try:
+                from .services.realtime_face_provider import OpenCVFaceProvider
+            except ImportError:
+                from .services.robust_face_provider import OpenCVFaceProvider
             
             provider = OpenCVFaceProvider()
             
