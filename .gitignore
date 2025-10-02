@@ -148,8 +148,6 @@ docker-compose.override.yml
 .dockerignore_dev
 
 # === Bases de Datos ===
-*.sqlite
-*.sqlite3
 *.db
 *.rdb
 dump.rdb
