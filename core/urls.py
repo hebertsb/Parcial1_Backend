@@ -29,10 +29,14 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 from core.views import DemoView, HealthCheckView
+from core.test_views import health_check, simple_test
 
 urlpatterns = [
     # Health Check para Railway
     path('api/health/', HealthCheckView.as_view(), name='health-check'),
+    # Test endpoints temporales
+    path('api/test/health/', health_check, name='test-health'),
+    path('api/test/simple/', simple_test, name='test-simple'),
     
     # Admin
     path('admin/', admin.site.urls),
@@ -54,10 +58,10 @@ urlpatterns = [
     path('auth/', include('authz.auth_urls')),        # login, refresh compatibilidad
     path('auth/', include('authz.urls_admin')),       # admin endpoints sin api/ prefix
     
-    # JWT Authentication (Sistema anterior - mantener para compatibilidad)
-    path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    # JWT Authentication (TEMPORALMENTE DESHABILITADO para diagnosticar error 500)
+    # path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
     
     # Pagos (Expensas y Multas)
     path('api/pagos/', include('core.api_urls')),
