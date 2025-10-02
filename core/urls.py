@@ -40,19 +40,15 @@ urlpatterns = [
     # Demo básico - TEMPORALMENTE DESHABILITADO
     # path('api/demo/', DemoView.as_view(), name='demo-basico'),
     
-    # Authz Authentication + Propietarios (consolidado para evitar conflictos)
-    path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
-    path('api/authz/', include(('authz.urls', 'authz'), namespace='authz-api')),        # registro, panel propietarios
-    path('api/authz/', include('authz.urls_admin')),  # funcionalidades administrativas
-    
-    # URLs directas authz (sin api/ prefix) para compatibilidad frontend
-    path('authz/', include('authz.auth_urls')),       # /authz/login/, /authz/refresh/
-    path('authz/', include(('authz.urls', 'authz'), namespace='authz-direct')),            # registro, panel propietarios
-    path('authz/', include('authz.urls_admin')),      # funcionalidades administrativas
-    
-    # URLs de administración también en path 'auth' para compatibilidad con frontend
-    path('auth/', include('authz.auth_urls')),        # login, refresh compatibilidad
-    path('auth/', include('authz.urls_admin')),       # admin endpoints sin api/ prefix
+    # AUTHZ TEMPORALMENTE DESHABILITADO PARA DIAGNOSTICAR ERROR 500
+    # path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
+    # path('api/authz/', include(('authz.urls', 'authz'), namespace='authz-api')),        # registro, panel propietarios
+    # path('api/authz/', include('authz.urls_admin')),  # funcionalidades administrativas
+    # path('authz/', include('authz.auth_urls')),       # /authz/login/, /authz/refresh/
+    # path('authz/', include(('authz.urls', 'authz'), namespace='authz-direct')),            # registro, panel propietarios
+    # path('authz/', include('authz.urls_admin')),      # funcionalidades administrativas
+    # path('auth/', include('authz.auth_urls')),        # login, refresh compatibilidad
+    # path('auth/', include('authz.urls_admin')),       # admin endpoints sin api/ prefix
     
     # JWT Authentication: REMOVIDO - usando sistema authz personalizado
     # El login funcional está en /api/authz/login/ y /auth/login/
