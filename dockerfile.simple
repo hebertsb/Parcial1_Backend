@@ -1,0 +1,23 @@
+# Dockerfile simplificado para Railway - TEMPORAL
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# Copiar solo lo esencial
+COPY manage.py .
+COPY core/ ./core/
+COPY authz/ ./authz/
+
+# Instalar dependencias básicas
+RUN pip install --no-cache-dir django==5.2.6 djangorestframework djangorestframework-simplejwt python-dotenv Pillow gunicorn
+
+# Crear migrations (sin base de datos real)
+RUN python manage.py makemigrations --empty core
+RUN python manage.py makemigrations --empty authz
+
+EXPOSE 8000
+
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120"]
