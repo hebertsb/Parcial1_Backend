@@ -24,12 +24,12 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
-from core.views import DemoView, HealthCheckView
+# from core.views import DemoView, HealthCheckView  # DESHABILITADO: core app comentada
 from core.test_views import health_check, simple_test
 
 urlpatterns = [
-    # Health Check para Railway
-    path('api/health/', HealthCheckView.as_view(), name='health-check'),
+    # Health Check para Railway - TEMPORALMENTE DESHABILITADO
+    # path('api/health/', HealthCheckView.as_view(), name='health-check'),
     # Test endpoints temporales
     path('api/test/health/', health_check, name='test-health'),
     path('api/test/simple/', simple_test, name='test-simple'),
@@ -37,8 +37,8 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
-    # Demo básico (sin face_recognition)
-    path('api/demo/', DemoView.as_view(), name='demo-basico'),
+    # Demo básico - TEMPORALMENTE DESHABILITADO
+    # path('api/demo/', DemoView.as_view(), name='demo-basico'),
     
     # Authz Authentication + Propietarios (consolidado para evitar conflictos)
     path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
@@ -57,26 +57,22 @@ urlpatterns = [
     # JWT Authentication: REMOVIDO - usando sistema authz personalizado
     # El login funcional está en /api/authz/login/ y /auth/login/
     
+    # TEMPORALMENTE DESHABILITADO PARA DIAGNOSTICAR ERROR 500
     # Pagos (Expensas y Multas)
-    path('api/pagos/', include('core.api_urls')),
+    # path('api/pagos/', include('core.api_urls')),
 
-    # CU05 - Gestionar Unidades Habitacionales
-    path('api/', include('core.api.viviendas.urls')),
-
-    
-    path('api/', include('core.api.mascotas.urls')),
-    
+    # CU05 - Gestionar Unidades Habitacionales  
+    # path('api/', include('core.api.viviendas.urls')),
+    # path('api/', include('core.api.mascotas.urls')),
 
     # OpenAPI Schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # API de Seguridad - Endpoints para el frontend
-    path('api/seguridad/', include('seguridad.api_urls')),
-    
-    # URLs directas de seguridad (para compatibilidad con frontend)
-    path('seguridad/', include('seguridad.api_urls')),  # MISMO contenido que api/seguridad/
+    # API de Seguridad - TEMPORALMENTE DESHABILITADO
+    # path('api/seguridad/', include('seguridad.api_urls')),
+    # path('seguridad/', include('seguridad.api_urls')),
     
     # WebRTC - Endpoints para reconocimiento facial en tiempo real
     path('webrtc/', include('seguridad.urls_webrtc')),
@@ -101,23 +97,15 @@ urlpatterns = [
     #gestion de espacios comunes(crud)
     path('api/areas-comunes/', include('areas_comunes.urls')),
 
-    # Visitas (registro y gestión de visitantes)
-    path('api/', include('core.api.visitas.urls')),
-
-    # Bitácora y logs del sistema (solo admin)
-    path('api/bitacora/', include('core.api.bitacora.urls')),
-
-    # Rutas para la gestión de áreas comunes (crud)
-    path('api/areas-comunes/', include('reservas_areas.urls')),
-    # TEMPORALMENTE DESHABILITADO: OCR requiere OpenCV que no está disponible en Railway
-    # path('api/', include('core.api.ocr.urls')),
-
-
-    #mantenimiento
-    path('api/mantenimiento/', include('mantenimiento.urls')),
-
-    #politicas
-    path('api/politicas/', include('politicas.urls')),
+    # TEMPORALMENTE DESHABILITADO - DIAGNOSTICAR ERROR 500
+    # path('api/avisos/', include('avisos_comunicados.urls')),
+    # path('api/areas-comunes/', include('areas_comunes.urls')),
+    # path('api/', include('core.api.visitas.urls')),
+    # path('api/bitacora/', include('core.api.bitacora.urls')),
+    # path('api/areas-comunes/', include('reservas_areas.urls')),
+    # TEMPORALMENTE DESHABILITADO - DIAGNOSTICAR ERROR 500
+    # path('api/mantenimiento/', include('mantenimiento.urls')),
+    # path('api/politicas/', include('politicas.urls')),
 
     
 ]

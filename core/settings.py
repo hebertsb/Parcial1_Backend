@@ -57,17 +57,17 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
-    # Local apps
-    'core',  # Aplicación principal con modelos organizados
-    'blog',
-    'seguridad',
-    'authz',  # Sistema de autenticación avanzado
-    'expensas_multas', 
-    'avisos_comunicados',
-    'areas_comunes',
-    'reservas_areas',
-    'mantenimiento',
-    'politicas',
+    # Local apps - TEMPORALMENTE REDUCIDAS PARA DIAGNOSTICAR ERROR 500
+    # 'core',  # DESHABILITADO: tiene import cv2 en views.py
+    'authz',  # Sistema de autenticación avanzado - NECESARIO PARA LOGIN
+    # 'blog',
+    # 'seguridad',  # DESHABILITADO: posibles imports problemáticos
+    # 'expensas_multas', 
+    # 'avisos_comunicados',
+    # 'areas_comunes',
+    # 'reservas_areas',
+    # 'mantenimiento',
+    # 'politicas',
 
 ]
 
