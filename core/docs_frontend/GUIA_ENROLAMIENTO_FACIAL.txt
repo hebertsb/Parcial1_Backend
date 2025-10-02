@@ -1,0 +1,58 @@
+GUÍA PARA ENROLAR IMAGEN Y AUTENTICAR CON ROSTRO EN COPROPIETARIOS E INQUILINOS
+============================================================
+
+1. MODELOS RELACIONADOS (authz/models.py)
+-----------------------------------------
+- Persona: contiene los datos personales y los campos para reconocimiento facial (`foto_perfil`, `encoding_facial`, `reconocimiento_facial_activo`).
+- Usuario: usuario del sistema, vinculado uno a uno con Persona. Puede ser propietario, inquilino, etc.
+- RelacionesPropietarioInquilino: vincula propietarios e inquilinos con la vivienda.
+
+2. ENROLAMIENTO DE IMAGEN (BACKEND)
+------------------------------------
+- Para enrolar una imagen facial a un copropietario o inquilino:
+  a) Subir la imagen al campo `foto_perfil` de la Persona.
+  b) Procesar la imagen para obtener el encoding facial (usando face_recognition en backend).
+  c) Guardar el encoding en el campo `encoding_facial` (es una lista de listas).
+  d) Marcar `reconocimiento_facial_activo = True` si el enrolamiento fue exitoso.
+
+- El método `agregar_encoding_facial(nuevo_encoding)` de Persona permite agregar nuevos encodings.
+
+3. AUTENTICACIÓN/INICIO DE SESIÓN CON IMAGEN
+--------------------------------------------
+- Para permitir login con imagen:
+  a) El usuario sube una foto desde el frontend.
+  b) El backend procesa la imagen, obtiene el encoding y lo compara con los encodings almacenados en las Personas activas.
+  c) Si hay coincidencia (distancia < 0.6), se autoriza el acceso y se retorna el usuario asociado.
+
+- Esto aplica tanto para propietarios como para inquilinos (ambos son instancias de Usuario vinculadas a una Persona).
+
+4. GUÍA PARA FRONTEND (FORMULARIO DE ENROLAMIENTO)
+---------------------------------------------------
+- Al crear o editar un copropietario o inquilino, agregar un campo para subir la foto de rostro.
+- Al guardar, enviar la imagen al backend (endpoint de enrolamiento o actualización de Persona).
+- El backend debe procesar la imagen y actualizar el encoding facial.
+- Mostrar en el frontend si el enrolamiento fue exitoso o si hubo error (rostro no detectado, etc).
+
+5. GUÍA PARA FRONTEND (INICIO DE SESIÓN CON IMAGEN)
+----------------------------------------------------
+- Agregar opción de login con imagen (subir foto o usar cámara).
+- Enviar la imagen al endpoint de autenticación facial.
+- Si la respuesta es exitosa, iniciar sesión con el usuario retornado.
+- Si no hay coincidencia, mostrar mensaje de error.
+
+6. NOTAS Y RECOMENDACIONES
+--------------------------
+- El campo `encoding_facial` puede almacenar varios encodings (para mejorar precisión).
+- El enrolamiento puede hacerse desde el panel de administración o desde el formulario de usuario.
+- Para inquilinos, asegúrate de que la relación con la vivienda y el propietario esté correctamente registrada.
+- El backend debe validar que la imagen subida contenga un solo rostro y sea de buena calidad.
+
+7. ENDPOINTS SUGERIDOS (BACKEND)
+---------------------------------
+- POST /api/personas/{id}/enrolar_foto/  (enrolar imagen a persona)
+- POST /api/auth/login_facial/           (autenticación con imagen)
+
+
+---
+
+Esta guía cubre el flujo completo para enrolar imágenes y autenticar con rostro tanto a copropietarios como a inquilinos. Puedes adaptarla y ampliarla según tus necesidades.

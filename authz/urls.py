@@ -15,6 +15,14 @@ from .views_propietario import (
     MisFotosPropietarioView,
     SubirFotoPropietarioView
 )
+from .views_propietario_dropbox import (
+    SubirFotoPropietarioDropboxView,
+    MisFotosDropboxView
+)
+from .views_solicitud_dropbox import (
+    CrearSolicitudRegistroDropboxView,
+    AprobarSolicitudDropboxView
+)
 from .views_fotos_reconocimiento import (
     subir_fotos_reconocimiento,
     estado_reconocimiento_facial,
@@ -34,13 +42,14 @@ urlpatterns = [
     # Registro inicial de propietario (formulario web principal)
     path('propietarios/registro-inicial/', RegistroPropietarioInicialView.as_view(), name='registro-inicial'),
     
-    # Endpoint para crear nueva solicitud (compatible con frontend React/Next.js)
-    path('propietarios/solicitud-registro/', RegistroSolicitudPropietarioView.as_view(), name='crear-solicitud'),
+    # Endpoint para crear nueva solicitud (compatible con frontend React/Next.js) - CON DROPBOX
+    path('propietarios/solicitud-registro/', CrearSolicitudRegistroDropboxView.as_view(), name='crear-solicitud'),
+    path('propietarios/solicitud/', CrearSolicitudRegistroDropboxView.as_view(), name='crear-solicitud-corta'),
     
     # URLs para administradores
     path('propietarios/admin/solicitudes/', SolicitudesPendientesView.as_view(), name='solicitudes-pendientes'),
     path('propietarios/admin/solicitudes/<int:solicitud_id>/', DetalleSolicitudView.as_view(), name='detalle-solicitud'),
-    path('propietarios/admin/solicitudes/<int:solicitud_id>/aprobar/', AprobarSolicitudView.as_view(), name='aprobar-solicitud'),
+    path('propietarios/admin/solicitudes/<int:solicitud_id>/aprobar/', AprobarSolicitudDropboxView.as_view(), name='aprobar-solicitud'),
     path('propietarios/admin/solicitudes/<int:solicitud_id>/rechazar/', RechazarSolicitudView.as_view(), name='rechazar-solicitud'),
     
     # URLs para el panel de propietarios (gestión de familiares e inquilinos)
@@ -53,8 +62,12 @@ urlpatterns = [
     
     # ===== PANEL PROPIETARIO - AUTENTICADO =====
     path('propietarios/mi-informacion/', MiInformacionPropietarioView.as_view(), name='mi-informacion-propietario'),
-    path('propietarios/mis-fotos/', MisFotosPropietarioView.as_view(), name='mis-fotos-propietario'),
-    path('propietarios/subir-foto/', SubirFotoPropietarioView.as_view(), name='subir-foto-propietario'),
+    path('propietarios/mis-fotos/', MisFotosDropboxView.as_view(), name='mis-fotos-propietario'),
+    path('propietarios/subir-foto/', SubirFotoPropietarioDropboxView.as_view(), name='subir-foto-propietario'),
+    
+    # ===== PANEL PROPIETARIO - ENDPOINTS LEGACY (BACKUP) =====
+    path('propietarios/mis-fotos-legacy/', MisFotosPropietarioView.as_view(), name='mis-fotos-propietario-legacy'),
+    path('propietarios/subir-foto-legacy/', SubirFotoPropietarioView.as_view(), name='subir-foto-propietario-legacy'),
     
     # ===== PANEL SEGURIDAD - AUTENTICADO =====
     path('seguridad/', include('authz.urls_seguridad')),

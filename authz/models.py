@@ -480,7 +480,7 @@ class SolicitudRegistroPropietario(models.Model):
             import dropbox
             dbx = dropbox.Dropbox(DROPBOX_TOKEN)
             documento_identidad = self.documento_identidad
-            nueva_carpeta = f"/Aplicaciones/FotoVisita/Propietarios/{documento_identidad}"
+            nueva_carpeta = f"/Aplicaciones/ParcialSI2/Propietarios/{documento_identidad}"
             nuevas_fotos_urls = []
             url_foto_perfil = None
             for idx, foto in enumerate(self.fotos_reconocimiento_urls):

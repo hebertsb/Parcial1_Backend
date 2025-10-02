@@ -5,10 +5,12 @@ Solo endpoints del API sin namespace para evitar conflictos
 
 from django.urls import path, include
 from .views import (
-    ListarUsuariosReconocimientoFacialView, PropietariosConReconocimientoView,
-    FaceEnrollView, FaceVerifyView, DashboardSeguridadView, IncidentesSeguridadView,
-    VisitasActivasView, AlertasActivasView, ListaUsuariosActivosView, FaceStatusView,
-    HealthCheckView
+    ListarUsuariosReconocimientoFacialView,
+    PropietariosConReconocimientoView,
+    FaceEnrollView, FaceVerifyView, FaceStatusView,
+    HealthCheckView,
+    # DashboardSeguridadView, IncidentesSeguridadView,  # Comentado temporalmente
+    # VisitasActivasView, AlertasActivasView, ListaUsuariosActivosView,  # Comentado temporalmente
 )
 from .views_verificacion_tiempo_real import VerificacionFacialEnTiempoRealView
 
@@ -29,12 +31,12 @@ urlpatterns = [
     path('reconocimiento-facial/verify/', FaceVerifyView.as_view(), name='api-face-verify'),
     path('reconocimiento-facial/status/<int:copropietario_id>/', FaceStatusView.as_view(), name='api-face-status'),
     
-    # Dashboard y monitoreo
-    path('dashboard/', DashboardSeguridadView.as_view(), name='api-dashboard-seguridad'),
-    path('incidentes/', IncidentesSeguridadView.as_view(), name='api-incidentes-seguridad'),
-    path('visitas/activas/', VisitasActivasView.as_view(), name='api-visitas-activas'),
-    path('alertas/activas/', AlertasActivasView.as_view(), name='api-alertas-activas'),
-    path('usuarios-activos/', ListaUsuariosActivosView.as_view(), name='api-usuarios-activos'),
+    # Dashboard y monitoreo - Comentado temporalmente
+    # path('dashboard/', DashboardSeguridadView.as_view(), name='api-dashboard-seguridad'),
+    # path('incidentes/', IncidentesSeguridadView.as_view(), name='api-incidentes-seguridad'),
+    # path('visitas/activas/', VisitasActivasView.as_view(), name='api-visitas-activas'),
+    # path('alertas/activas/', AlertasActivasView.as_view(), name='api-alertas-activas'),
+    # path('usuarios-activos/', ListaUsuariosActivosView.as_view(), name='api-usuarios-activos'),
     
     # Sincronización de fotos (incluir las URLs del archivo existente)
     path('sincronizar-fotos/', include('seguridad.urls_sincronizacion')),

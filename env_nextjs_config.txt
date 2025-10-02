@@ -1,0 +1,12 @@
+# Configuración para Next.js
+# Crear este archivo como .env.local en tu proyecto Next.js
+
+# API Backend Django
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+
+# Servidor WebRTC
+NEXT_PUBLIC_WEBRTC_URL=http://localhost:8001
+
+# Configuración de reconocimiento
+NEXT_PUBLIC_MAX_FPS=10
+NEXT_PUBLIC_DEFAULT_QUALITY=0.7

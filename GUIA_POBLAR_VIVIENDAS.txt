@@ -1,0 +1,87 @@
+🎯 GUÍA RÁPIDA: POBLAR VIVIENDAS AUTOMÁTICAMENTE
+================================================================================
+
+🚀 COMANDOS DISPONIBLES:
+
+1️⃣ POBLADO AUTOMÁTICO (distribución inteligente):
+   python poblar_viviendas_rapido.py 100     # Crear 100 viviendas automáticamente
+
+2️⃣ POBLADO CON DISTRIBUCIÓN ESPECÍFICA:
+   python poblar_viviendas_rapido.py 100 --casas 40 --departamentos 50 --locales 10
+
+3️⃣ POBLADO CON PREFIJO PERSONALIZADO:
+   python poblar_viviendas_rapido.py 50 --prefijo "TORRE1"
+
+4️⃣ POBLADO INTERACTIVO (te pregunta cuántas):
+   python poblar_viviendas_automatico.py
+
+================================================================================
+📊 ESTADO ACTUAL DEL SISTEMA:
+
+✅ VIVIENDAS TOTALES: 80
+   🏠 Casas: 35 (4 ocupadas, 31 disponibles)
+   🏢 Departamentos: 38 (2 ocupadas, 36 disponibles)  
+   🏪 Locales: 7 (1 ocupada, 6 disponibles)
+
+✅ DISPONIBLES PARA FRONTEND: 73 viviendas
+
+================================================================================
+🎯 EJEMPLOS DE USO:
+
+CREAR 1000 VIVIENDAS:
+python poblar_viviendas_rapido.py 1000
+
+CREAR 500 CON DISTRIBUCIÓN ESPECÍFICA:
+python poblar_viviendas_rapido.py 500 --casas 200 --departamentos 250 --locales 50
+
+CREAR 100 PARA TORRE ESPECÍFICA:
+python poblar_viviendas_rapido.py 100 --prefijo "EDIFICIO_A"
+
+================================================================================
+⚡ CARACTERÍSTICAS DEL SISTEMA:
+
+✅ Números únicos automáticos (CASA-001, DEPT-002, LOCAL-003)
+✅ Áreas realistas según tipo de vivienda
+✅ Tarifas proporcionales al área y tipo
+✅ Bloques aleatorios (A-J)
+✅ Estados variados (activa, inactiva, mantenimiento)
+✅ Tipos de cobranza automáticos (por_casa, por_metro_cuadrado)
+✅ Control de duplicados automático
+✅ Progreso visible cada 25 viviendas
+✅ Estadísticas finales detalladas
+
+================================================================================
+🔧 PARÁMETROS TÉCNICOS:
+
+CASAS:
+- Área: 80-200 m²
+- Tarifa: $200-500
+- Peso: 40% del total
+
+DEPARTAMENTOS:
+- Área: 45-150 m²
+- Tarifa: $150-400
+- Peso: 50% del total
+
+LOCALES:
+- Área: 20-100 m²
+- Tarifa: $100-300
+- Peso: 10% del total
+
+================================================================================
+🌐 VERIFICAR RESULTADOS:
+
+Ver estadísticas: python ver_viviendas.py --simple
+Ver detalle: python consulta_viviendas_frontend.py
+API REST: http://127.0.0.1:8000/api/viviendas/
+
+================================================================================
+💡 CONSEJOS:
+
+• Para pruebas grandes (+1000), usa el script rápido con parámetros
+• Para control específico, usa --casas --departamentos --locales
+• El sistema previene duplicados automáticamente
+• Todas las viviendas se crean listas para usar
+• Los usuarios pueden registrarse en cualquier vivienda disponible
+
+================================================================================

@@ -28,10 +28,17 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
+from core.views import DemoView, HealthCheckView
 
 urlpatterns = [
+    # Health Check para Railway
+    path('api/health/', HealthCheckView.as_view(), name='health-check'),
+    
     # Admin
     path('admin/', admin.site.urls),
+    
+    # Demo básico (sin face_recognition)
+    path('api/demo/', DemoView.as_view(), name='demo-basico'),
     
     # Authz Authentication + Propietarios (consolidado para evitar conflictos)
     path('api/authz/', include('authz.auth_urls')),   # login, usuarios, refresh
@@ -72,6 +79,16 @@ urlpatterns = [
     
     # URLs directas de seguridad (para compatibilidad con frontend)
     path('seguridad/', include('seguridad.api_urls')),  # MISMO contenido que api/seguridad/
+    
+    # WebRTC - Endpoints para reconocimiento facial en tiempo real
+    path('webrtc/', include('seguridad.urls_webrtc')),
+    
+    # Actividad y Logs de Seguridad - Endpoints para el panel de actividades
+    path('api/authz/seguridad/', include('seguridad.urls_actividad')),
+    path('api/seguridad/', include('seguridad.urls_actividad')),  # URL alternativa
+    
+    # Entrenamiento de IA - Endpoints para gestión de modelos
+    path('api/seguridad/', include('seguridad.urls_ai_training')),
 
     # #expensas
     # path('api/expensas/', include('expensas_multas.urls')),

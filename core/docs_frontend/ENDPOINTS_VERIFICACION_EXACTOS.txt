@@ -1,0 +1,275 @@
+# ENDPOINTS EXACTOS PARA VERIFICAR FUNCIONAMIENTO
+# ===============================================
+
+## 🔐 PASO 1: OBTENER TOKEN DE ADMIN
+
+```bash
+# PowerShell
+Invoke-RestMethod -Uri "http://localhost:8000/api/authz/login/" -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"email": "admin@condominio.com", "password": "admin123"}'
+
+# curl (si funciona)  
+curl -X POST http://localhost:8000/api/authz/login/ -H "Content-Type: application/json" -d '{"email": "admin@condominio.com", "password": "admin123"}'
+```
+
+**Respuesta esperada:**
+```json
+{
+  "access": "eyJhbGc...",
+  "refresh": "eyJhbGc...",
+  "user": {...},
+  "roles": [{"id": 1, "nombre": "Administrador"}],
+  "primary_role": "Administrador"
+}
+```
+
+## 📋 PASO 2: VERIFICAR ESTADO ACTUAL DE USUARIOS
+
+```bash
+# PowerShell (reemplaza JWT_TOKEN)
+$token = "TU_TOKEN_AQUI"
+Invoke-RestMethod -Uri "http://localhost:8000/api/authz/usuarios/" -Headers @{"Authorization"="Bearer $token"}
+
+# Buscar específicamente María y Carlos
+Invoke-RestMethod -Uri "http://localhost:8000/api/authz/usuarios/" -Headers @{"Authorization"="Bearer $token"} | Where-Object {$_.email -match "maria.gonzalez|carlos.rodriguez"}
+```
+
+**Respuesta esperada (después de la transferencia):**
+```json
+[
+  {
+    "id": 4,
+    "email": "maria.gonzalez@facial.com",
+    "persona": {
+      "tipo_persona": "inquilino"  // ← ERA "propietario" ANTES
+    },
+    "roles": [
+      {"id": 4, "nombre": "Inquilino"}  // ← ERA "Propietario" ANTES
+    ]
+  },
+  {
+    "id": 5,
+    "email": "carlos.rodriguez@facial.com", 
+    "persona": {
+      "tipo_persona": "propietario"  // ← ERA "inquilino" ANTES
+    },
+    "roles": [
+      {"id": 3, "nombre": "Propietario"}  // ← ERA "Inquilino" ANTES
+    ]
+  }
+]
+```
+
+## 🔐 PASO 3: VERIFICAR LOGIN CON ROLES NUEVOS
+
+### María (ahora inquilina):
+```bash
+Invoke-RestMethod -Uri "http://localhost:8000/api/authz/login/" -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"email": "maria.gonzalez@facial.com", "password": "test123"}'
+```
+
+**Respuesta esperada:**
+```json
+{
+  "access": "...",
+  "refresh": "...",
+  "user": {
+    "email": "maria.gonzalez@facial.com",
+    "persona": {
+      "tipo_persona": "inquilino"
+    }
+  },
+  "roles": [{"id": 4, "nombre": "Inquilino"}],
+  "primary_role": "Inquilino"  // ← ESTO REDIRIGE AL PANEL DE INQUILINOS
+}
+```
+
+### Carlos (ahora propietario):
+```bash
+Invoke-RestMethod -Uri "http://localhost:8000/api/authz/login/" -Method POST -Headers @{"Content-Type"="application/json"} -Body '{"email": "carlos.rodriguez@facial.com", "password": "test123"}'
+```
+
+**Respuesta esperada:**
+```json
+{
+  "access": "...",
+  "refresh": "...", 
+  "user": {
+    "email": "carlos.rodriguez@facial.com",
+    "persona": {
+      "tipo_persona": "propietario"
+    }
+  },
+  "roles": [{"id": 3, "nombre": "Propietario"}],
+  "primary_role": "Propietario"  // ← ESTO REDIRIGE AL PANEL DE PROPIETARIOS
+}
+```
+
+## 🛠️ PASO 4: ENDPOINTS PARA ADMIN EN FRONTEND
+
+### 1. CAMBIAR ROL DE USUARIO MANUALMENTE
+```javascript
+// Ejemplo: Admin cambia rol de inquilino a propietario
+PUT /api/authz/usuarios/5/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "roles": [3]  // ID del rol Propietario
+}
+
+// ✅ AUTOMÁTICO: Se sincroniza tipo_persona = "propietario"
+```
+
+### 2. CAMBIAR TIPO DE PERSONA DIRECTAMENTE  
+```javascript
+// Ejemplo: Admin cambia tipo de persona
+PUT /api/viviendas/personas/2/cambiar-tipo/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "nuevo_tipo": "propietario"
+}
+
+// ✅ AUTOMÁTICO: Se sincroniza rol = "Propietario"
+```
+
+### 3. TRANSFERIR PROPIEDAD COMPLETA
+```javascript
+// Ejemplo: Transferir vivienda de un propietario a un inquilino
+POST /api/viviendas/viviendas/1/transferir-propiedad/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "nuevo_propietario_id": 123,  // ID del nuevo propietario
+  "motivo_transferencia": "Venta de propiedad"
+}
+
+// ✅ AUTOMÁTICO: Se actualizan AMBOS usuarios
+// Ex-propietario → inquilino + rol Inquilino
+// Nuevo propietario → propietario + rol Propietario
+```
+
+## 🎯 VERIFICACIÓN COMPLETA EN JAVASCRIPT
+
+### Script completo para el frontend:
+```javascript
+// VERIFICACIÓN COMPLETA DEL SISTEMA
+async function verificarSistemaCompleto() {
+  const token = 'TU_TOKEN_DE_ADMIN_AQUI';
+  
+  console.log('🔍 VERIFICANDO SISTEMA COMPLETO...\n');
+  
+  // 1. Verificar estado actual
+  const usuarios = await fetch('/api/authz/usuarios/', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  }).then(r => r.json());
+  
+  const maria = usuarios.find(u => u.email === 'maria.gonzalez@facial.com');
+  const carlos = usuarios.find(u => u.email === 'carlos.rodriguez@facial.com');
+  
+  console.log('👤 MARÍA:');
+  console.log(`   Tipo: ${maria.persona?.tipo_persona}`);
+  console.log(`   Roles: ${maria.roles.map(r => r.nombre).join(', ')}`);
+  console.log(`   ✅ ${maria.persona?.tipo_persona === 'inquilino' && maria.roles.some(r => r.nombre === 'Inquilino') ? 'CORRECTO' : 'ERROR'}`);
+  
+  console.log('\n👤 CARLOS:');
+  console.log(`   Tipo: ${carlos.persona?.tipo_persona}`);
+  console.log(`   Roles: ${carlos.roles.map(r => r.nombre).join(', ')}`);
+  console.log(`   ✅ ${carlos.persona?.tipo_persona === 'propietario' && carlos.roles.some(r => r.nombre === 'Propietario') ? 'CORRECTO' : 'ERROR'}`);
+  
+  // 2. Verificar login de María
+  console.log('\n🔐 PROBANDO LOGIN DE MARÍA...');
+  const loginMaria = await fetch('/api/authz/login/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      email: 'maria.gonzalez@facial.com', 
+      password: 'test123' 
+    })
+  }).then(r => r.json());
+  
+  console.log(`   Primary role: ${loginMaria.primary_role}`);
+  console.log(`   ✅ ${loginMaria.primary_role === 'Inquilino' ? 'REDIRIGE A PANEL INQUILINOS' : 'ERROR'}`);
+  
+  // 3. Verificar login de Carlos
+  console.log('\n🔐 PROBANDO LOGIN DE CARLOS...');
+  const loginCarlos = await fetch('/api/authz/login/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      email: 'carlos.rodriguez@facial.com', 
+      password: 'test123' 
+    })
+  }).then(r => r.json());
+  
+  console.log(`   Primary role: ${loginCarlos.primary_role}`);
+  console.log(`   ✅ ${loginCarlos.primary_role === 'Propietario' ? 'REDIRIGE A PANEL PROPIETARIOS' : 'ERROR'}`);
+  
+  console.log('\n🎯 RESULTADO FINAL:');
+  console.log('   ✅ Transferencia de propiedad funciona correctamente');
+  console.log('   ✅ Sincronización automática de roles funciona');
+  console.log('   ✅ Login redirige a los paneles correctos');
+}
+
+// Ejecutar verificación
+verificarSistemaCompleto();
+```
+
+## 🎨 COMPONENTE PARA PANEL DE ADMIN
+
+```jsx
+// Componente para que el admin pruebe cambiar roles
+function PanelAdminRoles() {
+  const [usuarios, setUsuarios] = useState([]);
+  const [roles, setRoles] = useState([]);
+  
+  const cambiarRol = async (usuarioId, nuevoRolId) => {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await fetch(`/api/authz/usuarios/${usuarioId}/`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ roles: [nuevoRolId] })
+    });
+    
+    if (response.ok) {
+      alert('Rol cambiado exitosamente');
+      cargarUsuarios(); // Recargar para ver cambios
+    }
+  };
+  
+  return (
+    <div>
+      <h2>🛠️ Panel Admin - Cambiar Roles</h2>
+      {usuarios.map(usuario => (
+        <div key={usuario.id} style={{border: '1px solid #ccc', margin: '10px', padding: '10px'}}>
+          <strong>{usuario.email}</strong>
+          <br />
+          Tipo actual: {usuario.persona?.tipo_persona}
+          <br />
+          Roles actuales: {usuario.roles.map(r => r.nombre).join(', ')}
+          <br />
+          <select onChange={(e) => cambiarRol(usuario.id, e.target.value)}>
+            <option value="">Cambiar rol...</option>
+            {roles.map(rol => (
+              <option key={rol.id} value={rol.id}>{rol.nombre}</option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## ✅ CHECKLIST PARA VERIFICAR
+
+- [ ] Login de admin funciona
+- [ ] Endpoint usuarios devuelve datos correctos
+- [ ] María tiene tipo="inquilino" y rol="Inquilino"
+- [ ] Carlos tiene tipo="propietario" y rol="Propietario"  
+- [ ] Login de María devuelve primary_role="Inquilino"
+- [ ] Login de Carlos devuelve primary_role="Propietario"
+- [ ] Cambio manual de roles sincroniza tipo_persona
+- [ ] Cambio de tipo_persona sincroniza roles
+- [ ] Transferencia de propiedad actualiza ambos usuarios
+
+¡Si todos estos puntos funcionan, tu sistema está perfecto! 🎉

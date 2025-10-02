@@ -1,0 +1,1347 @@
+# GUÍA COMPLETA - SISTEMA DE RECONOCIMIENTO FACIAL PARA GUARDIA DE SEGURIDAD
+
+## 📋 ÍNDICE
+1. [Análisis del Sistema Actual](#análisis-del-sistema-actual)
+2. [Arquitectura del Sistema](#arquitectura-del-sistema)
+3. [Componentes React Requeridos](#componentes-react-requeridos)
+4. [Implementación del Frontend](#implementación-del-frontend)
+5. [Integración con APIs](#integración-con-apis)
+6. [Funcionalidades Específicas](#funcionalidades-específicas)
+7. [Configuración y Despliegue](#configuración-y-despliegue)
+8. [Pruebas y Validación](#pruebas-y-validación)
+
+---
+
+## 📊 ANÁLISIS DEL SISTEMA ACTUAL
+
+### Estado del Backend ✅
+- **Modelos disponibles**: `Copropietarios`, `ReconocimientoFacial`
+- **APIs implementadas**: 
+  - `/api/seguridad/reconocimiento-facial/` (POST)
+  - `/api/seguridad/lista-usuarios-activos/` (GET)
+  - `/api/seguridad/buscar-usuarios/?q=termino` (GET)
+  - `/api/seguridad/estadisticas/` (GET)
+  - `/api/seguridad/panel-guardia/` (GET - Interfaz HTML)
+
+### Datos Disponibles
+- **Usuarios con reconocimiento activo**: Copropietarios con `ReconocimientoFacial.activo=True`
+- **Fotos de perfil**: Campo `imagen_referencia_url` en `ReconocimientoFacial`
+- **Datos de usuario**: Nombres, apellidos, documento, casa, teléfono, email
+- **Vector facial**: Almacenado en `vector_facial` (JSON array de 128 dimensiones)
+
+---
+
+## 🏗️ ARQUITECTURA DEL SISTEMA
+
+### Flujo de Datos
+```
+[Imagen cargada] → [Conversión Base64] → [API Backend] → [Comparación Facial] → [Resultado]
+```
+
+### Estructura de Carpetas Frontend Sugerida
+```
+src/
+├── components/
+│   ├── GuardiaPanel/
+│   │   ├── GuardiaPanel.js
+│   │   ├── GuardiaPanel.css
+│   │   ├── ReconocimientoFacial/
+│   │   │   ├── ReconocimientoFacial.js
+│   │   │   ├── ImageUpload.js
+│   │   │   ├── ResultadoReconocimiento.js
+│   │   │   └── styles.css
+│   │   ├── ListaUsuarios/
+│   │   │   ├── ListaUsuarios.js
+│   │   │   ├── BuscarUsuarios.js
+│   │   │   ├── UsuarioCard.js
+│   │   │   └── styles.css
+│   │   └── Estadisticas/
+│   │       ├── Dashboard.js
+│   │       ├── EstadisticasCard.js
+│   │       └── styles.css
+│   └── shared/
+│       ├── LoadingSpinner.js
+│       ├── ErrorBoundary.js
+│       └── Notification.js
+├── services/
+│   ├── api.js
+│   ├── reconocimientoAPI.js
+│   └── utils.js
+└── hooks/
+    ├── useReconocimiento.js
+    └── useUsuarios.js
+```
+
+---
+
+## ⚛️ COMPONENTES REACT REQUERIDOS
+
+### 1. COMPONENTE PRINCIPAL - GuardiaPanel.js
+
+```jsx
+import React, { useState, useEffect } from 'react';
+import { Tabs, Tab, Container, Row, Col, Alert } from 'react-bootstrap';
+import ReconocimientoFacial from './ReconocimientoFacial/ReconocimientoFacial';
+import ListaUsuarios from './ListaUsuarios/ListaUsuarios';
+import Dashboard from './Estadisticas/Dashboard';
+import { estadisticasAPI } from '../../services/reconocimientoAPI';
+import './GuardiaPanel.css';
+
+const GuardiaPanel = () => {
+    const [activeTab, setActiveTab] = useState('reconocimiento');
+    const [estadisticas, setEstadisticas] = useState(null);
+    const [horaActual, setHoraActual] = useState(new Date());
+
+    useEffect(() => {
+        // Actualizar hora cada segundo
+        const intervalHora = setInterval(() => {
+            setHoraActual(new Date());
+        }, 1000);
+
+        // Cargar estadísticas cada 30 segundos
+        const intervalStats = setInterval(() => {
+            cargarEstadisticas();
+        }, 30000);
+
+        cargarEstadisticas();
+
+        return () => {
+            clearInterval(intervalHora);
+            clearInterval(intervalStats);
+        };
+    }, []);
+
+    const cargarEstadisticas = async () => {
+        try {
+            const data = await estadisticasAPI();
+            setEstadisticas(data);
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    };
+
+    return (
+        <div className="guardia-panel">
+            {/* Header */}
+            <div className="header-panel">
+                <Container>
+                    <Row className="align-items-center">
+                        <Col md={8}>
+                            <h1>
+                                <i className="fas fa-shield-alt"></i> Panel del Guardia
+                            </h1>
+                            <p className="mb-0">Sistema de Reconocimiento Facial - Condominio</p>
+                        </Col>
+                        <Col md={4} className="text-end">
+                            <div className="info-tiempo">
+                                <span className="badge bg-success me-2">
+                                    <i className="fas fa-clock"></i> {horaActual.toLocaleTimeString()}
+                                </span>
+                                <span className="badge bg-info">
+                                    <i className="fas fa-calendar"></i> {horaActual.toLocaleDateString()}
+                                </span>
+                            </div>
+                        </Col>
+                    </Row>
+                </Container>
+            </div>
+
+            {/* Navegación */}
+            <Container className="mt-4">
+                <Tabs
+                    activeKey={activeTab}
+                    onSelect={(k) => setActiveTab(k)}
+                    className="mb-4 custom-tabs"
+                >
+                    <Tab eventKey="reconocimiento" title={
+                        <span><i className="fas fa-camera"></i> Reconocimiento Facial</span>
+                    }>
+                        <ReconocimientoFacial onReconocimiento={cargarEstadisticas} />
+                    </Tab>
+
+                    <Tab eventKey="usuarios" title={
+                        <span><i className="fas fa-users"></i> Lista de Residentes</span>
+                    }>
+                        <ListaUsuarios />
+                    </Tab>
+
+                    <Tab eventKey="estadisticas" title={
+                        <span><i className="fas fa-chart-bar"></i> Estadísticas</span>
+                    }>
+                        <Dashboard estadisticas={estadisticas} />
+                    </Tab>
+                </Tabs>
+            </Container>
+        </div>
+    );
+};
+
+export default GuardiaPanel;
+```
+
+### 2. COMPONENTE RECONOCIMIENTO FACIAL
+
+```jsx
+// ReconocimientoFacial/ReconocimientoFacial.js
+import React, { useState, useRef } from 'react';
+import { Row, Col, Card, Button, Alert, Spinner } from 'react-bootstrap';
+import ImageUpload from './ImageUpload';
+import ResultadoReconocimiento from './ResultadoReconocimiento';
+import { reconocimientoFacialAPI } from '../../../services/reconocimientoAPI';
+import { convertirImagenABase64 } from '../../../services/utils';
+
+const ReconocimientoFacial = ({ onReconocimiento }) => {
+    const [imagenSeleccionada, setImagenSeleccionada] = useState(null);
+    const [imagenBase64, setImagenBase64] = useState(null);
+    const [resultado, setResultado] = useState(null);
+    const [cargando, setCargando] = useState(false);
+    const [error, setError] = useState(null);
+    
+    const handleImagenSeleccionada = async (archivo) => {
+        try {
+            setError(null);
+            setResultado(null);
+            
+            // Validaciones
+            if (!archivo.type.startsWith('image/')) {
+                throw new Error('Por favor selecciona una imagen válida');
+            }
+            
+            if (archivo.size > 5 * 1024 * 1024) { // 5MB
+                throw new Error('La imagen es demasiado grande. Máximo 5MB.');
+            }
+            
+            const base64 = await convertirImagenABase64(archivo);
+            setImagenSeleccionada(URL.createObjectURL(archivo));
+            setImagenBase64(base64);
+            
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const procesarReconocimiento = async () => {
+        if (!imagenBase64) {
+            setError('Por favor selecciona una imagen primero');
+            return;
+        }
+
+        setCargando(true);
+        setError(null);
+
+        try {
+            const resultado = await reconocimientoFacialAPI(imagenBase64);
+            setResultado(resultado);
+            
+            // Notificar al componente padre para actualizar estadísticas
+            if (onReconocimiento) {
+                onReconocimiento();
+            }
+            
+        } catch (err) {
+            setError(err.message || 'Error procesando la imagen');
+        } finally {
+            setCargando(false);
+        }
+    };
+
+    const limpiarTodo = () => {
+        setImagenSeleccionada(null);
+        setImagenBase64(null);
+        setResultado(null);
+        setError(null);
+    };
+
+    return (
+        <Row>
+            <Col md={6}>
+                <Card className="shadow-sm">
+                    <Card.Header>
+                        <h5><i className="fas fa-upload text-primary"></i> Subir Imagen para Reconocimiento</h5>
+                        <small className="text-muted">Simule el escaneo de la cámara subiendo una imagen</small>
+                    </Card.Header>
+                    <Card.Body>
+                        <ImageUpload 
+                            onImagenSeleccionada={handleImagenSeleccionada}
+                            imagenPreview={imagenSeleccionada}
+                        />
+                        
+                        {error && (
+                            <Alert variant="danger" className="mt-3">
+                                <i className="fas fa-exclamation-triangle"></i> {error}
+                            </Alert>
+                        )}
+                        
+                        {imagenSeleccionada && (
+                            <div className="mt-3 d-flex gap-2">
+                                <Button 
+                                    variant="success" 
+                                    size="lg"
+                                    onClick={procesarReconocimiento}
+                                    disabled={cargando}
+                                >
+                                    {cargando ? (
+                                        <><Spinner size="sm" className="me-2" />Procesando...</>
+                                    ) : (
+                                        <><i className="fas fa-search"></i> Procesar Reconocimiento</>
+                                    )}
+                                </Button>
+                                
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={limpiarTodo}
+                                    disabled={cargando}
+                                >
+                                    <i className="fas fa-times"></i> Limpiar
+                                </Button>
+                            </div>
+                        )}
+                    </Card.Body>
+                </Card>
+                
+                {/* Información del sistema */}
+                <Card className="mt-3 shadow-sm">
+                    <Card.Header>
+                        <h6><i className="fas fa-info-circle text-info"></i> Información del Sistema</h6>
+                    </Card.Header>
+                    <Card.Body>
+                        <ul className="list-unstyled mb-0">
+                            <li><i className="fas fa-check text-success"></i> Umbral de confianza: 70%</li>
+                            <li><i className="fas fa-check text-success"></i> Formatos soportados: JPG, PNG</li>
+                            <li><i className="fas fa-check text-success"></i> Tamaño máximo: 5MB</li>
+                            <li><i className="fas fa-check text-success"></i> Resolución recomendada: 500x500px</li>
+                        </ul>
+                    </Card.Body>
+                </Card>
+            </Col>
+            
+            <Col md={6}>
+                {resultado && (
+                    <ResultadoReconocimiento resultado={resultado} />
+                )}
+            </Col>
+        </Row>
+    );
+};
+
+export default ReconocimientoFacial;
+```
+
+### 3. COMPONENTE SUBIDA DE IMAGEN
+
+```jsx
+// ReconocimientoFacial/ImageUpload.js
+import React, { useRef, useState } from 'react';
+import { Card } from 'react-bootstrap';
+
+const ImageUpload = ({ onImagenSeleccionada, imagenPreview }) => {
+    const [dragging, setDragging] = useState(false);
+    const inputRef = useRef(null);
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        setDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setDragging(false);
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            onImagenSeleccionada(files[0]);
+        }
+    };
+
+    const handleFileSelect = (e) => {
+        if (e.target.files.length > 0) {
+            onImagenSeleccionada(e.target.files[0]);
+        }
+    };
+
+    const handleClick = () => {
+        inputRef.current?.click();
+    };
+
+    return (
+        <>
+            {!imagenPreview ? (
+                <div 
+                    className={`upload-zone ${dragging ? 'dragging' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={handleClick}
+                    style={{ cursor: 'pointer' }}
+                >
+                    <div className="text-center p-4">
+                        <i className="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                        <h4>Arrastra una imagen aquí</h4>
+                        <p className="text-muted">o haz clic para seleccionar archivo</p>
+                        <button className="btn btn-primary btn-lg mt-2" type="button">
+                            <i className="fas fa-folder-open"></i> Seleccionar Imagen
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <Card>
+                    <Card.Header>
+                        <h6>Imagen cargada:</h6>
+                    </Card.Header>
+                    <Card.Body className="text-center">
+                        <img 
+                            src={imagenPreview} 
+                            alt="Imagen seleccionada"
+                            style={{ 
+                                maxWidth: '100%', 
+                                height: '200px', 
+                                objectFit: 'cover', 
+                                borderRadius: '10px' 
+                            }}
+                        />
+                    </Card.Body>
+                </Card>
+            )}
+            
+            <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+            />
+        </>
+    );
+};
+
+export default ImageUpload;
+```
+
+### 4. COMPONENTE RESULTADO
+
+```jsx
+// ReconocimientoFacial/ResultadoReconocimiento.js
+import React from 'react';
+import { Card, Row, Col, Badge } from 'react-bootstrap';
+
+const ResultadoReconocimiento = ({ resultado }) => {
+    const { reconocido, persona, confianza, mensaje, hora_acceso, fecha_acceso } = resultado;
+
+    return (
+        <Card className={`shadow-sm resultado-card ${reconocido ? 'border-success' : 'border-danger'}`}>
+            <Card.Header className={`text-center ${reconocido ? 'bg-success' : 'bg-danger'} text-white`}>
+                <h3>
+                    <i className={`fas ${reconocido ? 'fa-check-circle' : 'fa-times-circle'} fa-2x mb-3`}></i>
+                </h3>
+                <h4>{reconocido ? 'ACCESO PERMITIDO' : 'ACCESO DENEGADO'}</h4>
+            </Card.Header>
+            
+            <Card.Body>
+                {reconocido ? (
+                    <Row className="align-items-center">
+                        <Col md={4} className="text-center">
+                            <img 
+                                src={persona.foto_perfil || '/images/default-avatar.png'} 
+                                alt="Foto de perfil"
+                                className="rounded-circle"
+                                style={{ 
+                                    width: '100px', 
+                                    height: '100px', 
+                                    objectFit: 'cover',
+                                    border: '4px solid white',
+                                    boxShadow: '0 3px 10px rgba(0,0,0,0.3)'
+                                }}
+                            />
+                        </Col>
+                        <Col md={8}>
+                            <h4>{persona.nombre} {persona.apellido}</h4>
+                            <p><i className="fas fa-home"></i> <strong>Casa:</strong> {persona.numero_casa}</p>
+                            <p><i className="fas fa-id-card"></i> <strong>Documento:</strong> {persona.documento}</p>
+                            <p><i className="fas fa-phone"></i> <strong>Teléfono:</strong> {persona.telefono || 'No disponible'}</p>
+                            <p><i className="fas fa-user-tag"></i> <strong>Tipo:</strong> {persona.tipo}</p>
+                        </Col>
+                    </Row>
+                ) : (
+                    <div className="text-center">
+                        <p><i className="fas fa-exclamation-triangle text-warning"></i> {mensaje}</p>
+                        <div className="mt-3">
+                            <h6><strong>Instrucciones:</strong></h6>
+                            <ul className="text-start">
+                                <li>Verificar manualmente la identidad</li>
+                                <li>Consultar la lista de residentes</li>
+                                <li>Contactar administración si es necesario</li>
+                            </ul>
+                        </div>
+                    </div>
+                )}
+                
+                <div className="mt-3 text-center">
+                    <Badge bg="light" text="dark" className="me-2">
+                        <i className="fas fa-percentage"></i> Confianza: {confianza}%
+                    </Badge>
+                    <Badge bg="light" text="dark">
+                        <i className="fas fa-clock"></i> {hora_acceso} - {fecha_acceso}
+                    </Badge>
+                </div>
+            </Card.Body>
+        </Card>
+    );
+};
+
+export default ResultadoReconocimiento;
+```
+
+### 5. COMPONENTE LISTA DE USUARIOS
+
+```jsx
+// ListaUsuarios/ListaUsuarios.js
+import React, { useState, useEffect } from 'react';
+import { Row, Col, Card, Form, Button, Spinner, Alert } from 'react-bootstrap';
+import BuscarUsuarios from './BuscarUsuarios';
+import UsuarioCard from './UsuarioCard';
+import { listaUsuariosAPI, buscarUsuariosAPI } from '../../../services/reconocimientoAPI';
+
+const ListaUsuarios = () => {
+    const [usuarios, setUsuarios] = useState([]);
+    const [usuariosFiltrados, setUsuariosFiltrados] = useState([]);
+    const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState(null);
+    const [terminoBusqueda, setTerminoBusqueda] = useState('');
+
+    useEffect(() => {
+        cargarUsuarios();
+    }, []);
+
+    useEffect(() => {
+        filtrarUsuarios();
+    }, [terminoBusqueda, usuarios]);
+
+    const cargarUsuarios = async () => {
+        try {
+            setCargando(true);
+            setError(null);
+            const data = await listaUsuariosAPI();
+            setUsuarios(data.usuarios || []);
+        } catch (err) {
+            setError('Error cargando la lista de usuarios');
+            console.error(err);
+        } finally {
+            setCargando(false);
+        }
+    };
+
+    const filtrarUsuarios = () => {
+        if (!terminoBusqueda.trim()) {
+            setUsuariosFiltrados(usuarios);
+            return;
+        }
+
+        const filtered = usuarios.filter(usuario =>
+            usuario.nombre.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+            usuario.apellido.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+            usuario.documento_identidad.includes(terminoBusqueda) ||
+            usuario.numero_casa.toLowerCase().includes(terminoBusqueda.toLowerCase())
+        );
+        
+        setUsuariosFiltrados(filtered);
+    };
+
+    const buscarEnServidor = async (termino) => {
+        try {
+            setCargando(true);
+            const data = await buscarUsuariosAPI(termino);
+            setUsuariosFiltrados(data.usuarios || []);
+        } catch (err) {
+            setError('Error en la búsqueda');
+        } finally {
+            setCargando(false);
+        }
+    };
+
+    const limpiarBusqueda = () => {
+        setTerminoBusqueda('');
+        setUsuariosFiltrados(usuarios);
+    };
+
+    if (cargando && usuarios.length === 0) {
+        return (
+            <div className="text-center p-4">
+                <Spinner animation="border" variant="primary" />
+                <p className="mt-2">Cargando lista de residentes...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            {/* Barra de búsqueda */}
+            <BuscarUsuarios
+                terminoBusqueda={terminoBusqueda}
+                onBusquedaChange={setTerminoBusqueda}
+                onBuscarServidor={buscarEnServidor}
+                onLimpiar={limpiarBusqueda}
+                totalUsuarios={usuariosFiltrados.length}
+                totalOriginal={usuarios.length}
+            />
+
+            {error && (
+                <Alert variant="danger" className="mb-3">
+                    <i className="fas fa-exclamation-triangle"></i> {error}
+                    <Button variant="link" onClick={cargarUsuarios} className="ms-2">
+                        Reintentar
+                    </Button>
+                </Alert>
+            )}
+
+            {/* Lista de usuarios */}
+            <Row>
+                {usuariosFiltrados.length > 0 ? (
+                    usuariosFiltrados.map(usuario => (
+                        <Col md={6} lg={4} key={usuario.id} className="mb-3">
+                            <UsuarioCard usuario={usuario} />
+                        </Col>
+                    ))
+                ) : (
+                    <Col>
+                        <Card className="text-center p-4">
+                            <Card.Body>
+                                <i className="fas fa-users fa-3x text-muted mb-3"></i>
+                                <h5>No se encontraron usuarios</h5>
+                                <p className="text-muted">
+                                    {terminoBusqueda ? 
+                                        `No hay resultados para "${terminoBusqueda}"` :
+                                        'No hay usuarios con reconocimiento facial activo'
+                                    }
+                                </p>
+                                {terminoBusqueda && (
+                                    <Button variant="primary" onClick={limpiarBusqueda}>
+                                        Limpiar búsqueda
+                                    </Button>
+                                )}
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                )}
+            </Row>
+        </div>
+    );
+};
+
+export default ListaUsuarios;
+```
+
+### 6. COMPONENTE DE USUARIO INDIVIDUAL
+
+```jsx
+// ListaUsuarios/UsuarioCard.js
+import React from 'react';
+import { Card, Badge } from 'react-bootstrap';
+
+const UsuarioCard = ({ usuario }) => {
+    const {
+        nombre,
+        apellido,
+        documento_identidad,
+        numero_casa,
+        telefono,
+        email,
+        tipo_residente,
+        foto_perfil,
+        reconocimiento_facial_activo,
+        fecha_registro,
+        tipo_usuario
+    } = usuario;
+
+    return (
+        <Card className="h-100 shadow-sm usuario-card">
+            <Card.Body>
+                <div className="d-flex align-items-center mb-3">
+                    <img 
+                        src={foto_perfil || '/images/default-avatar.png'}
+                        alt={`${nombre} ${apellido}`}
+                        className="rounded-circle me-3"
+                        style={{ width: '60px', height: '60px', objectFit: 'cover' }}
+                    />
+                    <div className="flex-grow-1">
+                        <h6 className="mb-1">{nombre} {apellido}</h6>
+                        <small className="text-muted">
+                            <i className="fas fa-home"></i> {numero_casa}
+                        </small>
+                    </div>
+                    <Badge 
+                        bg={reconocimiento_facial_activo ? 'success' : 'warning'}
+                        className="status-badge"
+                    >
+                        {reconocimiento_facial_activo ? 'ACTIVO' : 'INACTIVO'}
+                    </Badge>
+                </div>
+
+                <div className="user-details">
+                    <p className="mb-1">
+                        <i className="fas fa-id-card text-muted"></i> 
+                        <strong> Doc:</strong> {documento_identidad}
+                    </p>
+                    <p className="mb-1">
+                        <i className="fas fa-phone text-muted"></i> 
+                        <strong> Tel:</strong> {telefono || 'No disponible'}
+                    </p>
+                    {email && (
+                        <p className="mb-1">
+                            <i className="fas fa-envelope text-muted"></i> 
+                            <strong> Email:</strong> {email}
+                        </p>
+                    )}
+                    <p className="mb-0">
+                        <i className="fas fa-user-tag text-muted"></i> 
+                        <strong> Tipo:</strong> {tipo_residente}
+                    </p>
+                </div>
+
+                <div className="mt-3 d-flex justify-content-between align-items-center">
+                    <Badge 
+                        bg={tipo_usuario === 'Copropietario' ? 'primary' : 'info'}
+                        className="tipo-usuario-badge"
+                    >
+                        {tipo_usuario}
+                    </Badge>
+                    <small className="text-muted">
+                        Registrado: {fecha_registro}
+                    </small>
+                </div>
+            </Card.Body>
+        </Card>
+    );
+};
+
+export default UsuarioCard;
+```
+
+---
+
+## 🔌 INTEGRACIÓN CON APIs
+
+### Archivo de Servicios - services/reconocimientoAPI.js
+
+```javascript
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+// Configuración base para las peticiones
+const apiRequest = async (endpoint, options = {}) => {
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            // Agregar token de autenticación si es necesario
+            // 'Authorization': `Bearer ${getAuthToken()}`,
+        },
+        ...options,
+    };
+
+    try {
+        const response = await fetch(url, defaultOptions);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`API Error (${endpoint}):`, error);
+        throw error;
+    }
+};
+
+// API para reconocimiento facial
+export const reconocimientoFacialAPI = async (imagenBase64) => {
+    return await apiRequest('/api/seguridad/reconocimiento-facial/', {
+        method: 'POST',
+        body: JSON.stringify({ imagen: imagenBase64 }),
+    });
+};
+
+// API para lista de usuarios activos
+export const listaUsuariosAPI = async () => {
+    return await apiRequest('/api/seguridad/lista-usuarios-activos/');
+};
+
+// API para búsqueda de usuarios
+export const buscarUsuariosAPI = async (termino) => {
+    const encodedTerm = encodeURIComponent(termino);
+    return await apiRequest(`/api/seguridad/buscar-usuarios/?q=${encodedTerm}`);
+};
+
+// API para estadísticas
+export const estadisticasAPI = async () => {
+    return await apiRequest('/api/seguridad/estadisticas/');
+};
+```
+
+### Utilidades - services/utils.js
+
+```javascript
+// Convertir archivo a Base64
+export const convertirImagenABase64 = (archivo) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = () => {
+            // Remover el prefijo "data:image/...;base64,"
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        
+        reader.onerror = (error) => {
+            reject(new Error('Error leyendo el archivo: ' + error));
+        };
+        
+        reader.readAsDataURL(archivo);
+    });
+};
+
+// Validar formato de imagen
+export const validarImagen = (archivo) => {
+    const formatosPermitidos = ['image/jpeg', 'image/jpg', 'image/png'];
+    const tamañoMaximo = 5 * 1024 * 1024; // 5MB
+
+    if (!formatosPermitidos.includes(archivo.type)) {
+        throw new Error('Formato no válido. Solo se permiten JPG y PNG.');
+    }
+
+    if (archivo.size > tamañoMaximo) {
+        throw new Error('La imagen es demasiado grande. Máximo 5MB.');
+    }
+
+    return true;
+};
+
+// Formatear fecha
+export const formatearFecha = (fecha) => {
+    return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+};
+
+// Formatear hora
+export const formatearHora = (fecha) => {
+    return new Date(fecha).toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+};
+```
+
+---
+
+## 🎨 ESTILOS CSS
+
+### GuardiaPanel.css
+
+```css
+/* Panel del Guardia - Estilos principales */
+.guardia-panel {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.header-panel {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    padding: 1.5rem 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.info-tiempo .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Tabs personalizadas */
+.custom-tabs .nav-link {
+    border: none;
+    background: none;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 1rem 2rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.custom-tabs .nav-link.active {
+    background: white;
+    color: #1e3c72;
+    border-bottom-color: #1e3c72;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.custom-tabs .nav-link:hover {
+    background: #f0f0f0;
+    color: #1e3c72;
+}
+
+/* Zona de subida de imagen */
+.upload-zone {
+    border: 3px dashed #007bff;
+    border-radius: 15px;
+    padding: 3rem;
+    text-align: center;
+    background: linear-gradient(45deg, #f8f9ff, #e3f2fd);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-zone:hover {
+    background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+    transform: scale(1.02);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.upload-zone.dragging {
+    border-color: #28a745;
+    background: linear-gradient(45deg, #f8fff8, #e8f5e8);
+    transform: scale(1.05);
+}
+
+/* Tarjetas de resultado */
+.resultado-card {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    animation: slideInUp 0.5s ease;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tarjetas de usuario */
+.usuario-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.usuario-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border-color: #007bff;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+}
+
+.tipo-usuario-badge {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.8rem;
+}
+
+/* Estadísticas */
+.stats-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+    text-align: center;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stats-card h3 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 1rem 0;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .header-panel h1 {
+        font-size: 1.5rem;
+    }
+    
+    .custom-tabs .nav-link {
+        padding: 0.8rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .upload-zone {
+        padding: 2rem;
+        min-height: 200px;
+    }
+    
+    .stats-card {
+        padding: 1.5rem;
+    }
+}
+
+/* Animaciones */
+.fade-in {
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.bounce-in {
+    animation: bounceIn 0.6s ease;
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Estados de carga */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+    z-index: 10;
+}
+
+/* Notificaciones */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 350px;
+}
+```
+
+---
+
+## ⚙️ CONFIGURACIÓN Y DESPLIEGUE
+
+### 1. Instalación de Dependencias
+
+```bash
+# Dependencias principales
+npm install react react-dom
+npm install react-bootstrap bootstrap
+npm install @fortawesome/fontawesome-free
+
+# Para desarrollo
+npm install --save-dev @types/react @types/react-dom
+```
+
+### 2. Configuración de Variables de Entorno
+
+```bash
+# .env
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_APP_NAME=Sistema Guardia Seguridad
+REACT_APP_VERSION=1.0.0
+```
+
+### 3. Estructura de Archivos package.json
+
+```json
+{
+  "name": "panel-guardia-seguridad",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-bootstrap": "^2.8.0",
+    "bootstrap": "^5.3.0",
+    "@fortawesome/fontawesome-free": "^6.4.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  }
+}
+```
+
+### 4. Configuración de index.html
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Guardia - Sistema de Seguridad</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
+```
+
+---
+
+## 🧪 PRUEBAS Y VALIDACIÓN
+
+### 1. Lista de Verificación - Frontend
+
+```markdown
+## ✅ CHECKLIST DE IMPLEMENTACIÓN
+
+### Componentes Base
+- [ ] GuardiaPanel (componente principal)
+- [ ] ReconocimientoFacial (subida y procesamiento)
+- [ ] ImageUpload (drag & drop)
+- [ ] ResultadoReconocimiento (mostrar resultados)
+- [ ] ListaUsuarios (lista completa)
+- [ ] UsuarioCard (tarjeta individual)
+- [ ] BuscarUsuarios (búsqueda)
+- [ ] Dashboard (estadísticas)
+
+### Funcionalidades
+- [ ] Subida de imagen por drag & drop
+- [ ] Subida de imagen por clic
+- [ ] Validación de formato y tamaño
+- [ ] Conversión a Base64
+- [ ] Llamada a API de reconocimiento
+- [ ] Mostrar resultado (éxito/fallo)
+- [ ] Lista de usuarios activos
+- [ ] Búsqueda en tiempo real
+- [ ] Búsqueda en servidor
+- [ ] Estadísticas en tiempo real
+- [ ] Reloj actualizado
+
+### Estilos
+- [ ] Diseño responsivo
+- [ ] Animaciones suaves
+- [ ] Estados de carga
+- [ ] Estados de error
+- [ ] Tema profesional
+- [ ] Colores consistentes
+
+### Integración
+- [ ] Conexión con APIs del backend
+- [ ] Manejo de errores
+- [ ] Variables de entorno
+- [ ] Configuración de CORS
+```
+
+### 2. Casos de Prueba
+
+```javascript
+// tests/ReconocimientoFacial.test.js
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import ReconocimientoFacial from '../components/GuardiaPanel/ReconocimientoFacial/ReconocimientoFacial';
+
+describe('ReconocimientoFacial Component', () => {
+    test('debe mostrar zona de subida inicialmente', () => {
+        render(<ReconocimientoFacial />);
+        expect(screen.getByText('Arrastra una imagen aquí')).toBeInTheDocument();
+    });
+
+    test('debe validar formato de imagen', async () => {
+        render(<ReconocimientoFacial />);
+        const file = new File(['content'], 'test.txt', { type: 'text/plain' });
+        
+        const input = screen.getByRole('button', { name: /seleccionar imagen/i });
+        fireEvent.change(input, { target: { files: [file] } });
+        
+        await waitFor(() => {
+            expect(screen.getByText(/imagen válida/)).toBeInTheDocument();
+        });
+    });
+
+    test('debe procesar reconocimiento facial exitoso', async () => {
+        // Mock de la API
+        global.fetch = jest.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({
+                    reconocido: true,
+                    persona: { nombre: 'Juan', apellido: 'Pérez' },
+                    confianza: 85
+                }),
+            })
+        );
+
+        render(<ReconocimientoFacial />);
+        
+        // Simular subida de imagen y procesamiento
+        // ... resto de la prueba
+    });
+});
+```
+
+---
+
+## 📱 IMPLEMENTACIÓN PASO A PASO
+
+### PASO 1: Configuración Inicial
+
+1. **Crear proyecto React:**
+```bash
+npx create-react-app panel-guardia-seguridad
+cd panel-guardia-seguridad
+npm install react-bootstrap bootstrap @fortawesome/fontawesome-free
+```
+
+2. **Configurar estructura de carpetas** según la arquitectura mostrada
+
+3. **Configurar variables de entorno** en `.env`
+
+### PASO 2: Implementar Componentes Base
+
+1. **Empezar con GuardiaPanel.js** (componente principal)
+2. **Crear ImageUpload.js** (funcionalidad de subida)
+3. **Implementar services/reconocimientoAPI.js** (conexión backend)
+
+### PASO 3: Funcionalidad de Reconocimiento
+
+1. **Implementar ReconocimientoFacial.js**
+2. **Crear ResultadoReconocimiento.js**
+3. **Probar integración con backend**
+
+### PASO 4: Lista de Usuarios
+
+1. **Crear ListaUsuarios.js**
+2. **Implementar UsuarioCard.js**
+3. **Agregar funcionalidad de búsqueda**
+
+### PASO 5: Estadísticas y Dashboard
+
+1. **Crear Dashboard.js**
+2. **Implementar estadísticas en tiempo real**
+3. **Agregar reloj y fecha**
+
+### PASO 6: Estilos y Responsivo
+
+1. **Aplicar estilos CSS**
+2. **Hacer diseño responsivo**
+3. **Agregar animaciones**
+
+### PASO 7: Pruebas y Refinamiento
+
+1. **Probar en diferentes dispositivos**
+2. **Validar funcionalidades**
+3. **Optimizar rendimiento**
+
+---
+
+## 🔧 CONFIGURACIÓN ADICIONAL
+
+### CORS en Django (settings.py)
+
+```python
+# Agregar a INSTALLED_APPS
+INSTALLED_APPS = [
+    # ... otras apps
+    'corsheaders',
+]
+
+# Agregar a MIDDLEWARE
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    # ... otros middlewares
+]
+
+# Configuración CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React dev server
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+```
+
+### URLs del Backend (urls.py principal)
+
+```python
+# core/urls.py
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/seguridad/', include('seguridad.urls')),
+    # ... otras URLs
+]
+```
+
+---
+
+## 📋 RESUMEN DE IMPLEMENTACIÓN
+
+### LO QUE YA TIENES ✅
+- Backend Django completo con APIs
+- Modelos de datos configurados
+- Sistema de reconocimiento facial funcionando
+- Panel HTML básico de prueba
+
+### LO QUE NECESITAS IMPLEMENTAR 🔨
+- Aplicación React completa
+- Componentes interactivos
+- Integración con APIs
+- Estilos profesionales
+- Funcionalidades específicas
+
+### PRIORIDADES 🎯
+1. **ALTA**: Componente de reconocimiento facial
+2. **ALTA**: Lista de usuarios
+3. **MEDIA**: Dashboard de estadísticas
+4. **BAJA**: Características avanzadas
+
+### TIEMPO ESTIMADO ⏱️
+- **Setup inicial**: 2-4 horas
+- **Componentes principales**: 8-12 horas
+- **Estilos y refinamiento**: 4-6 horas
+- **Pruebas y ajustes**: 2-4 horas
+- **Total**: 16-26 horas
+
+---
+
+## 🚀 SIGUIENTE PASOS
+
+1. **Revisar** esta guía completamente
+2. **Configurar** el entorno de desarrollo React
+3. **Implementar** los componentes en orden de prioridad
+4. **Probar** la integración con tu backend
+5. **Refinar** estilos y funcionalidades
+6. **Documentar** cualquier cambio necesario
+
+¡El sistema está listo para implementar! Tienes toda la base backend funcionando y esta guía te proporciona la hoja de ruta completa para el frontend.

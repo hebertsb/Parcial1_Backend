@@ -1,0 +1,356 @@
+# GUÍA INQUILINOS - VER Y EDITAR PERFIL
+================================================================
+
+## 🏘️ PANEL INQUILINO - GESTIÓN DE PERFIL PERSONAL
+
+### 📋 INFORMACIÓN GENERAL
+- **Rol**: Inquilino
+- **Permisos**: Ver y editar su propio perfil básico + funciones de inquilino
+- **Acceso**: Panel de inquilino con funciones muy limitadas
+
+---
+
+## 🔍 1. VER PERFIL PERSONAL
+
+### Endpoint para obtener datos propios:
+```
+GET /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_inquilino>",
+  "Content-Type": "application/json"
+}
+```
+
+### Respuesta esperada:
+```json
+{
+  "id": 15,
+  "email": "inquilino@email.com",
+  "estado": "ACTIVO",
+  "is_staff": false,
+  "is_superuser": false,
+  "last_login": "2025-09-26T09:15:00Z",
+  "date_joined": "2025-09-15T16:30:00Z",
+  "persona": {
+    "id": 15,
+    "nombre": "Carlos Alberto",
+    "apellido": "Inquilino",
+    "documento_identidad": "11223344",
+    "telefono": "72345678",
+    "email": "inquilino@email.com",
+    "fecha_nacimiento": "1992-07-10",
+    "genero": "Masculino",
+    "pais": "Bolivia",
+    "direccion": "Zona Central #456",
+    "tipo_persona": "inquilino",
+    "activo": true
+  },
+  "roles": [
+    {
+      "id": 4,
+      "nombre": "Inquilino",
+      "descripcion": "Inquilino de unidad habitacional",
+      "activo": true
+    }
+  ],
+  "nombres": "Carlos Alberto",
+  "apellidos": "Inquilino",
+  "telefono": "72345678",
+  "fecha_nacimiento": "1992-07-10",
+  "genero": "Masculino",
+  "documento_identidad": "11223344",
+  "pais": "Bolivia"
+}
+```
+
+### 💡 Información adicional específica para inquilinos:
+- **Vivienda actual**: Datos de la unidad que habita
+- **Propietario**: Información de contacto del propietario
+- **Contrato**: Fechas y condiciones de alquiler
+
+---
+
+## ✏️ 2. EDITAR PERFIL PERSONAL (MUY LIMITADO)
+
+### Endpoint para editar datos propios:
+```
+PATCH /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_inquilino>",
+  "Content-Type": "application/json"
+}
+```
+
+### ⚠️ Campos MUY LIMITADOS editables por inquilino:
+```json
+{
+  "telefono": "72987654",
+  "direccion": "Nueva dirección temporal #789"
+}
+```
+
+### 🚫 Campos BLOQUEADOS para inquilinos:
+- `email`: Solo admin puede cambiar (verificación)
+- `nombres`: Solo admin puede cambiar (contrato legal)
+- `apellidos`: Solo admin puede cambiar (contrato legal)
+- `roles`: Solo admin puede cambiar roles
+- `estado`: Solo admin puede activar/desactivar
+- `fecha_nacimiento`: Solo admin (documento legal)
+- `documento_identidad`: Solo admin (verificación legal)
+- `genero`: Solo admin
+- `pais`: Solo admin
+
+### Respuesta exitosa (200 OK):
+```json
+{
+  "id": 15,
+  "email": "inquilino@email.com",
+  "estado": "ACTIVO",
+  "telefono": "72987654",
+  "direccion": "Nueva dirección temporal #789"
+}
+```
+
+### 💡 Mensaje informativo para inquilinos:
+> "La mayoría de tus datos personales solo pueden ser modificados por el administrador del edificio. Si necesitas cambiar tu nombre, email o documento, contacta a la administración."
+
+---
+
+## 🏠 3. VER INFORMACIÓN DE VIVIENDA
+
+### Endpoint para ver vivienda actual:
+```
+GET /api/viviendas/mi-vivienda/
+```
+
+### Respuesta:
+```json
+{
+  "id": 10,
+  "numero_vivienda": "A-101",
+  "piso": 1,
+  "superficie": 85.5,
+  "numero_dormitorios": 3,
+  "numero_banos": 2,
+  "tiene_balcon": true,
+  "precio_alquiler": 1200.00,
+  "estado": "ocupada",
+  "propietario": {
+    "id": 5,
+    "nombre_completo": "María Elena Propietaria",
+    "telefono": "71234567",
+    "email": "propietario@email.com"
+  },
+  "fecha_inicio_contrato": "2025-01-01",
+  "fecha_fin_contrato": "2025-12-31"
+}
+```
+
+---
+
+## 💰 4. VER PAGOS Y EXPENSAS
+
+### Endpoint para ver mis pagos:
+```
+GET /api/expensas/mis-pagos/
+```
+
+### Respuesta:
+```json
+[
+  {
+    "id": 25,
+    "vivienda": "A-101",
+    "mes": "2025-09",
+    "monto_alquiler": 1200.00,
+    "monto_expensas": 350.00,
+    "total": 1550.00,
+    "estado": "pagado", 
+    "fecha_pago": "2025-09-01T10:00:00Z",
+    "fecha_vencimiento": "2025-09-05"
+  },
+  {
+    "id": 26,
+    "vivienda": "A-101",
+    "mes": "2025-10",
+    "monto_alquiler": 1200.00,
+    "monto_expensas": 350.00,
+    "total": 1550.00,
+    "estado": "pendiente",
+    "fecha_vencimiento": "2025-10-05"
+  }
+]
+```
+
+---
+
+## 📢 5. VER COMUNICADOS
+
+### Endpoint para ver comunicados:
+```
+GET /api/comunicados/mis-comunicados/
+```
+
+### Respuesta:
+```json
+[
+  {
+    "id": 30,
+    "titulo": "Corte de agua programado",
+    "mensaje": "El día 30 de septiembre habrá corte de agua de 8:00 a 12:00",
+    "fecha_envio": "2025-09-25T14:00:00Z",
+    "remitente": "Administración",
+    "urgente": true,
+    "leido": false
+  }
+]
+```
+
+---
+
+## 🔐 6. CAMBIAR CONTRASEÑA
+
+### Endpoint para cambio de contraseña:
+```
+POST /api/authz/change-password/
+```
+
+### Datos requeridos:
+```json
+{
+  "password_actual": "contraseña_actual",
+  "password_nueva": "nueva_contraseña_segura",
+  "password_nueva_confirm": "nueva_contraseña_segura"
+}
+```
+
+---
+
+## 🚨 7. CREAR REPORTES/QUEJAS
+
+### Endpoint para crear reporte de mantenimiento:
+```
+POST /api/reportes/crear/
+```
+
+### Datos:
+```json
+{
+  "tipo": "mantenimiento",
+  "titulo": "Problema con grifo de cocina",
+  "descripcion": "El grifo de la cocina gotea constantemente",
+  "urgencia": "media",
+  "ubicacion": "Cocina - A-101"
+}
+```
+
+---
+
+## 🎨 RECOMENDACIONES DE UI/UX PARA INQUILINOS
+
+### Dashboard Simplificado:
+1. **Información básica** (nombre, teléfono, vivienda)
+2. **Estado de pagos** (pendientes/pagados)
+3. **Comunicados recientes** (con badge si no leídos)
+4. **Botón de emergencia** (contacto rápido)
+
+### Sección "Mi Perfil":
+1. **Información personal** (mayoría solo lectura)
+2. **Campos editables destacados** (teléfono, dirección temporal)
+3. **Mensaje informativo** sobre limitaciones
+4. **Contacto administrativo** para cambios mayores
+
+### Interfaz minimal:
+- **Solo funciones esenciales**
+- **Navegación simple**
+- **Colores suaves** (no intimidantes)
+- **Iconografía clara**
+
+---
+
+## ⚠️ LIMITACIONES ESTRICTAS PARA INQUILINOS
+
+### 🚫 Funciones PROHIBIDAS:
+- Ver información de otros inquilinos
+- Ver información de propietarios (excepto el suyo)
+- Editar datos personales importantes
+- Acceder a funciones administrativas
+- Cambiar roles o permisos
+- Ver información financiera del edificio
+
+### ✅ Funciones PERMITIDAS:
+- Ver su propia información básica
+- Editar teléfono y dirección temporal
+- Ver su vivienda actual
+- Ver sus pagos y estado financiero
+- Ver comunicados dirigidos a él
+- Crear reportes de mantenimiento
+- Cambiar contraseña
+- Contactar a su propietario
+
+---
+
+## 🔒 SEGURIDAD Y PRIVACIDAD
+
+### Protecciones implementadas:
+- **Acceso restringido**: Solo ve su propia información
+- **Datos sensibles protegidos**: No puede cambiar datos de identificación
+- **Comunicación controlada**: Solo puede contactar a propietario/admin
+- **Auditoría**: Cambios registrados para seguridad
+
+---
+
+## 🔗 ENDPOINTS ESPECÍFICOS PARA INQUILINOS
+
+### Perfil personal (limitado):
+- `GET /api/authz/usuarios/me/` - Ver perfil propio
+- `PATCH /api/authz/usuarios/me/` - Editar perfil (solo teléfono/dirección)
+- `POST /api/authz/change-password/` - Cambiar contraseña
+
+### Información de vivienda:
+- `GET /api/viviendas/mi-vivienda/` - Ver vivienda actual
+- `GET /api/expensas/mis-pagos/` - Ver historial de pagos
+
+### Comunicación:
+- `GET /api/comunicados/mis-comunicados/` - Ver comunicados
+- `POST /api/reportes/crear/` - Crear reporte de mantenimiento
+- `GET /api/contactos/propietario/` - Info de contacto del propietario
+
+---
+
+## 📱 CONSIDERACIONES ESPECIALES
+
+### Inquilinos necesitan:
+- **Acceso fácil** desde móvil
+- **Información clara** sobre pagos
+- **Comunicación directa** con propietario
+- **Proceso simple** para reportes
+- **Recordatorios** de vencimientos
+
+### Evitar:
+- Información confusa o técnica
+- Demasiadas opciones
+- Funciones que no les corresponden
+- Datos de otros inquilinos
+
+---
+
+## 🆘 CONTACTOS DE EMERGENCIA
+
+### En caso de necesitar cambios importantes:
+- **Administración**: admin@edificio.com
+- **Propietario**: Ver en "Mi Vivienda"
+- **Emergencias**: Botón directo en la app
+
+---
+
+**Fecha de actualización**: 26 de septiembre de 2025
+**Estado**: ✅ FUNCIONAL - Acceso limitado correctamente implementado

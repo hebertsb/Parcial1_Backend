@@ -1,0 +1,108 @@
+📊 DATOS DISPONIBLES PARA PRUEBAS FRONTEND - RESUMEN EJECUTIVO
+================================================================================
+
+🏠 VIVIENDAS DISPONIBLES PARA REGISTRO: 3 unidades
+
+1. CASA-003 (Departamento)
+   - ID: 3
+   - Área: 80 m²
+   - Bloque: B
+   - Tarifa: $180.00
+
+2. CASA-005 (Departamento)
+   - ID: 5
+   - Área: 90 m²
+   - Bloque: C
+   - Tarifa: $200.00
+
+3. 202B (Casa)
+   - ID: 9
+   - Área: 110.25 m²
+   - Bloque: B
+   - Tarifa: $325.00
+
+================================================================================
+📱 JSON PARA FRONTEND (CORREGIDO)
+================================================================================
+
+// Viviendas disponibles para selector
+const viviendasDisponibles = [
+  {
+    id: 3,
+    numero_casa: 'CASA-003',
+    tipo: 'Departamento',
+    area: 80.00,
+    bloque: 'B',
+    tarifa_base: 180.00
+  },
+  {
+    id: 5,
+    numero_casa: 'CASA-005',
+    tipo: 'Departamento',
+    area: 90.00,
+    bloque: 'C',
+    tarifa_base: 200.00
+  },
+  {
+    id: 9,
+    numero_casa: '202B',
+    tipo: 'Casa',
+    area: 110.25,
+    bloque: 'B',
+    tarifa_base: 325.00
+  }
+];
+
+// Tipos disponibles
+const tiposDisponibles = [
+  { value: 'casa', label: 'Casa' },
+  { value: 'departamento', label: 'Departamento' }
+];
+
+================================================================================
+🚀 ENDPOINTS PARA FRONTEND
+================================================================================
+
+BASE URL: http://127.0.0.1:8000
+
+📡 VIVIENDAS:
+GET /api/viviendas/                    - Todas las viviendas
+GET /api/viviendas/disponibles/        - Solo disponibles
+GET /api/viviendas/{id}/               - Detalle específico
+
+👤 USUARIOS:
+POST /api/authz/registro/propietario/  - Registro nuevo usuario
+GET  /api/authz/solicitudes/           - Ver solicitudes
+GET  /api/authz/panel/                 - Panel usuario
+
+🔐 AUTH:
+POST /api/auth/login/                  - Login
+POST /api/auth/refresh/               - Refresh token
+
+================================================================================
+🔑 CREDENCIALES DE PRUEBA
+================================================================================
+
+ADMIN: admin@condominio.com / temporal123
+PROPIETARIOS: roberto@email.com, laura@email.com, diego@email.com / temporal123
+
+PARA NUEVOS REGISTROS:
+- Documento: 12345678 (disponible)
+- Email: cualquier@email.com
+- Password: temporal123
+- Vivienda: Una de las 3 disponibles arriba
+
+================================================================================
+📈 ESTADÍSTICAS ACTUALES
+================================================================================
+
+Total viviendas: 10
+Ocupadas: 7 (70%)
+Disponibles: 3 (30%)
+
+Por tipo:
+- Casas: 5 total (4 ocupadas, 1 disponible)
+- Departamentos: 4 total (2 ocupadas, 2 disponibles)  
+- Locales: 1 total (1 ocupada, 0 disponibles)
+
+================================================================================

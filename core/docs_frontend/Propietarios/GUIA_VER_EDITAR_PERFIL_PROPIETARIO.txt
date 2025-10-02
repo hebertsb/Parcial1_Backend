@@ -1,0 +1,288 @@
+# GUÍA PROPIETARIOS - VER Y EDITAR PERFIL
+================================================================
+
+## 🏠 PANEL PROPIETARIO - GESTIÓN DE PERFIL PERSONAL
+
+### 📋 INFORMACIÓN GENERAL
+- **Rol**: Propietario
+- **Permisos**: Ver y editar su propio perfil + gestionar su propiedad
+- **Acceso**: Panel de propietario con funciones limitadas
+
+---
+
+## 🔍 1. VER PERFIL PERSONAL
+
+### Endpoint para obtener datos propios:
+```
+GET /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_propietario>",
+  "Content-Type": "application/json"
+}
+```
+
+### Respuesta esperada:
+```json
+{
+  "id": 5,
+  "email": "propietario@email.com",
+  "estado": "ACTIVO",
+  "is_staff": false,
+  "is_superuser": false,
+  "last_login": "2025-09-26T10:30:00Z",
+  "date_joined": "2025-09-10T14:00:00Z",
+  "persona": {
+    "id": 5,
+    "nombre": "María Elena",
+    "apellido": "Propietaria",
+    "documento_identidad": "87654321",
+    "telefono": "71234567",
+    "email": "propietario@email.com",
+    "fecha_nacimiento": "1980-03-20",
+    "genero": "Femenino",
+    "pais": "Bolivia",
+    "direccion": "Zona Norte #789",
+    "tipo_persona": "propietario",
+    "activo": true
+  },
+  "roles": [
+    {
+      "id": 3,
+      "nombre": "Propietario",
+      "descripcion": "Propietario de unidad habitacional",
+      "activo": true
+    }
+  ],
+  "nombres": "María Elena",
+  "apellidos": "Propietaria",
+  "telefono": "71234567",
+  "fecha_nacimiento": "1980-03-20",
+  "genero": "Femenino",
+  "documento_identidad": "87654321",
+  "pais": "Bolivia"
+}
+```
+
+### 💡 Información adicional específica para propietarios:
+- **Propiedades**: Lista de unidades habitacionales que posee
+- **Inquilinos**: Inquilinos en sus propiedades
+- **Pagos**: Estado de expensas y multas
+
+---
+
+## ✏️ 2. EDITAR PERFIL PERSONAL
+
+### Endpoint para editar datos propios:
+```
+PATCH /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_propietario>",
+  "Content-Type": "application/json"
+}
+```
+
+### Campos editables por el propietario:
+```json
+{
+  "email": "nuevo_email_propietario@email.com",
+  "nombres": "María Elena Actualizada",
+  "apellidos": "Propietaria Nueva",
+  "telefono": "71987654",
+  "direccion": "Nueva dirección zona Sur #321"
+}
+```
+
+### 🚫 Campos restringidos para propietarios:
+- `roles`: Solo admins pueden cambiar roles
+- `estado`: Solo admins pueden activar/desactivar
+- `fecha_nacimiento`: Solo editable por admin (documento legal)
+- `documento_identidad`: Solo editable por admin (verificación)
+- `genero`: Solo editable por admin
+- `pais`: Solo editable por admin
+
+### Respuesta exitosa (200 OK):
+```json
+{
+  "id": 5,
+  "email": "nuevo_email_propietario@email.com",
+  "estado": "ACTIVO",
+  "nombres": "María Elena Actualizada",
+  "apellidos": "Propietaria Nueva",
+  "telefono": "71987654",
+  "direccion": "Nueva dirección zona Sur #321"
+}
+```
+
+---
+
+## 🏠 3. VER INFORMACIÓN DE PROPIEDADES
+
+### Endpoint para ver propiedades propias:
+```
+GET /api/viviendas/mis-propiedades/
+```
+
+### Respuesta:
+```json
+[
+  {
+    "id": 10,
+    "numero_vivienda": "A-101",
+    "piso": 1,
+    "superficie": 85.5,
+    "numero_dormitorios": 3,
+    "numero_banos": 2,
+    "tiene_balcon": true,
+    "precio_alquiler": 1200.00,
+    "estado": "ocupada",
+    "propietario": {
+      "id": 5,
+      "nombre_completo": "María Elena Propietaria"
+    },
+    "inquilino_actual": {
+      "id": 15,
+      "nombre_completo": "Juan Pérez Inquilino",
+      "telefono": "72345678"
+    }
+  }
+]
+```
+
+---
+
+## 💰 4. VER ESTADO FINANCIERO
+
+### Endpoint para ver expensas:
+```
+GET /api/expensas/mis-expensas/
+```
+
+### Respuesta:
+```json
+[
+  {
+    "id": 20,
+    "vivienda": "A-101",
+    "mes": "2025-09",
+    "monto_expensas": 350.00,
+    "monto_multas": 0.00,
+    "total": 350.00,
+    "estado": "pendiente",
+    "fecha_vencimiento": "2025-10-05"
+  }
+]
+```
+
+---
+
+## 🔧 5. GESTIONAR INQUILINOS (Si aplica)
+
+### Ver inquilinos en sus propiedades:
+```
+GET /api/authz/usuarios/?propietario=me&rol=inquilino
+```
+
+### Endpoint para comunicación con inquilinos:
+```
+POST /api/comunicados/crear/
+```
+
+---
+
+## 🔐 6. CAMBIAR CONTRASEÑA
+
+### Endpoint para cambio de contraseña:
+```
+POST /api/authz/change-password/
+```
+
+### Datos requeridos:
+```json
+{
+  "password_actual": "contraseña_actual",
+  "password_nueva": "nueva_contraseña_segura",
+  "password_nueva_confirm": "nueva_contraseña_segura"
+}
+```
+
+---
+
+## 🎨 RECOMENDACIONES DE UI/UX PARA PROPIETARIOS
+
+### Dashboard Principal:
+1. **Resumen del perfil** (foto, nombre, contacto)
+2. **Mis propiedades** (tarjetas con estado)
+3. **Estado financiero** (expensas pendientes/pagadas)
+4. **Inquilinos actuales** (contacto directo)
+
+### Sección "Mi Perfil":
+1. **Información personal** (campos limitados)
+2. **Datos de contacto** (email, teléfono, dirección)
+3. **Cambiar contraseña** (modal independiente)
+4. **Historial de transacciones** (solo lectura)
+
+### Formulario de edición:
+- **Campos limitados** (email, nombres, apellidos, teléfono, dirección)
+- **Campos bloqueados** (documento, fecha nacimiento, etc.)
+- **Validación inmediata**
+- **Mensaje informativo**: "Algunos datos solo pueden ser editados por administradores"
+
+---
+
+## ⚠️ LIMITACIONES Y RESTRICCIONES
+
+### 🚫 Funciones NO disponibles para propietarios:
+- Editar roles de otros usuarios
+- Ver información de otros propietarios
+- Acceder a panel administrativo
+- Modificar datos legales (CI, fecha nacimiento)
+- Cambiar estado de cuenta
+
+### ✅ Funciones SÍ disponibles:
+- Ver y editar información personal básica
+- Ver estado de sus propiedades
+- Comunicarse con inquilinos
+- Ver y pagar expensas
+- Cambiar contraseña
+
+---
+
+## 🔗 ENDPOINTS ESPECÍFICOS PARA PROPIETARIOS
+
+### Perfil personal:
+- `GET /api/authz/usuarios/me/` - Ver perfil propio
+- `PATCH /api/authz/usuarios/me/` - Editar perfil propio (limitado)
+- `POST /api/authz/change-password/` - Cambiar contraseña
+
+### Gestión de propiedades:
+- `GET /api/viviendas/mis-propiedades/` - Ver propiedades propias
+- `GET /api/expensas/mis-expensas/` - Ver expensas propias
+- `POST /api/expensas/pagar/` - Pagar expensas
+
+### Comunicación:
+- `GET /api/comunicados/` - Ver comunicados recibidos
+- `POST /api/comunicados/crear/` - Crear comunicado para inquilinos
+
+---
+
+## 📱 CONSIDERACIONES MÓVIL-FRIENDLY
+
+### Propietarios suelen usar móviles, optimizar para:
+- **Navegación táctil** fácil
+- **Formularios simples** y claros
+- **Notificaciones push** para expensas
+- **Acceso rápido** a contacto de inquilinos
+- **Pagos móviles** integrados
+
+---
+
+**Fecha de actualización**: 26 de septiembre de 2025
+**Estado**: ✅ FUNCIONAL - Endpoints verificados, funciones limitadas apropiadamente

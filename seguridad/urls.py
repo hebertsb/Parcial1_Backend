@@ -3,11 +3,11 @@ URLs for Face Recognition API
 """
 
 from django.urls import path, include
-from django.shortcuts import render
 from .views import (
     FaceEnrollView, FaceVerifyView, FaceDeleteView, FaceStatusView, ListarUsuariosReconocimientoFacialView,
     DashboardSeguridadView, IncidentesSeguridadView, VisitasActivasView, 
-    AlertasActivasView, ListaUsuariosActivosView
+    AlertasActivasView, ListaUsuariosActivosView, PropietariosConReconocimientoView,
+    ReconocerTiempoRealView, HealthCheckView
 )
 
 app_name = 'seguridad'
@@ -26,11 +26,23 @@ urlpatterns = [
     path('api/faces/enroll/<int:copropietario_id>/', FaceDeleteView.as_view(), name='face-delete'),
     path('api/faces/status/<int:copropietario_id>/', FaceStatusView.as_view(), name='face-status'),
     
+    # NUEVO: Reconocimiento en tiempo real con cámara web
+    path('api/reconocer-tiempo-real/', ReconocerTiempoRealView.as_view(), name='reconocer-tiempo-real'),
+    
+    # Health Check
+    path('api/health/', HealthCheckView.as_view(), name='health-check'),
+    
     # Panel del guardia (interfaz web)
     path('panel-guardia/', panel_guardia, name='panel-guardia'),
     
     # Lista de usuarios con reconocimiento facial
     path('api/usuarios-reconocimiento/', ListarUsuariosReconocimientoFacialView.as_view(), name='usuarios-reconocimiento'),
+    
+    # Lista específica de propietarios con reconocimiento facial
+    path('api/propietarios-reconocimiento/', PropietariosConReconocimientoView.as_view(), name='propietarios-reconocimiento'),
+    
+    # === ENDPOINTS DE SINCRONIZACIÓN ===
+    path('api/sincronizar-fotos/', include('seguridad.urls_sincronizacion')),
     
     # === ENDPOINTS DEL DASHBOARD DE SEGURIDAD ===
     path('api/dashboard/', DashboardSeguridadView.as_view(), name='dashboard-seguridad'),

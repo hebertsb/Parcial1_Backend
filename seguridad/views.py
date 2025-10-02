@@ -2,19 +2,17 @@
 Face Recognition API Views
 """
 
+import json
 import logging
-from datetime import datetime
 from typing import Dict, Any, cast
 from django.utils import timezone
-from django.http import Http404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.throttling import UserRateThrottle
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
 
 from .models import Copropietarios, ReconocimientoFacial, fn_bitacora_log
 from .serializers import (
@@ -162,6 +160,30 @@ class FaceEnrollView(APIView):
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY
                 )
             
+            # ===== INTEGRACIÓN CON DROPBOX =====
+            # Subir imagen a Dropbox para mantener consistencia con otros sistemas
+            from core.utils.dropbox_upload import upload_image_to_dropbox
+            
+            # Generar nombre único para el archivo
+            now = timezone.now()
+            timestamp = now.strftime('%Y%m%d_%H%M%S')
+            extension = imagen.name.split('.')[-1] if '.' in imagen.name else 'jpg'
+            nombre_archivo = f"seguridad_{copropietario.id}_{timestamp}.{extension}"
+            
+            # Subir a Dropbox en carpeta específica de seguridad
+            folder_path = f"/SeguridadReconocimiento/{copropietario.id}"
+            
+            try:
+                # Resetear el puntero del archivo para poder leerlo de nuevo
+                imagen.seek(0)
+                resultado_upload = upload_image_to_dropbox(imagen, nombre_archivo, folder_path)
+                dropbox_url = resultado_upload.get('url') if resultado_upload else None
+                
+                logger.info(f"Imagen subida a Dropbox: {dropbox_url}")
+            except Exception as e:
+                logger.warning(f"Error subiendo a Dropbox: {str(e)}")
+                dropbox_url = None
+            
             # Guardar o actualizar en base de datos
             now = timezone.now()
             
@@ -173,20 +195,40 @@ class FaceEnrollView(APIView):
                 )
                 reconocimiento.proveedor_ia = enroll_result['provider']
                 reconocimiento.vector_facial = enroll_result['face_reference']
-                reconocimiento.imagen_referencia_url = enroll_result.get('image_url')
+                reconocimiento.imagen_referencia_url = dropbox_url or enroll_result.get('image_url')
                 reconocimiento.confianza_enrolamiento = enroll_result.get('confidence')
                 reconocimiento.fecha_modificacion = now
-                reconocimiento.save()
                 
+                # CAPTURAR URLs EXISTENTES DE DROPBOX del propietario
+                fotos_existentes = []
+                if reconocimiento.fotos_urls:
+                    try:
+                        fotos_existentes = json.loads(reconocimiento.fotos_urls)
+                        if not isinstance(fotos_existentes, list):
+                            fotos_existentes = []
+                    except (json.JSONDecodeError, TypeError):
+                        fotos_existentes = []
+                
+                # Agregar nueva URL si se subió correctamente
+                if dropbox_url and dropbox_url not in fotos_existentes:
+                    fotos_existentes.append(dropbox_url)
+                    reconocimiento.fotos_urls = json.dumps(fotos_existentes)
+                
+                reconocimiento.save()
                 response_status = status.HTTP_200_OK
                 
             else:
-                # Crear nuevo
+                # Crear nuevo registro
+                fotos_urls_inicial = []
+                if dropbox_url:
+                    fotos_urls_inicial.append(dropbox_url)
+                
                 reconocimiento = ReconocimientoFacial.objects.create(
                     copropietario=copropietario,
                     proveedor_ia=enroll_result['provider'],
                     vector_facial=enroll_result['face_reference'],
-                    imagen_referencia_url=enroll_result.get('image_url'),
+                    imagen_referencia_url=dropbox_url or enroll_result.get('image_url'),
+                    fotos_urls=json.dumps(fotos_urls_inicial),  # Inicializar con la nueva foto
                     confianza_enrolamiento=enroll_result.get('confidence'),
                     activo=True
                 )
@@ -642,10 +684,20 @@ class ListarUsuariosReconocimientoFacialView(APIView):
                 
                 # Solo incluir si tiene fotos
                 if fotos_reconocimiento.exists():
-                    # Obtener URLs de fotos
+                    # ACTUALIZADO: Obtener TODAS las fotos sincronizadas de Dropbox
                     fotos_urls = []
                     for foto in fotos_reconocimiento:
-                        if foto.imagen_referencia_url:
+                        # Obtener fotos de Dropbox (múltiples URLs)
+                        if foto.fotos_urls:
+                            try:
+                                fotos_dropbox = json.loads(foto.fotos_urls)
+                                if isinstance(fotos_dropbox, list):
+                                    fotos_urls.extend(fotos_dropbox)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        
+                        # Agregar imagen de referencia si no está en la lista
+                        if foto.imagen_referencia_url and foto.imagen_referencia_url not in fotos_urls:
                             fotos_urls.append(foto.imagen_referencia_url)
                     
                     # Obtener información del usuario del sistema si existe
@@ -676,10 +728,10 @@ class ListarUsuariosReconocimientoFacialView(APIView):
                         'telefono': coprop.telefono or '',
                         'foto_perfil_url': foto_perfil_url,
                         'reconocimiento_facial': {
-                            'total_fotos': fotos_reconocimiento.count(),
+                            'total_fotos': len(fotos_urls),  # Contar fotos reales sincronizadas
                             'fecha_ultimo_enrolamiento': fecha_ultimo_enrolamiento,
                             'ultima_verificacion': ultima_verificacion,
-                            'fotos_urls': fotos_urls[:3]  # Solo las primeras 3 fotos para el preview
+                            'fotos_urls': fotos_urls  # Mostrar todas las fotos sincronizadas
                         },
                         'activo': coprop.activo,
                         'fecha_creacion': coprop.fecha_creacion.isoformat()
@@ -773,7 +825,6 @@ class DashboardSeguridadView(APIView):
             
             # Obtener estadísticas
             from authz.models import Usuario
-            from datetime import date
             
             usuarios_activos = Usuario.objects.filter(is_active=True).count()
             usuarios_con_reconocimiento = ReconocimientoFacial.objects.values('copropietario').distinct().count()
@@ -1168,3 +1219,369 @@ class ListaUsuariosActivosView(APIView):
             return (security_role and security_role in user_roles) or (admin_role and admin_role in user_roles)
         except:
             return False
+
+
+class PropietariosConReconocimientoView(APIView):
+    """
+    Vista específica para mostrar solo los propietarios que tienen fotos de reconocimiento facial.
+    Diseñada para un apartado específico en el panel de seguridad.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(
+        summary="Listar propietarios con reconocimiento facial",
+        description="Obtiene lista específica de propietarios que tienen fotos de reconocimiento facial habilitado",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'data': {
+                        'type': 'object',
+                        'properties': {
+                            'propietarios': {
+                                'type': 'array',
+                                'items': {
+                                    'type': 'object',
+                                    'properties': {
+                                        'copropietario_id': {'type': 'integer'},
+                                        'usuario_id': {'type': 'integer', 'nullable': True},
+                                        'nombre_completo': {'type': 'string'},
+                                        'documento': {'type': 'string'},
+                                        'unidad': {'type': 'string'},
+                                        'email': {'type': 'string'},
+                                        'telefono': {'type': 'string'},
+                                        'foto_perfil': {'type': 'string', 'nullable': True},
+                                        'fotos_reconocimiento': {
+                                            'type': 'object',
+                                            'properties': {
+                                                'cantidad': {'type': 'integer'},
+                                                'urls': {
+                                                    'type': 'array',
+                                                    'items': {'type': 'string'}
+                                                },
+                                                'fecha_registro': {'type': 'string'},
+                                                'ultima_actualizacion': {'type': 'string', 'nullable': True}
+                                            }
+                                        },
+                                        'estado': {'type': 'string'}
+                                    }
+                                }
+                            },
+                            'resumen': {
+                                'type': 'object',
+                                'properties': {
+                                    'total_propietarios': {'type': 'integer'},
+                                    'con_reconocimiento': {'type': 'integer'},
+                                    'sin_reconocimiento': {'type': 'integer'},
+                                    'porcentaje_cobertura': {'type': 'number'},
+                                    'total_fotos': {'type': 'integer'}
+                                }
+                            }
+                        }
+                    },
+                    'message': {'type': 'string'}
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """Obtener propietarios con reconocimiento facial"""
+        try:
+            # Obtener todos los propietarios activos
+            propietarios_total = Copropietarios.objects.filter(
+                activo=True,
+                tipo_residente='Propietario'
+            ).count()
+            
+            # Obtener propietarios con reconocimiento facial
+            propietarios_con_reconocimiento = Copropietarios.objects.filter(
+                activo=True,
+                tipo_residente='Propietario'
+            ).prefetch_related('reconocimiento_facial').order_by('unidad_residencial', 'apellidos')
+            
+            datos_propietarios = []
+            propietarios_con_fotos = 0
+            total_fotos = 0
+            
+            for propietario in propietarios_con_reconocimiento:
+                # Verificar si tiene fotos de reconocimiento
+                fotos_reconocimiento = ReconocimientoFacial.objects.filter(
+                    copropietario=propietario,
+                    activo=True
+                )
+                
+                # Solo incluir si tiene fotos
+                if fotos_reconocimiento.exists():
+                    # Recopilar todas las URLs de fotos
+                    fotos_urls = []
+                    fecha_registro = None
+                    ultima_actualizacion = None
+                    
+                    for foto_reg in fotos_reconocimiento:
+                        # Obtener fotos de Dropbox (múltiples URLs)
+                        if foto_reg.fotos_urls:
+                            try:
+                                fotos_dropbox = json.loads(foto_reg.fotos_urls)
+                                if isinstance(fotos_dropbox, list):
+                                    fotos_urls.extend(fotos_dropbox)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        
+                        # Agregar imagen de referencia si existe
+                        if foto_reg.imagen_referencia_url and foto_reg.imagen_referencia_url not in fotos_urls:
+                            fotos_urls.append(foto_reg.imagen_referencia_url)
+                        
+                        # Obtener fechas
+                        if not fecha_registro or foto_reg.fecha_enrolamiento < fecha_registro:
+                            fecha_registro = foto_reg.fecha_enrolamiento
+                        
+                        # Usar fecha_actualizacion en lugar de updated_at
+                        if not ultima_actualizacion or foto_reg.fecha_actualizacion > ultima_actualizacion:
+                            ultima_actualizacion = foto_reg.fecha_actualizacion
+                    
+                    # Solo incluir si realmente tiene fotos
+                    if fotos_urls:
+                        # Obtener información del usuario del sistema
+                        usuario_sistema = propietario.usuario_sistema
+                        foto_perfil = None
+                        
+                        if usuario_sistema and usuario_sistema.persona:
+                            foto_perfil = usuario_sistema.persona.foto_perfil_url
+                        
+                        datos_propietarios.append({
+                            'copropietario_id': propietario.id,
+                            'usuario_id': usuario_sistema.id if usuario_sistema else None,
+                            'nombre_completo': f"{propietario.nombres} {propietario.apellidos}",
+                            'documento': propietario.numero_documento,
+                            'unidad': propietario.unidad_residencial,
+                            'email': propietario.email or (usuario_sistema.email if usuario_sistema else ''),
+                            'telefono': propietario.telefono or '',
+                            'foto_perfil': foto_perfil,
+                            'fotos_reconocimiento': {
+                                'cantidad': len(fotos_urls),
+                                'urls': fotos_urls,
+                                'fecha_registro': fecha_registro.isoformat() if fecha_registro else None,
+                                'ultima_actualizacion': ultima_actualizacion.isoformat() if ultima_actualizacion else None
+                            },
+                            'estado': 'Activo con reconocimiento'
+                        })
+                        
+                        propietarios_con_fotos += 1
+                        total_fotos += len(fotos_urls)
+            
+            # Calcular estadísticas
+            porcentaje_cobertura = (propietarios_con_fotos / propietarios_total * 100) if propietarios_total > 0 else 0
+            propietarios_sin_reconocimiento = propietarios_total - propietarios_con_fotos
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'propietarios': datos_propietarios,
+                    'resumen': {
+                        'total_propietarios': propietarios_total,
+                        'con_reconocimiento': propietarios_con_fotos,
+                        'sin_reconocimiento': propietarios_sin_reconocimiento,
+                        'porcentaje_cobertura': round(porcentaje_cobertura, 2),
+                        'total_fotos': total_fotos
+                    }
+                },
+                'message': f'Se encontraron {propietarios_con_fotos} propietarios con reconocimiento facial de {propietarios_total} totales'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo propietarios con reconocimiento facial: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error obteniendo propietarios con reconocimiento: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReconocerTiempoRealView(APIView):
+    """
+    Endpoint para reconocimiento facial en tiempo real con cámara web
+    POST /api/seguridad/reconocer-tiempo-real/
+    """
+    permission_classes = []  # Sin autenticación - para demo rápida
+    parser_classes = [MultiPartParser, FormParser]
+    
+    @extend_schema(
+        summary="Reconocimiento Facial en Tiempo Real",
+        description="Procesa frame de cámara web y compara con base de datos Dropbox",
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {
+                    'imagen': {
+                        'type': 'string',
+                        'format': 'binary',
+                        'description': 'Frame capturado de la cámara web'
+                    }
+                }
+            }
+        },
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'reconocido': {'type': 'boolean'},
+                    'persona': {
+                        'type': 'object',
+                        'properties': {
+                            'nombre': {'type': 'string'},
+                            'vivienda': {'type': 'string'},
+                            'tipo_residente': {'type': 'string'},
+                            'documento': {'type': 'string'}
+                        }
+                    },
+                    'confianza': {'type': 'number'},
+                    'proveedor': {'type': 'string'},
+                    'timestamp': {'type': 'string'}
+                }
+            }
+        }
+    )
+    def post(self, request):
+        """Procesar frame de cámara web para reconocimiento"""
+        try:
+            # Validar que se recibió una imagen
+            if 'imagen' not in request.FILES:
+                return Response({
+                    'reconocido': False,
+                    'error': 'No se recibió imagen'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            imagen = request.FILES['imagen']
+            imagen_bytes = imagen.read()
+            
+            # Usar el proveedor de reconocimiento existente
+            from .services.realtime_face_provider import OpenCVFaceProvider
+            
+            provider = OpenCVFaceProvider()
+            
+            # Obtener todas las personas con reconocimiento facial de la BD
+            personas_bd = []
+            reconocimientos = ReconocimientoFacial.objects.filter(activo=True).select_related('copropietario')
+            
+            for reconocimiento in reconocimientos:
+                personas_bd.append({
+                    'persona': reconocimiento.copropietario,
+                    'reconocimiento': reconocimiento
+                })
+            
+            # Procesar reconocimiento
+            resultados = provider.procesar_imagen_multiple(imagen_bytes, personas_bd)
+            
+            if resultados and len(resultados) > 0:
+                # Persona reconocida
+                resultado = resultados[0]  # Tomar el mejor match
+                persona = resultado['persona']
+                
+                # Registrar en bitácora
+                fn_bitacora_log(
+                    tipo_accion='RECONOCIMIENTO_TIEMPO_REAL',
+                    descripcion=f'Reconocimiento exitoso desde cámara web: {persona.nombre_completo}',
+                    usuario=None,  # Usuario anónimo para demo
+                    copropietario=persona,
+                    direccion_ip=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT'),
+                    proveedor_ia='OpenCV',
+                    confianza=resultado['confianza'],
+                    resultado_match=True
+                )
+                
+                return Response({
+                    'reconocido': True,
+                    'persona': {
+                        'nombre': f"{persona.nombres} {persona.apellidos}",
+                        'vivienda': persona.unidad_residencial,
+                        'tipo_residente': persona.tipo_residente,
+                        'documento': persona.numero_documento
+                    },
+                    'confianza': resultado['confianza'],
+                    'proveedor': 'OpenCV + face_recognition',
+                    'timestamp': timezone.now().isoformat()
+                }, status=status.HTTP_200_OK)
+            
+            else:
+                # No se reconoció a nadie
+                fn_bitacora_log(
+                    tipo_accion='RECONOCIMIENTO_TIEMPO_REAL',
+                    descripcion='Reconocimiento fallido desde cámara web: persona no identificada',
+                    usuario=None,
+                    copropietario=None,
+                    direccion_ip=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT'),
+                    proveedor_ia='OpenCV',
+                    resultado_match=False
+                )
+                
+                return Response({
+                    'reconocido': False,
+                    'persona': None,
+                    'confianza': 0.0,
+                    'proveedor': 'OpenCV + face_recognition',
+                    'timestamp': timezone.now().isoformat()
+                }, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            logger.error(f"Error en reconocimiento tiempo real: {str(e)}")
+            
+            # Registrar error en bitácora
+            fn_bitacora_log(
+                tipo_accion='SYSTEM_ERROR',
+                descripcion=f'Error en reconocimiento tiempo real: {str(e)}',
+                usuario=None,
+                direccion_ip=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT')
+            )
+            
+            return Response({
+                'reconocido': False,
+                'error': f'Error procesando imagen: {str(e)}',
+                'timestamp': timezone.now().isoformat()
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class HealthCheckView(APIView):
+    """
+    Vista simple para verificar que el backend esté funcionando
+    No requiere autenticación - para testing de conectividad
+    """
+    permission_classes = []  # Sin autenticación requerida
+    
+    @extend_schema(
+        summary="Health Check",
+        description="Verifica que el backend esté funcionando correctamente",
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'success': {'type': 'boolean'},
+                    'message': {'type': 'string'},
+                    'timestamp': {'type': 'string'},
+                    'status': {'type': 'string'}
+                }
+            }
+        }
+    )
+    def get(self, request):
+        """
+        Endpoint simple para verificar conectividad
+        """
+        try:
+            return Response({
+                'success': True,
+                'message': 'Backend funcionando correctamente',
+                'timestamp': timezone.now().isoformat(),
+                'status': 'online',
+                'version': '1.0.0'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error en health check: {str(e)}',
+                'timestamp': timezone.now().isoformat(),
+                'status': 'error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

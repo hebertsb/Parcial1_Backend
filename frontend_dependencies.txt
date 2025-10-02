@@ -1,0 +1,12 @@
+# Dependencias adicionales para el frontend React/Next.js
+# Ejecutar: npm install socket.io-client
+
+# En package.json agregar:
+{
+  "dependencies": {
+    "socket.io-client": "^4.7.2"
+  }
+}
+
+# O ejecutar directamente:
+# npm install socket.io-client

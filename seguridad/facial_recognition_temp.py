@@ -4,13 +4,11 @@ import base64
 import io
 import numpy as np
 from PIL import Image
-from datetime import datetime
 from django.utils import timezone
 
 # Importar modelos existentes
-from authz.models import Usuario, Persona
-from seguridad.models import Copropietarios, ReconocimientoFacial
-from core.models import Vivienda
+from authz.models import Persona
+from seguridad.models import Copropietarios
 
 class FacialRecognitionService:
     """Servicio para reconocimiento facial usando modelos existentes - Versión temporal sin face_recognition"""

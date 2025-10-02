@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Django WebRTC - HTTP API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .connected { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .disconnected { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 20px 0;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Django WebRTC - HTTP API</h1>
+        
+        <div id="status" class="status disconnected">
+            ❌ Sin probar conexión
+        </div>
+        
+        <div>
+            <button id="testStatusBtn">🔍 Probar Estado del Servidor</button>
+            <button id="testApiBtn">📤 Probar API de Prueba</button>
+            <button id="startCameraBtn">📹 Iniciar Cámara</button>
+            <button id="sendFrameBtn" disabled>📤 Reconocer Ahora</button>
+            <button id="autoRecognitionBtn" disabled>🔄 Reconocimiento Automático</button>
+        </div>
+        
+        <div style="text-align: center;">
+            <video id="videoElement" autoplay muted playsinline style="display: none;"></video>
+            <canvas id="canvasElement" style="display: none;"></canvas>
+        </div>
+        
+        <div>
+            <h3>📋 Log de Eventos:</h3>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/webrtc';
+        
+        const statusDiv = document.getElementById('status');
+        const testStatusBtn = document.getElementById('testStatusBtn');
+        const testApiBtn = document.getElementById('testApiBtn');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const sendFrameBtn = document.getElementById('sendFrameBtn');
+        const autoRecognitionBtn = document.getElementById('autoRecognitionBtn');
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const logDiv = document.getElementById('log');
+        
+        let videoStream = null;
+        let autoRecognitionInterval = null;
+        let isAutoRecognitionActive = false;
+
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected, message) {
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '✅ ' + message;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '❌ ' + message;
+            }
+        }
+
+        // Probar estado del servidor
+        testStatusBtn.addEventListener('click', async () => {
+            log('🔄 Probando estado del servidor...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/status/`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(true, 'Servidor conectado');
+                    log(`✅ Respuesta del servidor: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    updateStatus(false, 'Error del servidor');
+                    log(`❌ Error HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                updateStatus(false, 'Sin conexión al servidor');
+                log(`❌ Error de conexión: ${error.message}`);
+            }
+        });
+
+        // Probar API de prueba
+        testApiBtn.addEventListener('click', async () => {
+            log('📤 Probando API de prueba...');
+            
+            try {
+                const testData = { 
+                    message: 'Hola desde el cliente HTTP!', 
+                    timestamp: Date.now() 
+                };
+                
+                const response = await fetch(`${API_BASE}/test/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`📬 Respuesta de la API: ${JSON.stringify(data, null, 2)}`);
+                } else {
+                    log(`❌ Error API ${response.status}: ${data.message || response.statusText}`);
+                }
+            } catch (error) {
+                log(`❌ Error enviando datos: ${error.message}`);
+            }
+        });
+
+        // Iniciar cámara
+        startCameraBtn.addEventListener('click', async () => {
+            log('📹 Iniciando cámara...');
+            
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 },
+                    audio: false
+                });
+                
+                videoElement.srcObject = videoStream;
+                videoElement.style.display = 'block';
+                sendFrameBtn.disabled = false;
+                autoRecognitionBtn.disabled = false;
+                startCameraBtn.disabled = true;
+                
+                log('✅ Cámara iniciada correctamente');
+            } catch (error) {
+                log(`❌ Error accediendo a la cámara: ${error.message}`);
+            }
+        });
+
+        // Enviar frame
+        sendFrameBtn.addEventListener('click', async () => {
+            if (!videoStream) {
+                log('❌ No hay stream de video disponible');
+                return;
+            }
+            
+            log('📤 Capturando y enviando frame para reconocimiento...');
+            
+            try {
+                // Capturar frame del video
+                const canvas = canvasElement;
+                const ctx = canvas.getContext('2d');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                ctx.drawImage(videoElement, 0, 0);
+                
+                // Convertir a blob
+                canvas.toBlob(async (blob) => {
+                    const formData = new FormData();
+                    formData.append('frame', blob, 'frame.jpg');
+                    
+                    try {
+                        const startTime = Date.now();
+                        const response = await fetch(`${API_BASE}/face/`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const processingTime = Date.now() - startTime;
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            if (data.recognized && data.person) {
+                                // Persona reconocida
+                                log(`🎉 PERSONA RECONOCIDA:`);
+                                log(`👤 Nombre: ${data.person.nombre}`);
+                                log(`� Unidad: ${data.person.unidad}`);
+                                log(`📋 Tipo: ${data.person.tipo}`);
+                                log(`�🎯 Confianza: ${(data.confidence * 100).toFixed(1)}%`);
+                                log(`⏱️ Tiempo: ${processingTime}ms`);
+                                log(`🔍 Rostros detectados: ${data.faces_detected}`);
+                            } else if (data.faces_detected > 0) {
+                                // Rostro detectado pero no reconocido
+                                log(`👤 Rostro detectado pero NO reconocido`);
+                                log(`🎯 Confianza: ${(data.confidence * 100).toFixed(1)}%`);
+                                log(`🔍 Rostros detectados: ${data.faces_detected}`);
+                                log(`⏱️ Tiempo: ${processingTime}ms`);
+                            } else {
+                                // No se detectaron rostros
+                                log(`❌ No se detectaron rostros en la imagen`);
+                                log(`⏱️ Tiempo: ${processingTime}ms`);
+                            }
+                            
+                            // Log técnico detallado
+                            log(`📊 Detalles técnicos: Provider=${data.details?.provider}, Tolerance=${data.details?.tolerance_used}`);
+                        } else {
+                            log(`❌ Error reconocimiento ${response.status}: ${data.message || response.statusText}`);
+                        }
+                    } catch (error) {
+                        log(`❌ Error enviando frame: ${error.message}`);
+                    }
+                }, 'image/jpeg', 0.8); // Calidad 80%
+                
+            } catch (error) {
+                log(`❌ Error capturando frame: ${error.message}`);
+            }
+        });
+
+        // Reconocimiento automático
+        autoRecognitionBtn.addEventListener('click', () => {
+            if (!isAutoRecognitionActive) {
+                // Iniciar reconocimiento automático
+                log('� Iniciando reconocimiento automático (cada 3 segundos)...');
+                isAutoRecognitionActive = true;
+                autoRecognitionBtn.textContent = '⏹️ Detener Automático';
+                autoRecognitionBtn.style.backgroundColor = '#dc3545';
+                
+                // Función para enviar frame automáticamente
+                const sendAutoFrame = () => {
+                    if (videoStream && isAutoRecognitionActive) {
+                        sendFrameBtn.click(); // Simular click del botón
+                    }
+                };
+                
+                // Ejecutar cada 3 segundos
+                autoRecognitionInterval = setInterval(sendAutoFrame, 3000);
+                
+                // Enviar primer frame inmediatamente
+                sendAutoFrame();
+                
+            } else {
+                // Detener reconocimiento automático
+                log('⏹️ Deteniendo reconocimiento automático...');
+                isAutoRecognitionActive = false;
+                autoRecognitionBtn.textContent = '� Reconocimiento Automático';
+                autoRecognitionBtn.style.backgroundColor = '#007bff';
+                
+                if (autoRecognitionInterval) {
+                    clearInterval(autoRecognitionInterval);
+                    autoRecognitionInterval = null;
+                }
+            }
+        });
+
+        // Inicializar
+        log('🚀 Aplicación iniciada con IA de reconocimiento facial integrada');
+        log('💡 Pasos: 1) Probar servidor 2) Iniciar cámara 3) Reconocer rostros');
+    </script>
+</body>
+</html>

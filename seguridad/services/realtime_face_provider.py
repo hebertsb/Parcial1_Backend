@@ -4,7 +4,7 @@
 Proveedor de reconocimiento facial usando OpenCV + face_recognition
 Implementación real para reemplazar la simulación
 """
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 import face_recognition
 import numpy as np
@@ -24,7 +24,7 @@ class OpenCVFaceProvider:
     
     def __init__(self):
         self.model = 'hog'  # 'hog' es más rápido, 'cnn' es más preciso
-        self.tolerance = 0.6  # Umbral de tolerancia (menor = más estricto)
+        self.tolerance = 0.4  # Umbral de tolerancia reducido para reconocimiento más rápido (menor = más estricto)
         
     def detectar_caras_en_imagen(self, imagen_path_o_bytes) -> List[np.ndarray]:
         """
@@ -79,13 +79,13 @@ class OpenCVFaceProvider:
             # Tolerancia típica: 0.6 (0.0 = idéntico, 1.0 = muy diferente)
             
             if distancia <= self.tolerance:
-                # Conversión de distancia a porcentaje de confianza
+                # Conversión de distancia a porcentaje de confianza (más permisivo)
                 confianza = max(0, (1 - distancia) * 100)
                 return min(100, confianza)  # Limitar a 100%
             else:
-                # Si supera la tolerancia, confianza muy baja
-                confianza = max(0, (1 - distancia) * 50)  # Reducir factor
-                return min(30, confianza)  # Máximo 30% si supera tolerancia
+                # Si supera la tolerancia, dar más oportunidades con confianza moderada
+                confianza = max(0, (1 - distancia) * 70)  # Factor aumentado para ser más permisivo
+                return min(50, confianza)  # Máximo 50% si supera tolerancia (aumentado desde 30%)
             
         except Exception as e:
             logger.error(f"Error comparando caras: {str(e)}")
@@ -167,6 +167,97 @@ class OpenCVFaceProvider:
             logger.error(f"Error en reconocimiento tiempo real: {str(e)}")
             return resultados
 
+    def procesar_imagen_multiple(self, frames: List[np.ndarray], umbrales: Optional[List[float]] = None) -> List[Dict]:
+        """
+        Procesa múltiples frames para reconocimiento facial
+        Método agregado para compatibilidad con WebRTC
+        """
+        if not frames:
+            return []
+        
+        if umbrales is None:
+            umbrales = [0.5] * len(frames)  # Umbral más permisivo para reconocimiento rápido
+        
+        resultados = []
+        
+        for i, frame in enumerate(frames):
+            umbral = umbrales[i] if i < len(umbrales) else 0.5  # Umbral por defecto más permisivo
+            resultado = self.procesar_imagen(frame, umbral)
+            resultados.append(resultado)
+        
+        return resultados
+    
+    def procesar_imagen(self, frame: np.ndarray, umbral: float = 0.5) -> Dict:
+        """
+        Procesa un frame individual para reconocimiento facial
+        Método agregado para compatibilidad con WebRTC
+        """
+        try:
+            # Convertir frame a bytes para usar el método existente
+            import cv2
+            _, buffer = cv2.imencode('.jpg', frame)
+            imagen_bytes = buffer.tobytes()
+            
+            # Obtener todas las personas de la BD
+            from seguridad.models import Copropietarios, ReconocimientoFacial
+            from django.db import transaction
+            
+            try:
+                with transaction.atomic():
+                    personas_bd = []
+                    reconocimientos = ReconocimientoFacial.objects.select_related('copropietario').all()
+                    
+                    for rec in reconocimientos:
+                        personas_bd.append({
+                            'persona': rec.copropietario,
+                            'reconocimiento': rec
+                        })
+                    
+                    # Usar el método existente para procesar
+                    resultados = self.procesar_reconocimiento_tiempo_real(imagen_bytes, personas_bd)
+                    
+                    if resultados and len(resultados) > 0:
+                        mejor_resultado = resultados[0]  # El primer resultado (mejor confianza)
+                        
+                        if mejor_resultado['confianza'] >= umbral:
+                            return {
+                                'reconocido': True,
+                                'persona': {
+                                    'id': mejor_resultado['persona'].id,
+                                    'nombre': f"{mejor_resultado['persona'].nombres} {mejor_resultado['persona'].apellidos}",
+                                    'documento': mejor_resultado['persona'].numero_documento
+                                },
+                                'confianza': mejor_resultado['confianza'],
+                                'proveedor': 'OpenCV'
+                            }
+                    
+                    return {
+                        'reconocido': False,
+                        'persona': None,
+                        'confianza': 0.0,
+                        'proveedor': 'OpenCV'
+                    }
+                    
+            except Exception as db_error:
+                logger.error(f"Error accediendo a la BD: {str(db_error)}")
+                return {
+                    'reconocido': False,
+                    'persona': None,
+                    'confianza': 0.0,
+                    'proveedor': 'OpenCV',
+                    'error': str(db_error)
+                }
+                
+        except Exception as e:
+            logger.error(f"Error procesando imagen: {str(e)}")
+            return {
+                'reconocido': False,
+                'persona': None,
+                'confianza': 0.0,
+                'proveedor': 'OpenCV',
+                'error': str(e)
+            }
+
 
 class YOLOFaceProvider:
     """
@@ -180,10 +271,12 @@ class YOLOFaceProvider:
             from ultralytics import YOLO
             self.yolo_model = YOLO('yolov8n-face.pt')  # Modelo específico para caras
             self.face_provider = OpenCVFaceProvider()
-        except ImportError:
-            logger.warning("YOLO no disponible, usando OpenCV puro")
+            self.tolerance = self.face_provider.tolerance  # Usar la tolerancia del proveedor OpenCV
+        except (ImportError, FileNotFoundError, Exception) as e:
+            logger.warning(f"YOLO no disponible ({e}), usando OpenCV puro")
             self.yolo_model = None
             self.face_provider = OpenCVFaceProvider()
+            self.tolerance = self.face_provider.tolerance
     
     def detectar_caras_yolo(self, imagen_bytes: bytes) -> List[Tuple[int, int, int, int]]:
         """
@@ -238,6 +331,20 @@ class YOLOFaceProvider:
         # Si YOLO detectó caras, usar face_recognition para el reconocimiento
         logger.info(f"YOLO detectó {len(caras_detectadas)} caras")
         return self.face_provider.procesar_reconocimiento_tiempo_real(imagen_subida, personas_bd)
+
+    def procesar_imagen_multiple(self, frames: List[np.ndarray], umbrales: Optional[List[float]] = None) -> List[Dict]:
+        """
+        Procesa múltiples frames para reconocimiento facial
+        Método delegado al proveedor OpenCV interno
+        """
+        return self.face_provider.procesar_imagen_multiple(frames, umbrales)
+    
+    def procesar_imagen(self, frame: np.ndarray, umbral: float = 0.5) -> Dict:
+        """
+        Procesa un frame individual para reconocimiento facial
+        Método delegado al proveedor OpenCV interno
+        """
+        return self.face_provider.procesar_imagen(frame, umbral)
 
 
 # Factory para elegir proveedor

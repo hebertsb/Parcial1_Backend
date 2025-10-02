@@ -85,6 +85,8 @@ class ViviendaSerializer(serializers.ModelSerializer):
     """Serializer principal para Vivienda - CU05"""
     propiedades = serializers.SerializerMethodField()
     total_propietarios = serializers.SerializerMethodField()
+    estado_ocupacion = serializers.SerializerMethodField()
+    cobranza_real = serializers.SerializerMethodField()
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     tipo_vivienda_display = serializers.CharField(source='get_tipo_vivienda_display', read_only=True)
     tipo_cobranza_display = serializers.CharField(source='get_tipo_cobranza_display', read_only=True)
@@ -94,7 +96,8 @@ class ViviendaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'numero_casa', 'bloque', 'tipo_vivienda', 'tipo_vivienda_display',
             'metros_cuadrados', 'tarifa_base_expensas', 'tipo_cobranza', 'tipo_cobranza_display',
-            'estado', 'estado_display', 'fecha_creacion', 'fecha_actualizacion',
+            'estado', 'estado_display', 'estado_ocupacion', 'cobranza_real',
+            'fecha_creacion', 'fecha_actualizacion',
             'propiedades', 'total_propietarios'
         ]
         read_only_fields = ['id', 'fecha_creacion', 'fecha_actualizacion', 'propiedades', 'total_propietarios']
@@ -109,6 +112,33 @@ class ViviendaSerializer(serializers.ModelSerializer):
     def get_total_propietarios(self, obj):
         """Cuenta el total de propietarios activos"""
         return obj.propiedad_set.filter(activo=True, tipo_tenencia='propietario').count()
+    
+    @extend_schema_field(serializers.CharField())
+    def get_estado_ocupacion(self, obj):
+        """Calcula el estado de ocupación basado en las propiedades activas"""
+        propiedades_activas = obj.propiedad_set.filter(activo=True)
+        
+        if not propiedades_activas.exists():
+            return 'disponible'
+        
+        # Si hay propietarios activos
+        if propiedades_activas.filter(tipo_tenencia='propietario').exists():
+            return 'ocupada'
+        
+        # Si solo hay inquilinos (sin propietarios)
+        if propiedades_activas.filter(tipo_tenencia='inquilino').exists():
+            return 'alquilada'
+        
+        return 'disponible'
+    
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
+    def get_cobranza_real(self, obj):
+        """Calcula la cobranza real basada en el tipo de cobranza y ocupación"""
+        # Por defecto usar la tarifa base
+        if obj.tipo_cobranza == 'por_metro_cuadrado':
+            return obj.tarifa_base_expensas * obj.metros_cuadrados
+        else:  # por_casa
+            return obj.tarifa_base_expensas
     
     def validate_numero_casa(self, value):
         """Validación personalizada para número de casa"""
@@ -146,6 +176,9 @@ class ViviendaListSerializer(serializers.ModelSerializer):
     """Serializer simplificado para listado de viviendas"""
     estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     tipo_vivienda_display = serializers.CharField(source='get_tipo_vivienda_display', read_only=True)
+    tipo_cobranza_display = serializers.CharField(source='get_tipo_cobranza_display', read_only=True)
+    estado_ocupacion = serializers.SerializerMethodField()
+    cobranza_real = serializers.SerializerMethodField()
     propietarios_count = serializers.SerializerMethodField()
     inquilinos_count = serializers.SerializerMethodField()
     
@@ -153,9 +186,36 @@ class ViviendaListSerializer(serializers.ModelSerializer):
         model = Vivienda
         fields = [
             'id', 'numero_casa', 'bloque', 'tipo_vivienda', 'tipo_vivienda_display',
-            'metros_cuadrados', 'tarifa_base_expensas', 'estado', 'estado_display',
+            'metros_cuadrados', 'tarifa_base_expensas', 'tipo_cobranza', 'tipo_cobranza_display',
+            'estado', 'estado_display', 'estado_ocupacion', 'cobranza_real',
             'propietarios_count', 'inquilinos_count'
         ]
+    
+    @extend_schema_field(serializers.CharField())
+    def get_estado_ocupacion(self, obj):
+        """Calcula el estado de ocupación basado en las propiedades activas"""
+        propiedades_activas = obj.propiedad_set.filter(activo=True)
+        
+        if not propiedades_activas.exists():
+            return 'disponible'
+        
+        # Si hay propietarios activos
+        if propiedades_activas.filter(tipo_tenencia='propietario').exists():
+            return 'ocupada'
+        
+        # Si solo hay inquilinos (sin propietarios)
+        if propiedades_activas.filter(tipo_tenencia='inquilino').exists():
+            return 'alquilada'
+        
+        return 'disponible'
+    
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
+    def get_cobranza_real(self, obj):
+        """Calcula la cobranza real basada en el tipo de cobranza"""
+        if obj.tipo_cobranza == 'por_metro_cuadrado':
+            return obj.tarifa_base_expensas * obj.metros_cuadrados
+        else:  # por_casa
+            return obj.tarifa_base_expensas
     
     @extend_schema_field(serializers.IntegerField())
     def get_propietarios_count(self, obj):

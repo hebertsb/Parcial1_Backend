@@ -5,7 +5,6 @@ Serializers for Face Recognition API
 from rest_framework import serializers
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image
-import io
 
 from .models import Copropietarios, ReconocimientoFacial
 

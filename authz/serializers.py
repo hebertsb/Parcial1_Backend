@@ -227,7 +227,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             from core.utils.dropbox_upload import upload_image_to_dropbox
             documento_identidad = persona_data['documento_identidad']
             filename = f"{documento_identidad}_perfil.jpg"
-            folder = f"/Aplicaciones/FotoVisita/Propietarios/{documento_identidad}"
+            folder = f"/Aplicaciones/ParcialSI2/Propietarios/{documento_identidad}"
             dropbox_result = upload_image_to_dropbox(foto_perfil_file, filename, folder=folder)
             persona_data['foto_perfil'] = dropbox_result['url']
 

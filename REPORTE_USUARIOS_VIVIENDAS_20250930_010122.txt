@@ -1,0 +1,47 @@
+================================================================================
+📋 REPORTE DE USUARIOS Y VIVIENDAS - SISTEMA DE RECONOCIMIENTO FACIAL
+================================================================================
+
+📅 Fecha de generación: 30/09/2025 01:01:22
+🏠 Sistema de Condominio con Reconocimiento Facial
+🔐 Contraseña por defecto para todos los usuarios: temporal123
+
+================================================================================
+📋 ESTADÍSTICAS GENERALES
+================================================================================
+
+👥 Total de usuarios: 0
+👤 Total de personas: 0
+🏠 Total de viviendas: 0
+📄 Total de solicitudes: 0
+
+
+================================================================================
+📋 🔑 CREDENCIALES DE ACCESO RÁPIDO
+================================================================================
+
+🌐 URLS DEL SISTEMA:
+  📱 Sistema principal: http://127.0.0.1:8000/
+  📚 Documentación API: http://127.0.0.1:8000/api/docs/
+  👔 Panel Admin: http://127.0.0.1:8000/admin/
+  🧪 Demo básico: http://127.0.0.1:8000/api/demo/
+
+🔐 CREDENCIALES POR DEFECTO:
+  🔒 Contraseña universal: temporal123
+  📧 Email formato: [nombre]@ejemplo.com
+
+🚀 USUARIOS DE PRUEBA RECOMENDADOS:
+
+================================================================================
+📋 🏠 ESTADO DE VIVIENDAS
+================================================================================
+
+🔴 VIVIENDAS OCUPADAS (0 de 0)
+--------------------------------------------------
+🟢 VIVIENDAS DISPONIBLES (0 de 0)
+--------------------------------------------------
+No hay viviendas disponibles
+
+================================================================================
+📋 📄 SOLICITUDES DE REGISTRO
+================================================================================

@@ -1,0 +1,1068 @@
+GUÍA COMPLETA PARA IMPLEMENTAR GESTIÓN DE USUARIOS DE SEGURIDAD EN FRONTEND
+==================================================================================
+
+FECHA: 24 de septiembre de 2025
+SISTEMA: Gestión de Usuarios de Seguridad - Backend Django REST API
+OBJETIVO: Implementar en frontend el sistema donde administradores crean cuentas para personal de seguridad
+
+==================================================================================
+📋 TABLA DE CONTENIDOS
+==================================================================================
+
+1. RESUMEN DEL SISTEMA
+2. ENDPOINTS DISPONIBLES
+3. PAYLOADS DE REQUEST Y RESPONSE
+4. FLUJO DE AUTENTICACIÓN
+5. IMPLEMENTACIÓN PASO A PASO
+6. EJEMPLOS DE CÓDIGO FRONTEND
+7. MANEJO DE ERRORES
+8. CREDENCIALES DE PRUEBA
+9. CASOS DE USO PRINCIPALES
+
+==================================================================================
+🎯 1. RESUMEN DEL SISTEMA
+==================================================================================
+
+PROBLEMA RESUELTO:
+- Los administradores necesitan crear cuentas para el personal de seguridad
+- El personal de seguridad debe poder hacer login y acceder a sus funciones
+- Sistema de roles: Administrador → Crea → Seguridad → Login → Acceso
+
+ROLES IMPLEMENTADOS:
+- Administrador: Puede crear, listar, activar/desactivar usuarios de seguridad
+- Seguridad: Puede hacer login y acceder a funciones de seguridad
+- Propietario: Gestiona propiedades
+- Inquilino: Usuario final
+
+ESTADO ACTUAL:
+✅ Backend completamente funcional
+✅ Base de datos con usuarios de prueba
+✅ Autenticación JWT implementada
+✅ Permisos por roles funcionando
+
+==================================================================================
+🌐 2. ENDPOINTS DISPONIBLES
+==================================================================================
+
+BASE URL: http://127.0.0.1:8000
+
+--- AUTENTICACIÓN ---
+POST /auth/login/
+    Descripción: Login para todos los usuarios (admin, seguridad, propietario, inquilino)
+    Requiere: email, password
+    Retorna: access_token, refresh_token, user_info
+
+POST /auth/refresh/
+    Descripción: Renovar token JWT
+    Requiere: refresh_token
+    Retorna: nuevo access_token
+
+--- GESTIÓN ADMINISTRATIVA DE SEGURIDAD ---
+POST /auth/admin/seguridad/crear/
+    Descripción: Crear nuevo usuario de seguridad (solo administradores)
+    Requiere: Datos personales + credenciales
+    Retorna: Usuario creado con éxito
+
+GET /auth/admin/seguridad/listar/
+    Descripción: Listar todos los usuarios de seguridad (solo administradores)
+    Requiere: Token de administrador
+    Retorna: Lista completa de usuarios de seguridad
+
+PUT /auth/admin/seguridad/{id}/estado/
+    Descripción: Activar/desactivar usuario de seguridad (solo administradores)
+    Requiere: Token de administrador + nuevo estado
+    Retorna: Estado actualizado
+
+POST /auth/admin/seguridad/{id}/reset-password/
+    Descripción: Resetear contraseña de usuario de seguridad (solo administradores)
+    Requiere: Token de administrador + nueva contraseña
+    Retorna: Contraseña actualizada
+
+==================================================================================
+📦 3. PAYLOADS DE REQUEST Y RESPONSE
+==================================================================================
+
+--- LOGIN (POST /auth/login/) ---
+
+REQUEST:
+{
+    "email": "prueba.seguridad@test.com",
+    "password": "prueba123"
+}
+
+RESPONSE EXITOSO:
+{
+    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "user": {
+        "id": 123,
+        "email": "prueba.seguridad@test.com",
+        "persona": {
+            "nombre": "Usuario",
+            "apellido": "Pruebas Seguridad",
+            "ci": "12345678",
+            "telefono": "+591 70000000"
+        },
+        "roles": ["Seguridad"],
+        "is_active": true
+    }
+}
+
+RESPONSE ERROR:
+{
+    "detail": "No se encontraron credenciales de autenticación válidas."
+}
+
+--- CREAR USUARIO SEGURIDAD (POST /auth/admin/seguridad/crear/) ---
+
+REQUEST:
+{
+    "email": "nuevo.guardia@condominio.com",
+    "password": "temporal123",
+    "persona": {
+        "nombre": "Juan Carlos",
+        "apellido": "Pérez López",
+        "ci": "9876543",
+        "telefono": "70123456",
+        "direccion": "Av. Principal #123"
+    }
+}
+
+HEADERS REQUERIDOS:
+{
+    "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "Content-Type": "application/json"
+}
+
+RESPONSE EXITOSO:
+{
+    "message": "Usuario de seguridad creado exitosamente",
+    "usuario": {
+        "id": 124,
+        "email": "nuevo.guardia@condominio.com",
+        "persona": {
+            "nombre": "Juan Carlos",
+            "apellido": "Pérez López",
+            "ci": "9876543",
+            "telefono": "70123456",
+            "direccion": "Av. Principal #123"
+        },
+        "roles": ["Seguridad"],
+        "is_active": true,
+        "date_joined": "2025-09-24T18:30:00Z"
+    }
+}
+
+--- LISTAR USUARIOS SEGURIDAD (GET /auth/admin/seguridad/listar/) ---
+
+HEADERS REQUERIDOS:
+{
+    "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+
+RESPONSE EXITOSO:
+{
+    "count": 5,
+    "usuarios": [
+        {
+            "id": 120,
+            "email": "seguridad@facial.com",
+            "persona": {
+                "nombre": "Juan Carlos",
+                "apellido": "Seguridad",
+                "ci": "12345679",
+                "telefono": "+591-70000002"
+            },
+            "is_active": true,
+            "date_joined": "2025-09-20T10:00:00Z"
+        },
+        {
+            "id": 121,
+            "email": "carlos.test@condominio.com",
+            "persona": {
+                "nombre": "Carlos",
+                "apellido": "Test Seguridad",
+                "ci": "70555666",
+                "telefono": "70555666"
+            },
+            "is_active": true,
+            "date_joined": "2025-09-24T15:45:00Z"
+        }
+    ]
+}
+
+--- CAMBIAR ESTADO USUARIO (PUT /auth/admin/seguridad/{id}/estado/) ---
+
+REQUEST:
+{
+    "is_active": false
+}
+
+HEADERS REQUERIDOS:
+{
+    "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "Content-Type": "application/json"
+}
+
+RESPONSE EXITOSO:
+{
+    "message": "Estado del usuario actualizado exitosamente",
+    "usuario": {
+        "id": 124,
+        "email": "nuevo.guardia@condominio.com",
+        "is_active": false
+    }
+}
+
+--- RESETEAR CONTRASEÑA (POST /auth/admin/seguridad/{id}/reset-password/) ---
+
+REQUEST:
+{
+    "nueva_password": "nuevaContraseña123"
+}
+
+HEADERS REQUERIDOS:
+{
+    "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "Content-Type": "application/json"
+}
+
+RESPONSE EXITOSO:
+{
+    "message": "Contraseña actualizada exitosamente",
+    "usuario": {
+        "id": 124,
+        "email": "nuevo.guardia@condominio.com"
+    }
+}
+
+==================================================================================
+🔐 4. FLUJO DE AUTENTICACIÓN
+==================================================================================
+
+PASO 1: LOGIN ADMINISTRADOR
+- Endpoint: POST /auth/login/
+- Credenciales admin de prueba: admin@condominio.com / admin123
+- Guardar access_token y refresh_token
+
+PASO 2: USAR TOKEN EN REQUESTS
+- Incluir en header: Authorization: Bearer {access_token}
+- El token expira, usar refresh_token para renovar
+
+PASO 3: VERIFICAR PERMISOS
+- Solo usuarios con rol "Administrador" pueden gestionar seguridad
+- Verificar que user.roles incluya "Administrador"
+
+PASO 4: GESTIONAR TOKENS
+- access_token: Corta duración (15-30 minutos)
+- refresh_token: Larga duración (7 días)
+- Renovar automáticamente cuando expire
+
+==================================================================================
+🚀 5. IMPLEMENTACIÓN PASO A PASO
+==================================================================================
+
+PASO 1: CONFIGURAR CLIENTE HTTP
+```javascript
+// Configuración base para axios/fetch
+const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_ENDPOINTS = {
+    login: '/auth/login/',
+    refresh: '/auth/refresh/',
+    crearSeguridad: '/auth/admin/seguridad/crear/',
+    listarSeguridad: '/auth/admin/seguridad/listar/',
+    cambiarEstado: '/auth/admin/seguridad/{id}/estado/',
+    resetPassword: '/auth/admin/seguridad/{id}/reset-password/'
+};
+```
+
+PASO 2: IMPLEMENTAR AUTENTICACIÓN
+```javascript
+// Función de login
+async function login(email, password) {
+    const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+    });
+    
+    if (response.ok) {
+        const data = await response.json();
+        // Guardar tokens en localStorage/sessionStorage
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        localStorage.setItem('user_info', JSON.stringify(data.user));
+        return data;
+    } else {
+        throw new Error('Login fallido');
+    }
+}
+```
+
+PASO 3: CREAR HELPER PARA REQUESTS AUTENTICADOS
+```javascript
+// Helper para requests con token
+async function authenticatedRequest(url, options = {}) {
+    const token = localStorage.getItem('access_token');
+    
+    const config = {
+        ...options,
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    };
+    
+    const response = await fetch(url, config);
+    
+    // Si token expiró, intentar renovar
+    if (response.status === 401) {
+        await refreshToken();
+        // Reintentar request
+        const newToken = localStorage.getItem('access_token');
+        config.headers.Authorization = `Bearer ${newToken}`;
+        return fetch(url, config);
+    }
+    
+    return response;
+}
+```
+
+PASO 4: IMPLEMENTAR FUNCIONES PRINCIPALES
+```javascript
+// Crear usuario de seguridad
+async function crearUsuarioSeguridad(datosUsuario) {
+    const response = await authenticatedRequest(
+        `${API_BASE_URL}/auth/admin/seguridad/crear/`,
+        {
+            method: 'POST',
+            body: JSON.stringify(datosUsuario)
+        }
+    );
+    
+    return response.json();
+}
+
+// Listar usuarios de seguridad
+async function listarUsuariosSeguridad() {
+    const response = await authenticatedRequest(
+        `${API_BASE_URL}/auth/admin/seguridad/listar/`
+    );
+    
+    return response.json();
+}
+
+// Cambiar estado de usuario
+async function cambiarEstadoUsuario(userId, isActive) {
+    const response = await authenticatedRequest(
+        `${API_BASE_URL}/auth/admin/seguridad/${userId}/estado/`,
+        {
+            method: 'PUT',
+            body: JSON.stringify({ is_active: isActive })
+        }
+    );
+    
+    return response.json();
+}
+```
+
+PASO 5: IMPLEMENTAR COMPONENTES UI
+
+A) FORMULARIO DE LOGIN ADMINISTRADOR:
+- Campo email (requerido)
+- Campo password (requerido, tipo password)
+- Botón "Iniciar Sesión"
+- Mostrar errores de validación
+- Redirigir a panel admin tras login exitoso
+
+B) PANEL ADMINISTRATIVO:
+- Mostrar información del admin logueado
+- Botón "Crear Usuario Seguridad"
+- Lista de usuarios de seguridad existentes
+- Botones de acción por usuario (Activar/Desactivar, Reset Password)
+
+C) FORMULARIO CREAR USUARIO SEGURIDAD:
+- Datos personales: nombre, apellido, CI, teléfono, dirección
+- Credenciales: email, password temporal
+- Validaciones: email único, password fuerte, CI válido
+- Botón "Crear Usuario"
+
+D) LISTA DE USUARIOS SEGURIDAD:
+- Tabla con: Nombre, Email, Teléfono, Estado, Fecha Creación
+- Filtros: Estado (Activo/Inactivo), Búsqueda por nombre/email
+- Acciones: Ver detalle, Cambiar estado, Reset password
+
+==================================================================================
+💻 6. EJEMPLOS DE CÓDIGO FRONTEND (JavaScript/React)
+==================================================================================
+
+--- COMPONENTE LOGIN ---
+```jsx
+import React, { useState } from 'react';
+
+function LoginAdmin() {
+    const [credentials, setCredentials] = useState({
+        email: '',
+        password: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/auth/login/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(credentials)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Verificar que sea administrador
+                if (data.user.roles.includes('Administrador')) {
+                    localStorage.setItem('access_token', data.access);
+                    localStorage.setItem('user_info', JSON.stringify(data.user));
+                    // Redirigir a panel admin
+                    window.location.href = '/admin-panel';
+                } else {
+                    setError('Acceso denegado: No tienes permisos de administrador');
+                }
+            } else {
+                setError('Credenciales inválidas');
+            }
+        } catch (error) {
+            setError('Error de conexión');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <h2>Login Administrador</h2>
+            
+            {error && <div className="error">{error}</div>}
+            
+            <div>
+                <label>Email:</label>
+                <input
+                    type="email"
+                    value={credentials.email}
+                    onChange={(e) => setCredentials({
+                        ...credentials,
+                        email: e.target.value
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>Contraseña:</label>
+                <input
+                    type="password"
+                    value={credentials.password}
+                    onChange={(e) => setCredentials({
+                        ...credentials,
+                        password: e.target.value
+                    })}
+                    required
+                />
+            </div>
+            
+            <button type="submit" disabled={loading}>
+                {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            </button>
+        </form>
+    );
+}
+```
+
+--- COMPONENTE CREAR USUARIO SEGURIDAD ---
+```jsx
+import React, { useState } from 'react';
+
+function CrearUsuarioSeguridad() {
+    const [usuario, setUsuario] = useState({
+        email: '',
+        password: '',
+        persona: {
+            nombre: '',
+            apellido: '',
+            ci: '',
+            telefono: '',
+            direccion: ''
+        }
+    });
+    const [loading, setLoading] = useState(false);
+    const [mensaje, setMensaje] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://127.0.0.1:8000/auth/admin/seguridad/crear/', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(usuario)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setMensaje('Usuario creado exitosamente');
+                // Limpiar formulario
+                setUsuario({
+                    email: '',
+                    password: '',
+                    persona: {
+                        nombre: '',
+                        apellido: '',
+                        ci: '',
+                        telefono: '',
+                        direccion: ''
+                    }
+                });
+            } else {
+                const error = await response.json();
+                setMensaje(`Error: ${error.detail || 'No se pudo crear el usuario'}`);
+            }
+        } catch (error) {
+            setMensaje('Error de conexión');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <h3>Crear Usuario de Seguridad</h3>
+            
+            {mensaje && <div className="mensaje">{mensaje}</div>}
+            
+            <div>
+                <label>Email:</label>
+                <input
+                    type="email"
+                    value={usuario.email}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        email: e.target.value
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>Contraseña temporal:</label>
+                <input
+                    type="password"
+                    value={usuario.password}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        password: e.target.value
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>Nombre:</label>
+                <input
+                    type="text"
+                    value={usuario.persona.nombre}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        persona: {
+                            ...usuario.persona,
+                            nombre: e.target.value
+                        }
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>Apellido:</label>
+                <input
+                    type="text"
+                    value={usuario.persona.apellido}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        persona: {
+                            ...usuario.persona,
+                            apellido: e.target.value
+                        }
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>CI:</label>
+                <input
+                    type="text"
+                    value={usuario.persona.ci}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        persona: {
+                            ...usuario.persona,
+                            ci: e.target.value
+                        }
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>Teléfono:</label>
+                <input
+                    type="text"
+                    value={usuario.persona.telefono}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        persona: {
+                            ...usuario.persona,
+                            telefono: e.target.value
+                        }
+                    })}
+                    required
+                />
+            </div>
+            
+            <div>
+                <label>Dirección:</label>
+                <input
+                    type="text"
+                    value={usuario.persona.direccion}
+                    onChange={(e) => setUsuario({
+                        ...usuario,
+                        persona: {
+                            ...usuario.persona,
+                            direccion: e.target.value
+                        }
+                    })}
+                />
+            </div>
+            
+            <button type="submit" disabled={loading}>
+                {loading ? 'Creando...' : 'Crear Usuario'}
+            </button>
+        </form>
+    );
+}
+```
+
+--- COMPONENTE LISTA USUARIOS ---
+```jsx
+import React, { useState, useEffect } from 'react';
+
+function ListaUsuariosSeguridad() {
+    const [usuarios, setUsuarios] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        cargarUsuarios();
+    }, []);
+
+    const cargarUsuarios = async () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('http://127.0.0.1:8000/auth/admin/seguridad/listar/', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setUsuarios(data.usuarios);
+            }
+        } catch (error) {
+            console.error('Error cargando usuarios:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const cambiarEstado = async (userId, nuevoEstado) => {
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch(`http://127.0.0.1:8000/auth/admin/seguridad/${userId}/estado/`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_active: nuevoEstado })
+            });
+
+            if (response.ok) {
+                // Recargar lista
+                cargarUsuarios();
+            }
+        } catch (error) {
+            console.error('Error cambiando estado:', error);
+        }
+    };
+
+    if (loading) {
+        return <div>Cargando usuarios...</div>;
+    }
+
+    return (
+        <div>
+            <h3>Usuarios de Seguridad</h3>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {usuarios.map(usuario => (
+                        <tr key={usuario.id}>
+                            <td>{usuario.persona.nombre} {usuario.persona.apellido}</td>
+                            <td>{usuario.email}</td>
+                            <td>{usuario.persona.telefono}</td>
+                            <td>
+                                <span className={usuario.is_active ? 'activo' : 'inactivo'}>
+                                    {usuario.is_active ? 'Activo' : 'Inactivo'}
+                                </span>
+                            </td>
+                            <td>
+                                <button 
+                                    onClick={() => cambiarEstado(usuario.id, !usuario.is_active)}
+                                >
+                                    {usuario.is_active ? 'Desactivar' : 'Activar'}
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+```
+
+==================================================================================
+⚠️ 7. MANEJO DE ERRORES
+==================================================================================
+
+CÓDIGOS DE ERROR COMUNES:
+
+400 - Bad Request:
+- Datos de entrada inválidos
+- Email ya existe
+- Campos requeridos faltantes
+- Formato de CI o teléfono inválido
+
+401 - Unauthorized:
+- Token JWT expirado o inválido
+- Credenciales de login incorrectas
+- Usuario no autenticado
+
+403 - Forbidden:
+- Usuario sin permisos de administrador
+- Intento de acceder a recursos restringidos
+
+404 - Not Found:
+- Usuario no encontrado
+- Endpoint incorrecto
+
+500 - Internal Server Error:
+- Error del servidor
+- Problema con base de datos
+
+ESTRATEGIAS DE MANEJO:
+
+1. VALIDACIÓN CLIENT-SIDE:
+- Validar email format antes de enviar
+- Verificar longitud de password
+- Validar formato de CI boliviano
+- Validar formato de teléfono
+
+2. MANEJO DE TOKENS:
+```javascript
+// Interceptor para renovar tokens automáticamente
+async function handleTokenExpiration(response) {
+    if (response.status === 401) {
+        const refreshToken = localStorage.getItem('refresh_token');
+        
+        if (refreshToken) {
+            try {
+                const refreshResponse = await fetch('/auth/refresh/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh: refreshToken })
+                });
+                
+                if (refreshResponse.ok) {
+                    const data = await refreshResponse.json();
+                    localStorage.setItem('access_token', data.access);
+                    return true; // Token renovado exitosamente
+                }
+            } catch (error) {
+                console.error('Error renovando token:', error);
+            }
+        }
+        
+        // Si no se pudo renovar, cerrar sesión
+        localStorage.clear();
+        window.location.href = '/login';
+        return false;
+    }
+    return true;
+}
+```
+
+3. FEEDBACK AL USUARIO:
+- Mostrar mensajes de error claros
+- Indicadores de loading durante requests
+- Confirmaciones para acciones destructivas
+- Notificaciones de éxito
+
+==================================================================================
+🔑 8. CREDENCIALES DE PRUEBA
+==================================================================================
+
+USUARIOS ADMINISTRADORES:
+(Para probar la creación de usuarios de seguridad)
+
+Email: admin@condominio.com
+Password: admin123
+Nota: Revisar base de datos para credenciales exactas
+
+USUARIOS SEGURIDAD EXISTENTES:
+(Para probar login del personal creado)
+
+1. Email: prueba.seguridad@test.com
+   Password: prueba123
+   Nombre: Usuario Pruebas Seguridad
+   Estado: Activo ✅
+
+2. Email: carlos.test@condominio.com
+   Password: test123
+   Nombre: Carlos Test Seguridad
+   Estado: Activo ✅
+
+3. Email: seguridad@facial.com
+   Password: [Revisar con admin]
+   Nombre: Juan Carlos Seguridad
+   Estado: Activo ✅
+
+VERIFICACIÓN DE CREDENCIALES:
+Para obtener todas las credenciales disponibles, ejecutar en el backend:
+```bash
+python obtener_credenciales_seguridad.py
+```
+
+SERVIDOR DE DESARROLLO:
+URL: http://127.0.0.1:8000
+Para iniciar: python manage.py runserver
+
+==================================================================================
+🎮 9. CASOS DE USO PRINCIPALES
+==================================================================================
+
+CASO 1: ADMIN CREA NUEVO USUARIO SEGURIDAD
+--------------------------------------
+1. Admin se loguea con sus credenciales
+2. Accede al panel de administración
+3. Completa formulario "Crear Usuario Seguridad":
+   - Email: nuevo.guardia@condominio.com
+   - Password temporal: temp123
+   - Nombre: Juan
+   - Apellido: Pérez
+   - CI: 1234567
+   - Teléfono: 70123456
+4. Sistema crea usuario con rol "Seguridad"
+5. Admin puede entregar credenciales al personal
+
+CASO 2: PERSONAL SEGURIDAD HACE LOGIN
+----------------------------------
+1. Personal recibe credenciales del admin
+2. Accede al sistema con email/password
+3. Sistema verifica rol "Seguridad"
+4. Redirige a panel específico de seguridad
+5. Accede a funciones: registro visitantes, control acceso, etc.
+
+CASO 3: ADMIN GESTIONA USUARIOS EXISTENTES
+----------------------------------------
+1. Admin consulta lista de usuarios seguridad
+2. Ve estado actual de cada usuario
+3. Puede desactivar usuario que ya no trabaja
+4. Puede resetear password si usuario olvida
+5. Puede reactivar usuario cuando vuelve
+
+CASO 4: MANEJO DE PERMISOS
+------------------------
+1. Usuario sin rol admin intenta crear seguridad → Error 403
+2. Usuario seguridad intenta acceder a funciones admin → Error 403
+3. Token expirado → Renovación automática o redirect login
+4. Usuario inactivo intenta login → Error de credenciales
+
+CASO 5: FLUJO COMPLETO NUEVA CONTRATACIÓN
+---------------------------------------
+1. Se contrata nuevo guardia de seguridad
+2. Admin se loguea en sistema
+3. Admin crea cuenta con datos del nuevo empleado
+4. Admin entrega credenciales (email/password temporal)
+5. Guardia hace primer login
+6. Guardia cambia password (si implementas cambio password)
+7. Guardia accede a funciones de seguridad
+
+==================================================================================
+🚀 PRÓXIMOS PASOS RECOMENDADOS
+==================================================================================
+
+IMPLEMENTACIÓN MÍNIMA VIABLE (MVP):
+1. ✅ Login administrador
+2. ✅ Crear usuario seguridad
+3. ✅ Login usuario seguridad
+4. ✅ Lista usuarios seguridad
+
+FUNCIONALIDADES ADICIONALES:
+- Panel de control con estadísticas
+- Cambio de contraseña por usuario
+- Historial de accesos
+- Notificaciones por email
+- Exportar lista de usuarios
+- Búsqueda y filtros avanzados
+- Roles más específicos (Guardia Diurno, Nocturno, etc.)
+
+SEGURIDAD ADICIONAL:
+- HTTPS en producción
+- Rate limiting para login
+- Logs de acciones administrativas
+- Verificación por email al crear usuario
+- 2FA para administradores
+
+==================================================================================
+📞 SOPORTE Y RESOLUCIÓN DE PROBLEMAS
+==================================================================================
+
+PROBLEMAS COMUNES:
+
+1. "Error de conexión" al hacer requests:
+   - Verificar que el servidor Django esté corriendo (python manage.py runserver)
+   - Verificar URL base (http://127.0.0.1:8000)
+   - Revisar CORS settings si frontend está en otro puerto
+
+2. "Token inválido" en requests autenticados:
+   - Verificar que el token esté incluido en headers
+   - Verificar formato: "Bearer {token}"
+   - Token puede haber expirado, usar refresh
+
+3. "Permisos insuficientes":
+   - Verificar que usuario tenga rol "Administrador"
+   - Verificar que usuario esté activo (is_active=True)
+
+4. "Email ya existe":
+   - El email debe ser único en el sistema
+   - Usar otro email o verificar si usuario ya existe
+
+DEBUGGING:
+- Revisar Network tab en DevTools del navegador
+- Verificar requests y responses
+- Revisar console para errores JavaScript
+- Verificar logs del servidor Django
+
+CONTACTO BACKEND:
+- Toda la funcionalidad está implementada y probada
+- Scripts de prueba disponibles en el proyecto
+- Base de datos con usuarios de ejemplo configurada
+
+==================================================================================
+✅ CHECKLIST DE IMPLEMENTACIÓN
+==================================================================================
+
+FASE 1 - CONFIGURACIÓN BÁSICA:
+□ Configurar cliente HTTP (axios/fetch)
+□ Definir URLs de endpoints
+□ Implementar helper para requests autenticados
+□ Configurar manejo de tokens JWT
+
+FASE 2 - AUTENTICACIÓN:
+□ Crear formulario login administrador
+□ Implementar login con validación
+□ Guardar tokens en localStorage
+□ Implementar logout
+□ Agregar renovación automática de tokens
+
+FASE 3 - GESTIÓN USUARIOS SEGURIDAD:
+□ Crear formulario para nuevo usuario seguridad
+□ Implementar validaciones client-side
+□ Conectar con endpoint de creación
+□ Mostrar mensajes de éxito/error
+
+FASE 4 - LISTA Y GESTIÓN:
+□ Crear tabla de usuarios seguridad
+□ Implementar carga de datos
+□ Agregar filtros y búsqueda
+□ Implementar cambio de estado (activar/desactivar)
+□ Implementar reset de contraseña
+
+FASE 5 - UX/UI:
+□ Diseñar interfaz administrativa
+□ Agregar indicadores de carga
+□ Implementar confirmaciones para acciones
+□ Agregar responsive design
+□ Agregar navegación entre secciones
+
+FASE 6 - LOGIN SEGURIDAD:
+□ Crear formulario login para personal seguridad
+□ Implementar redirección según rol
+□ Crear panel básico para usuarios seguridad
+□ Implementar logout
+
+FASE 7 - TESTING:
+□ Probar flujo completo admin
+□ Probar flujo completo seguridad
+□ Probar manejo de errores
+□ Probar en diferentes navegadores
+□ Probar con datos reales
+
+==================================================================================
+📝 NOTAS FINALES
+==================================================================================
+
+ESTADO DEL BACKEND: ✅ COMPLETAMENTE FUNCIONAL
+- Todos los endpoints implementados y probados
+- Base de datos con usuarios de ejemplo
+- Sistema de permisos funcionando
+- Tokens JWT configurados correctamente
+
+CREDENCIALES VERIFICADAS: ✅ FUNCIONANDO
+- prueba.seguridad@test.com / prueba123
+- carlos.test@condominio.com / test123
+
+SERVIDOR: ✅ EJECUTÁNDOSE
+- URL: http://127.0.0.1:8000
+- Para iniciar: python manage.py runserver
+
+PRÓXIMO PASO:
+Implementar el frontend siguiendo esta guía paso a paso. El backend está listo para recibir todas las peticiones descritas en este documento.
+
+¡ÉXITO EN LA IMPLEMENTACIÓN! 🚀
+
+==================================================================================

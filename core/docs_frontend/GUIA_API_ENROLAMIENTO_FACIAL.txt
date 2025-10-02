@@ -1,0 +1,132 @@
+GUÍA COMPLETA DE ENROLAMIENTO Y AUTENTICACIÓN FACIAL (API, PAYLOADS Y FLUJO)
+==========================================================================
+
+1. ENDPOINTS DISPONIBLES
+------------------------
+- POST   /api/faces/enroll/                → Enrolar imagen facial a copropietario
+- POST   /api/faces/verify/                → Verificar imagen facial (autenticación)
+- DELETE /api/faces/enroll/<id>/           → Eliminar enrolamiento facial
+- GET    /api/faces/status/<id>/           → Consultar estado de enrolamiento facial
+
+2. ENROLAMIENTO DE ROSTRO (POST /api/faces/enroll/)
+---------------------------------------------------
+- Permite asociar una imagen facial a un copropietario (o inquilino si está modelado igual).
+- Requiere autenticación (token JWT).
+
+Payload (form-data):
+---------------------
+- copropietario_id: int (ID del copropietario)
+- imagen: archivo (imagen JPG, PNG, BMP, GIF, máx 5MB)
+
+Ejemplo cURL:
+-------------
+curl -X POST http://localhost:8000/api/faces/enroll/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "copropietario_id=1" \
+  -F "imagen=@/ruta/a/rostro.jpg"
+
+Respuesta exitosa (201/200):
+----------------------------
+{
+  "ok": true,
+  "proveedor": "local|azure|aws|...",
+  "face_ref": "id_interno",
+  "imagen_url": "http://...",
+  "timestamp": "2025-09-26T12:34:56Z",
+  "copropietario_id": 1,
+  "updated": false,
+  "confidence": 0.98
+}
+
+Respuesta de error (400/404):
+----------------------------
+{
+  "error": "Datos inválidos",
+  "detail": {"imagen": ["Debe proporcionar un archivo de imagen válido"]}
+}
+
+3. VERIFICACIÓN FACIAL (POST /api/faces/verify/)
+------------------------------------------------
+- Permite autenticar a un copropietario subiendo una imagen y comparando con su enrolamiento.
+- Requiere autenticación (token JWT).
+
+Payload (form-data):
+---------------------
+- copropietario_id: int
+- imagen: archivo (imagen JPG, PNG, BMP, GIF, máx 5MB)
+
+Ejemplo cURL:
+-------------
+curl -X POST http://localhost:8000/api/faces/verify/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "copropietario_id=1" \
+  -F "imagen=@/ruta/a/rostro.jpg"
+
+Respuesta exitosa (200):
+------------------------
+{
+  "match": true,
+  "confianza": 0.97,
+  "proveedor": "local|azure|aws|...",
+  "umbral": 0.6,
+  "copropietario_id": 1,
+  "timestamp": "2025-09-26T12:35:00Z",
+  "distance": 0.42
+}
+
+Respuesta de error (400/404):
+----------------------------
+{
+  "error": "Copropietario no tiene enrolamiento facial activo"
+}
+
+4. ELIMINAR ENROLAMIENTO (DELETE /api/faces/enroll/<id>/)
+---------------------------------------------------------
+- Elimina (desactiva) el enrolamiento facial de un copropietario.
+- Requiere autenticación.
+
+Ejemplo cURL:
+-------------
+curl -X DELETE http://localhost:8000/api/faces/enroll/1/ \
+  -H "Authorization: Bearer <TOKEN>"
+
+Respuesta exitosa (200):
+------------------------
+{
+  "message": "Enrolamiento facial eliminado exitosamente"
+}
+
+5. CONSULTAR ESTADO (GET /api/faces/status/<id>/)
+-------------------------------------------------
+- Consulta si un copropietario tiene enrolamiento facial activo y detalles.
+- Requiere autenticación.
+
+Ejemplo cURL:
+-------------
+curl -X GET http://localhost:8000/api/faces/status/1/ \
+  -H "Authorization: Bearer <TOKEN>"
+
+Respuesta exitosa (200):
+------------------------
+{
+  "copropietario_id": 1,
+  "enrolled": true,
+  "provider": "local|azure|aws|...",
+  "enrollment_date": "2025-09-26T12:34:56Z",
+  "verification_attempts": 3,
+  "last_verification": "2025-09-26T12:35:00Z",
+  "confidence": 0.98
+}
+
+6. NOTAS PARA FRONTEND Y GESTIÓN DE USUARIOS
+--------------------------------------------
+- El campo copropietario_id puede ser de inquilino si el modelo lo permite (verifica en tu backend si ReconocimientoFacial soporta inquilinos).
+- El payload siempre es form-data con imagen y copropietario_id.
+- El backend valida formato, tamaño y unicidad de enrolamiento.
+- El frontend debe mostrar mensajes claros según la respuesta de la API.
+- Para enrolar desde el formulario de usuario, usa el endpoint de enrolamiento y muestra el estado usando el endpoint de status.
+- Para login/autenticación facial, usa el endpoint de verificación.
+
+---
+
+Esta guía cubre endpoints, payloads, respuestas y recomendaciones para integrar el enrolamiento y autenticación facial en la gestión de usuarios (copropietarios e inquilinos).

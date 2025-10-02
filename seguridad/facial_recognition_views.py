@@ -12,8 +12,11 @@ import base64
 import io
 import numpy as np
 from PIL import Image
-from datetime import datetime
 from django.utils import timezone
+
+# Importar modelos existentes
+from authz.models import Persona
+from seguridad.models import Copropietarios, ReconocimientoFacial
 
 # Lazy import de face_recognition para evitar errores al arrancar Django
 def get_face_recognition():
@@ -27,9 +30,6 @@ def get_face_recognition():
         ) from e
 
 # Importar modelos existentes
-from authz.models import Usuario, Persona
-from seguridad.models import Copropietarios, ReconocimientoFacial
-from core.models import Vivienda
 
 class FacialRecognitionService:
     """Servicio para reconocimiento facial usando modelos existentes"""

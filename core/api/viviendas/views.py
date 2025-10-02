@@ -126,6 +126,33 @@ class ViviendaViewSet(viewsets.ModelViewSet):
             'metros_cuadrados': metros_stats,
             'tarifas': tarifa_stats
         })
+    
+    @action(detail=False, methods=['get'], url_path='estadisticas-frontend')
+    def estadisticas_frontend(self, request):
+        """
+        Endpoint optimizado para el frontend que devuelve viviendas y estadísticas
+        en el formato esperado por getEstadisticasViviendas()
+        """
+        # Obtener todas las viviendas con el serializer completo
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        viviendas_data = serializer.data
+        
+        # Calcular estadísticas basadas en estado_ocupacion
+        total = len(viviendas_data)
+        ocupadas = len([v for v in viviendas_data if v.get('estado_ocupacion') == 'ocupada'])
+        alquiladas = len([v for v in viviendas_data if v.get('estado_ocupacion') == 'alquilada'])
+        disponibles = len([v for v in viviendas_data if v.get('estado_ocupacion') == 'disponible'])
+        
+        return Response({
+            'viviendas': viviendas_data,
+            'estadisticas': {
+                'total': total,
+                'ocupadas': ocupadas,
+                'alquiladas': alquiladas,
+                'disponibles': disponibles
+            }
+        })
 
 
 class PropiedadViewSet(viewsets.ModelViewSet):

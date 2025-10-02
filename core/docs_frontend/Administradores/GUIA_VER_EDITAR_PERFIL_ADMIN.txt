@@ -1,0 +1,219 @@
+# GUÍA ADMINISTRADORES - VER Y EDITAR PERFIL
+================================================================
+
+## 🔐 PANEL ADMINISTRADOR - GESTIÓN DE PERFIL PERSONAL
+
+### 📋 INFORMACIÓN GENERAL
+- **Rol**: Administrador
+- **Permisos**: Ver y editar su propio perfil + gestionar otros usuarios
+- **Acceso**: Panel de administración completo
+
+---
+
+## 🔍 1. VER PERFIL PERSONAL
+
+### Endpoint para obtener datos propios:
+```
+GET /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_admin>",
+  "Content-Type": "application/json"
+}
+```
+
+### Respuesta esperada:
+```json
+{
+  "id": 1,
+  "email": "admin@sistema.com",
+  "estado": "ACTIVO",
+  "is_staff": true,
+  "is_superuser": false,
+  "last_login": "2025-09-26T10:30:00Z",
+  "date_joined": "2025-09-01T08:00:00Z",
+  "persona": {
+    "id": 1,
+    "nombre": "Juan Carlos",
+    "apellido": "Administrador",
+    "documento_identidad": "12345678",
+    "telefono": "70123456",
+    "email": "admin@sistema.com",
+    "fecha_nacimiento": "1985-05-15",
+    "genero": "Masculino",
+    "pais": "Bolivia",
+    "direccion": "Av. Principal #123",
+    "tipo_persona": "administrador",
+    "activo": true
+  },
+  "roles": [
+    {
+      "id": 1,
+      "nombre": "Administrador",
+      "descripcion": "Administrador del sistema",
+      "activo": true
+    }
+  ],
+  "nombres": "Juan Carlos",
+  "apellidos": "Administrador",
+  "telefono": "70123456",
+  "fecha_nacimiento": "1985-05-15",
+  "genero": "Masculino",
+  "documento_identidad": "12345678",
+  "pais": "Bolivia"
+}
+```
+
+### 💡 Campos importantes para mostrar en el frontend:
+- **Información básica**: nombre, apellido, email
+- **Datos personales**: teléfono, fecha de nacimiento, género
+- **Datos del sistema**: fecha de registro, último login
+- **Roles asignados**: siempre mostrará "Administrador"
+
+---
+
+## ✏️ 2. EDITAR PERFIL PERSONAL
+
+### Endpoint para editar datos propios:
+```
+PATCH /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_admin>",
+  "Content-Type": "application/json"
+}
+```
+
+### Campos editables:
+```json
+{
+  "email": "nuevo_email@sistema.com",
+  "nombres": "Juan Carlos Actualizado",
+  "apellidos": "Administrador Nuevo",
+  "telefono": "70987654",
+  "fecha_nacimiento": "1985-05-15",
+  "genero": "Masculino",
+  "pais": "Bolivia",
+  "direccion": "Nueva dirección #456"
+}
+```
+
+### 🚫 Campos NO editables por el propio admin:
+- `roles`: Solo otros admins pueden cambiar roles
+- `estado`: Solo otros admins pueden activar/desactivar
+- `is_staff`, `is_superuser`: Solo superusuarios
+- `date_joined`: Fecha de registro (solo lectura)
+
+### Respuesta exitosa (200 OK):
+```json
+{
+  "id": 1,
+  "email": "nuevo_email@sistema.com",
+  "estado": "ACTIVO",
+  "nombres": "Juan Carlos Actualizado",
+  "apellidos": "Administrador Nuevo",
+  "telefono": "70987654",
+  "roles": [
+    {
+      "id": 1,
+      "nombre": "Administrador"
+    }
+  ]
+}
+```
+
+---
+
+## 🔧 3. CAMBIAR CONTRASEÑA
+
+### Endpoint para cambio de contraseña:
+```
+POST /api/authz/change-password/
+```
+
+### Datos requeridos:
+```json
+{
+  "password_actual": "contraseña_actual",
+  "password_nueva": "nueva_contraseña_segura",
+  "password_nueva_confirm": "nueva_contraseña_segura"
+}
+```
+
+### Validaciones:
+- Contraseña actual debe ser correcta
+- Nueva contraseña mínimo 8 caracteres
+- Confirmación debe coincidir
+
+---
+
+## 👥 4. FUNCIONALIDADES ADICIONALES PARA ADMIN
+
+### Ver otros usuarios:
+```
+GET /api/authz/usuarios/
+```
+
+### Editar otros usuarios:
+```
+PATCH /api/authz/usuarios/{id}/
+```
+
+### Cambiar roles de usuarios:
+```json
+{
+  "roles": [1, 2, 3]  // IDs de roles a asignar
+}
+```
+
+---
+
+## 🎨 RECOMENDACIONES DE UI/UX
+
+### Sección "Mi Perfil":
+1. **Vista de perfil** (modo solo lectura)
+2. **Botón "Editar perfil"** → formulario editable
+3. **Botón "Cambiar contraseña"** → modal separado
+4. **Información del sistema** (fecha registro, último login)
+
+### Formulario de edición:
+- Campos organizados en secciones
+- Validación en tiempo real
+- Botones "Guardar" y "Cancelar"
+- Mensajes de confirmación
+
+### Seguridad:
+- Timeout de sesión automático
+- Confirmación para cambios críticos
+- Auditoría de cambios (opcional)
+
+---
+
+## ⚠️ CONSIDERACIONES IMPORTANTES
+
+1. **Autorización**: Validar token en cada request
+2. **Validación**: Cliente y servidor deben validar datos
+3. **Errores**: Manejar responses 400, 401, 403, 500
+4. **UX**: Feedback visual para operaciones exitosas/fallidas
+5. **Seguridad**: NUNCA mostrar contraseñas en texto plano
+
+---
+
+## 🔗 ENDPOINTS RELACIONADOS
+
+- `GET /api/authz/usuarios/me/` - Ver perfil propio
+- `PATCH /api/authz/usuarios/me/` - Editar perfil propio  
+- `POST /api/authz/change-password/` - Cambiar contraseña
+- `GET /api/authz/usuarios/` - Listar todos los usuarios (admin)
+- `PATCH /api/authz/usuarios/{id}/` - Editar cualquier usuario (admin)
+
+---
+
+**Fecha de actualización**: 26 de septiembre de 2025
+**Estado**: ✅ FUNCIONAL - Endpoints verificados y operativos

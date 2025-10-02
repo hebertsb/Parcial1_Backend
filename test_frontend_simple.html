@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Reconocimiento Facial - Prueba Simple</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .connected .status-dot { background-color: #28a745; }
+        .disconnected .status-dot { background-color: #dc3545; }
+        
+        video {
+            width: 100%;
+            max-width: 640px;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 15px 30px;
+            margin: 0 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .btn-start {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-stop {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #007bff;
+        }
+        
+        .result.success {
+            background-color: #d4edda;
+            border-left-color: #28a745;
+        }
+        
+        .result.failed {
+            background-color: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        .stats {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #333; margin-bottom: 30px;">
+            🎯 Reconocimiento Facial WebRTC - Prueba Simple
+        </h1>
+        
+        <!-- Estado de conexión -->
+        <div id="connectionStatus" class="status disconnected">
+            <div class="status-dot"></div>
+            <span id="statusText">❌ Desconectado del servidor</span>
+            <small style="margin-left: auto;">http://localhost:8001</small>
+        </div>
+        
+        <!-- Video -->
+        <div style="text-align: center;">
+            <video id="videoElement" autoplay muted playsinline></video>
+            <canvas id="canvasElement" class="hidden"></canvas>
+        </div>
+        
+        <!-- Controles -->
+        <div class="controls">
+            <button id="startBtn" class="btn-start" disabled>
+                ▶️ Iniciar Reconocimiento
+            </button>
+            <button id="stopBtn" class="btn-stop" disabled>
+                ⏹️ Detener
+            </button>
+        </div>
+        
+        <!-- Resultado -->
+        <div id="resultContainer" class="hidden">
+            <div id="result" class="result"></div>
+        </div>
+        
+        <!-- Estadísticas -->
+        <div id="statsContainer" class="hidden">
+            <div class="stats">
+                <h4>📊 Estadísticas del Servidor</h4>
+                <div class="grid" id="statsGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // ⚠️ CONFIGURACIÓN PRINCIPAL - AQUÍ CAMBIAS EL PUERTO
+        const CONFIG = {
+            // IMPORTANTE: Tu backend WebRTC está en puerto 8001, NO 8000
+            SOCKET_URL: 'http://localhost:8001',
+            SEND_INTERVAL: 2000 // Enviar frame cada 2 segundos
+        };
+
+        // Variables globales
+        let socket = null;
+        let isConnected = false;
+        let isRecording = false;
+        let videoStream = null;
+        let sendInterval = null;
+
+        // Elementos DOM
+        const connectionStatus = document.getElementById('connectionStatus');
+        const statusText = document.getElementById('statusText');
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resultContainer = document.getElementById('resultContainer');
+        const result = document.getElementById('result');
+        const statsContainer = document.getElementById('statsContainer');
+        const statsGrid = document.getElementById('statsGrid');
+
+        // Inicializar cuando se carga la página
+        window.addEventListener('load', initialize);
+
+        async function initialize() {
+            console.log('🚀 Inicializando aplicación...');
+            
+            try {
+                await setupCamera();
+                connectToServer();
+                setupEventListeners();
+            } catch (error) {
+                console.error('❌ Error en inicialización:', error);
+                alert('Error inicializando la aplicación: ' + error.message);
+            }
+        }
+
+        async function setupCamera() {
+            console.log('📹 Configurando cámara...');
+            
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 15 }
+                    },
+                    audio: false
+                });
+
+                videoElement.srcObject = videoStream;
+                console.log('✅ Cámara configurada correctamente');
+            } catch (error) {
+                console.error('❌ Error accediendo a la cámara:', error);
+                throw new Error('No se pudo acceder a la cámara. Verifica los permisos.');
+            }
+        }
+
+        function connectToServer() {
+            console.log('🔗 Conectando a servidor:', CONFIG.SOCKET_URL);
+            
+            socket = io(CONFIG.SOCKET_URL, {
+                transports: ['websocket', 'polling'],
+                timeout: 10000
+            });
+
+            // Evento: Conexión exitosa
+            socket.on('connect', () => {
+                console.log('✅ Conectado al servidor WebRTC');
+                isConnected = true;
+                updateConnectionStatus(true);
+                startBtn.disabled = false;
+            });
+
+            // Evento: Desconexión
+            socket.on('disconnect', (reason) => {
+                console.log('❌ Desconectado del servidor:', reason);
+                isConnected = false;
+                updateConnectionStatus(false);
+                startBtn.disabled = true;
+                stopRecognition();
+            });
+
+            // Evento: Resultado de reconocimiento
+            socket.on('recognition_result', (data) => {
+                console.log('🎯 Resultado recibido:', data);
+                displayResult(data);
+            });
+
+            // Evento: Estadísticas del servidor
+            socket.on('stats', (data) => {
+                console.log('📊 Estadísticas:', data);
+                displayStats(data);
+            });
+
+            // Evento: Error del servidor
+            socket.on('error', (error) => {
+                console.error('❌ Error del servidor:', error);
+                alert('Error del servidor: ' + error.message);
+            });
+
+            // Evento: Error de conexión
+            socket.on('connect_error', (error) => {
+                console.error('❌ Error de conexión:', error);
+                updateConnectionStatus(false);
+                alert('No se pudo conectar al servidor. Verifica que esté ejecutándose en el puerto 8001.');
+            });
+        }
+
+        function setupEventListeners() {
+            startBtn.addEventListener('click', startRecognition);
+            stopBtn.addEventListener('click', stopRecognition);
+        }
+
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.className = 'status connected';
+                statusText.textContent = '✅ Conectado al servidor';
+            } else {
+                connectionStatus.className = 'status disconnected';
+                statusText.textContent = '❌ Desconectado del servidor';
+            }
+        }
+
+        function startRecognition() {
+            if (!isConnected || !socket) {
+                alert('No hay conexión con el servidor');
+                return;
+            }
+
+            console.log('▶️ Iniciando reconocimiento...');
+            isRecording = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            // Enviar frames periódicamente
+            sendInterval = setInterval(() => {
+                if (isRecording && isConnected) {
+                    captureAndSendFrame();
+                }
+            }, CONFIG.SEND_INTERVAL);
+
+            // Enviar primer frame inmediatamente
+            captureAndSendFrame();
+        }
+
+        function stopRecognition() {
+            console.log('⏹️ Deteniendo reconocimiento...');
+            isRecording = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            if (sendInterval) {
+                clearInterval(sendInterval);
+                sendInterval = null;
+            }
+        }
+
+        function captureAndSendFrame() {
+            if (!videoElement || !canvasElement || !socket) return;
+
+            try {
+                // Configurar canvas con las dimensiones del video
+                const canvas = canvasElement;
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+
+                // Dibujar frame actual del video en el canvas
+                ctx.drawImage(videoElement, 0, 0);
+
+                // Convertir a base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // Enviar al servidor
+                const frameData = {
+                    image: imageData,
+                    frame_id: Date.now(),
+                    timestamp: new Date().toISOString()
+                };
+
+                console.log('📤 Enviando frame...');
+                socket.emit('process_frame', frameData);
+
+            } catch (error) {
+                console.error('❌ Error capturando frame:', error);
+            }
+        }
+
+        function displayResult(data) {
+            resultContainer.classList.remove('hidden');
+            
+            if (data.reconocido && data.persona) {
+                // Reconocimiento exitoso
+                result.className = 'result success';
+                result.innerHTML = `
+                    <h3>✅ Persona Reconocida</h3>
+                    <div class="grid">
+                        <div><strong>Nombre:</strong> ${data.persona.nombre}</div>
+                        <div><strong>Vivienda:</strong> ${data.persona.vivienda || 'N/A'}</div>
+                        <div><strong>Documento:</strong> ${data.persona.documento || 'N/A'}</div>
+                        <div><strong>Confianza:</strong> ${(data.confianza * 100).toFixed(1)}%</div>
+                        <div><strong>Proveedor:</strong> ${data.proveedor}</div>
+                        <div><strong>Tiempo:</strong> ${data.processing_time}ms</div>
+                    </div>
+                `;
+            } else {
+                // No reconocida
+                result.className = 'result failed';
+                result.innerHTML = `
+                    <h3>❌ Persona No Reconocida</h3>
+                    <p>No se encontró coincidencia en la base de datos.</p>
+                    <div><strong>Proveedor:</strong> ${data.proveedor}</div>
+                    <div><strong>Tiempo:</strong> ${data.processing_time}ms</div>
+                `;
+            }
+        }
+
+        function displayStats(data) {
+            if (!data) return;
+
+            statsContainer.classList.remove('hidden');
+            
+            statsGrid.innerHTML = `
+                <div class="stat-item">
+                    <strong>${data.total_frames_processed || 0}</strong>
+                    <br>Frames Procesados
+                </div>
+                <div class="stat-item">
+                    <strong>${data.successful_recognitions || 0}</strong>
+                    <br>Reconocimientos Exitosos
+                </div>
+                <div class="stat-item">
+                    <strong>${data.failed_recognitions || 0}</strong>
+                    <br>Reconocimientos Fallidos
+                </div>
+                <div class="stat-item">
+                    <strong>${(data.average_processing_time || 0).toFixed(1)}ms</strong>
+                    <br>Tiempo Promedio
+                </div>
+            `;
+        }
+
+        // Limpiar recursos cuando se cierra la página
+        window.addEventListener('beforeunload', () => {
+            if (socket) {
+                socket.disconnect();
+            }
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

@@ -67,7 +67,7 @@ class FamiliarPropietarioRegistroSerializer(serializers.ModelSerializer):
         }
         # Subir imagen a Dropbox y guardar URL
         filename = f"{persona_data['documento_identidad']}_perfil.jpg"
-        folder = f"/Aplicaciones/FotoVisita/Familiares/{persona_data['documento_identidad']}"
+        folder = f"/Aplicaciones/ParcialSI2/Familiares/{persona_data['documento_identidad']}"
         dropbox_result = upload_image_to_dropbox(foto_perfil_file, filename, folder=folder)
         persona_data['foto_perfil'] = dropbox_result['url']
         # Crear persona

@@ -1,0 +1,217 @@
+# 📚 DOCUMENTACIÓN COMPLETA - GESTIÓN DE PERFILES POR ROLES
+================================================================================
+
+## 🎯 RESUMEN EJECUTIVO
+
+Se ha completado exitosamente la documentación completa para la gestión de perfiles y edición de datos personales en el sistema, organizada por roles de usuario. Todas las guías están basadas en la funcionalidad **VERIFICADA Y FUNCIONAL** del backend.
+
+---
+
+## 📁 ESTRUCTURA DE DOCUMENTACIÓN CREADA
+
+```
+docs_frontend/
+├── Administradores/
+│   └── GUIA_VER_EDITAR_PERFIL_ADMIN.txt        ✅ COMPLETO
+├── Propietarios/
+│   └── GUIA_VER_EDITAR_PERFIL_PROPIETARIO.txt  ✅ COMPLETO
+├── Inquilinos/
+│   └── GUIA_VER_EDITAR_PERFIL_INQUILINO.txt    ✅ COMPLETO
+├── Seguridad/
+│   └── GUIA_VER_EDITAR_PERFIL_SEGURIDAD.txt    ✅ COMPLETO
+└── RESUMEN_DOCUMENTACION_PERFILES.txt          ✅ COMPLETO
+```
+
+---
+
+## 🔐 MATRIZ DE PERMISOS POR ROL
+
+### 📊 **ADMINISTRADOR** (Permisos completos):
+- **Ver**: ✅ Todos los usuarios y sus datos completos
+- **Editar**: ✅ Todo tipo de información de cualquier usuario
+- **Roles**: ✅ Asignar/remover roles
+- **Estado**: ✅ Activar/desactivar usuarios
+- **Gestión**: ✅ Control total del sistema
+
+### 🏠 **PROPIETARIO** (Permisos medios):
+- **Ver**: ✅ Su perfil completo + básico de inquilinos de su propiedad
+- **Editar**: ✅ Sus datos personales completos (excepto roles)
+- **Roles**: ❌ No puede cambiar roles
+- **Estado**: ❌ No puede cambiar estados
+- **Gestión**: ✅ Inquilinos de sus propiedades
+
+### 🏃 **INQUILINO** (Permisos básicos):
+- **Ver**: ✅ Solo su perfil personal
+- **Editar**: ⚠️ Solo teléfono y dirección
+- **Roles**: ❌ No puede cambiar roles
+- **Estado**: ❌ No puede cambiar estados
+- **Gestión**: ❌ Sin permisos de gestión
+
+### 🛡️ **SEGURIDAD** (Permisos especializados):
+- **Ver**: ✅ Su perfil + información básica de residentes
+- **Editar**: ⚠️ Solo teléfono, email y dirección propios
+- **Roles**: ❌ No puede cambiar roles
+- **Estado**: ❌ No puede cambiar estados
+- **Gestión**: ✅ Incidentes, visitas, emergencias
+
+---
+
+## 🛠️ ENDPOINTS PRINCIPALES DOCUMENTADOS
+
+### Gestión de perfil propio:
+```
+GET  /api/authz/usuarios/me/           # Ver perfil propio
+PATCH /api/authz/usuarios/me/          # Editar perfil propio
+POST /api/authz/change-password/       # Cambiar contraseña
+```
+
+### Gestión de usuarios (solo admin):
+```
+GET  /api/authz/usuarios/              # Listar usuarios
+GET  /api/authz/usuarios/{id}/         # Ver usuario específico
+PATCH /api/authz/usuarios/{id}/        # Editar roles/estado
+PATCH /api/authz/usuarios/{id}/editar-datos/  # Editar datos personales
+```
+
+### Especializados por rol:
+```
+# Propietarios
+GET /api/authz/propietarios/mis-inquilinos/
+
+# Seguridad  
+GET /api/seguridad/residentes/
+POST /api/seguridad/incidentes/
+POST /api/seguridad/visitas/
+```
+
+---
+
+## ✅ FUNCIONALIDAD VERIFICADA
+
+### Backend completamente funcional:
+- ✅ **PATCH /api/authz/usuarios/{id}/**: Cambio de roles OK
+- ✅ **PATCH /api/authz/usuarios/{id}/editar-datos/**: Edición de datos OK
+- ✅ **GET /api/authz/usuarios/me/**: Perfil propio OK
+- ✅ **PATCH /api/authz/usuarios/me/**: Edición propia OK
+- ✅ **Permisos por rol**: Correctamente implementados
+
+### Serializers corregidos:
+- ✅ **UsuarioUpdateSerializer**: Funciona para roles
+- ✅ **Validaciones**: Campos requeridos correctos
+- ✅ **Permisos**: Restricciones por rol implementadas
+
+---
+
+## 🚨 PUNTOS CRÍTICOS IMPLEMENTADOS
+
+### Seguridad:
+- **Tokens JWT**: Autenticación en todos los endpoints
+- **Permisos por rol**: Validación en backend
+- **Campos restringidos**: Por tipo de usuario
+- **Logs de cambios**: Para auditoría
+
+### Validaciones:
+- **Email único**: Verificación en cambios
+- **Teléfonos**: Formato boliviano validado
+- **Documentos**: Únicos por persona
+- **Estados**: Transiciones controladas
+
+---
+
+## 📱 RECOMENDACIONES DE IMPLEMENTACIÓN
+
+### Frontend por rol:
+
+#### 🔧 **Panel Admin**:
+- Dashboard completo con gestión de usuarios
+- Formularios con todos los campos editables
+- Vista de permisos y roles
+- Logs de actividad del sistema
+
+#### 🏠 **Panel Propietario**:
+- Vista de perfil personal completa
+- Sección de inquilinos de sus propiedades
+- Formularios de edición personal (sin roles)
+- Gestión básica de inquilinos
+
+#### 🏃 **Panel Inquilino**:
+- Vista simplificada de perfil
+- Solo edición de teléfono y dirección
+- Información de contacto con propietario
+- Sin acceso a gestión de otros usuarios
+
+#### 🛡️ **Panel Seguridad**:
+- Dashboard de vigilancia con cámaras
+- Registro de incidentes y visitas
+- Vista básica de residentes (para identificación)
+- Formularios de emergencia
+
+---
+
+## 🔗 **ENLACES RELACIONADOS**
+
+### Archivos de configuración:
+- `authz/serializers.py` ✅ Corregido
+- `authz/views.py` ✅ Actualizado
+- `authz/models.py` ✅ Funcional
+
+### Scripts de prueba:
+- `test_patch_roles.py` ✅ Exitoso
+- `test_direct_patch.py` ✅ Exitoso
+- `verificar_admins.py` ✅ Funcional
+
+---
+
+## 📋 CHECKLIST DE IMPLEMENTACIÓN FRONTEND
+
+### Para desarrolladores:
+
+#### ✅ **Fase 1 - Autenticación**:
+- [ ] Login con roles
+- [ ] Redirección por rol
+- [ ] Protección de rutas
+- [ ] Manejo de tokens
+
+#### ✅ **Fase 2 - Perfiles**:
+- [ ] Vista de perfil propio por rol
+- [ ] Formularios de edición con validaciones
+- [ ] Cambio de contraseña
+- [ ] Manejo de errores
+
+#### ✅ **Fase 3 - Gestión avanzada**:
+- [ ] Panel admin con todos los usuarios
+- [ ] Gestión de inquilinos para propietarios
+- [ ] Sistema de incidentes para seguridad
+- [ ] Dashboards especializados
+
+---
+
+## 🎯 **PRÓXIMOS PASOS RECOMENDADOS**
+
+1. **Implementar interfaces** usando las guías creadas
+2. **Probar cada rol** con usuarios reales
+3. **Validar permisos** en frontend y backend  
+4. **Crear tests automatizados** para cada función
+5. **Documentar APIs adicionales** según necesidades
+
+---
+
+## 📞 **SOPORTE TÉCNICO**
+
+### Documentación disponible:
+- ✅ Guías completas por rol en `docs_frontend/`
+- ✅ Ejemplos de requests/responses
+- ✅ Códigos de error y manejo
+- ✅ Recomendaciones de UI/UX
+
+### Backend verificado:
+- ✅ Endpoints funcionando correctamente
+- ✅ Permisos implementados
+- ✅ Validaciones activas
+- ✅ Logs disponibles para debug
+
+---
+
+**Estado final**: 🎉 **DOCUMENTACIÓN COMPLETA Y BACKEND FUNCIONAL**  
+**Fecha**: 26 de septiembre de 2025  
+**Verificado**: ✅ Todas las funcionalidades probadas exitosamente

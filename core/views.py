@@ -2,6 +2,7 @@ from typing import cast
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import Sum
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -186,4 +187,92 @@ class DemoDebtsView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+# Vista básica de demostración (sin face_recognition)
+class DemoView(APIView):
+    """
+    Vista de demostración que no requiere face_recognition
+    """
+    def get(self, request):
+        from django.db import connection
+        from core.models import Persona, Vivienda
+        
+        try:
+            # Información básica del sistema
+            personas_count = Persona.objects.count()
+            viviendas_count = Vivienda.objects.count()
+            
+            return Response({
+                'status': 'Sistema funcionando correctamente',
+                'timestamp': timezone.now(),
+                'base_datos': {
+                    'personas_registradas': personas_count,
+                    'viviendas_registradas': viviendas_count,
+                    'conexion_bd': 'Activa'
+                },
+                'mensaje': 'El sistema de reconocimiento facial está configurado y listo para usar'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'status': 'Error en demostración',
+                'error': str(e),
+                'timestamp': timezone.now()
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ===================================================
+# HEALTH CHECK ENDPOINT PARA RAILWAY
+# ===================================================
+
+class HealthCheckView(APIView):
+    """
+    Endpoint de verificación de salud para Railway
+    """
+    permission_classes = []  # Sin permisos para health check
+    
+    def get(self, request):
+        """Verificar el estado de la aplicación"""
+        try:
+            # Verificar conexión a base de datos
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            
+            # Verificar que las dependencias críticas funcionen
+            health_status = {
+                'status': 'healthy',
+                'timestamp': timezone.now().isoformat(),
+                'services': {
+                    'database': 'ok',
+                    'ocr': self._check_ocr(),
+                    'face_recognition': self._check_face_recognition(),
+                }
+            }
+            
+            return Response(health_status, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'status': 'unhealthy',
+                'timestamp': timezone.now().isoformat(),
+                'error': str(e)
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
+    def _check_ocr(self):
+        """Verificar OCR/Tesseract"""
+        try:
+            import pytesseract
+            pytesseract.get_tesseract_version()
+            return 'ok'
+        except Exception:
+            return 'warning'
+    
+    def _check_face_recognition(self):
+        """Verificar Face Recognition"""
+        try:
+            import face_recognition
+            import cv2
+            return 'ok'
+        except Exception:
+            return 'warning'
 

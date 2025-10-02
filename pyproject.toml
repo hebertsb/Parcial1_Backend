@@ -1,0 +1,21 @@
+# pyproject.toml - Configuración del proyecto para mejor compatibilidad con Pylance
+[tool.pylance]
+include = ["**/*.py"]
+extraPaths = [".venv/Lib/site-packages"]
+
+[tool.pyright]
+include = ["**/*.py"]
+pythonVersion = "3.12"
+pythonPlatform = "Windows"
+executionEnvironments = [
+    {
+        root = ".",
+        pythonVersion = "3.12",
+        pythonPlatform = "Windows",
+        extraPaths = [".venv/Lib/site-packages"]
+    }
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

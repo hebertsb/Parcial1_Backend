@@ -1,0 +1,391 @@
+# GUÍA SEGURIDAD - VER Y EDITAR PERFIL
+================================================================
+
+## 🛡️ PANEL SEGURIDAD - GESTIÓN DE PERFIL PERSONAL
+
+### 📋 INFORMACIÓN GENERAL
+- **Rol**: Seguridad
+- **Permisos**: Ver y editar su propio perfil + funciones de seguridad del edificio
+- **Acceso**: Panel de seguridad con funciones específicas de vigilancia
+
+---
+
+## 🔍 1. VER PERFIL PERSONAL
+
+### Endpoint para obtener datos propios:
+```
+GET /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_seguridad>",
+  "Content-Type": "application/json"
+}
+```
+
+### Respuesta esperada:
+```json
+{
+  "id": 20,
+  "email": "seguridad@edificio.com",
+  "estado": "ACTIVO",
+  "is_staff": false,
+  "is_superuser": false,
+  "last_login": "2025-09-26T06:00:00Z",
+  "date_joined": "2025-08-01T09:00:00Z",
+  "persona": {
+    "id": 20,
+    "nombre": "Roberto Carlos",
+    "apellido": "Vigilante",
+    "documento_identidad": "55667788",
+    "telefono": "73456789",
+    "email": "seguridad@edificio.com",
+    "fecha_nacimiento": "1985-11-25",
+    "genero": "Masculino",
+    "pais": "Bolivia",
+    "direccion": "Zona Este #111",
+    "tipo_persona": "seguridad",
+    "activo": true
+  },
+  "roles": [
+    {
+      "id": 2,
+      "nombre": "Seguridad",
+      "descripcion": "Personal de seguridad del edificio",
+      "activo": true
+    }
+  ],
+  "nombres": "Roberto Carlos",
+  "apellidos": "Vigilante",
+  "telefono": "73456789",
+  "fecha_nacimiento": "1985-11-25",
+  "genero": "Masculino",
+  "documento_identidad": "55667788",
+  "pais": "Bolivia"
+}
+```
+
+### 💡 Información adicional específica para seguridad:
+- **Turno de trabajo**: Horario asignado
+- **Zona de responsabilidad**: Área del edificio que vigila
+- **Permisos especiales**: Acceso a cámaras, registros, etc.
+
+---
+
+## ✏️ 2. EDITAR PERFIL PERSONAL (LIMITADO)
+
+### Endpoint para editar datos propios:
+```
+PATCH /api/authz/usuarios/me/
+```
+
+### Headers requeridos:
+```json
+{
+  "Authorization": "Bearer <token_seguridad>",
+  "Content-Type": "application/json"
+}
+```
+
+### Campos editables por personal de seguridad:
+```json
+{
+  "telefono": "73987654",
+  "direccion": "Nueva dirección zona Oeste #222",
+  "email": "nuevo_seguridad@edificio.com"
+}
+```
+
+### 🚫 Campos restringidos para seguridad:
+- `nombres`: Solo admin puede cambiar (contrato laboral)
+- `apellidos`: Solo admin puede cambiar (contrato laboral)
+- `roles`: Solo admin puede cambiar roles
+- `estado`: Solo admin puede activar/desactivar
+- `fecha_nacimiento`: Solo admin (documento legal)
+- `documento_identidad`: Solo admin (verificación laboral)
+- `genero`: Solo admin
+- `pais`: Solo admin
+
+### Respuesta exitosa (200 OK):
+```json
+{
+  "id": 20,
+  "email": "nuevo_seguridad@edificio.com",
+  "estado": "ACTIVO",
+  "telefono": "73987654",
+  "direccion": "Nueva dirección zona Oeste #222"
+}
+```
+
+---
+
+## 👥 3. VER INFORMACIÓN DE RESIDENTES (SOLO LECTURA)
+
+### Endpoint para consultar residentes:
+```
+GET /api/seguridad/residentes/
+```
+
+### Respuesta (información básica para seguridad):
+```json
+[
+  {
+    "id": 5,
+    "nombre_completo": "María Elena Propietaria",
+    "vivienda": "A-101",
+    "telefono": "71234567",
+    "tipo_residente": "propietario",
+    "estado": "activo",
+    "foto_perfil": "/media/fotos/maria_elena.jpg"
+  },
+  {
+    "id": 15,
+    "nombre_completo": "Carlos Alberto Inquilino", 
+    "vivienda": "A-101",
+    "telefono": "72345678",
+    "tipo_residente": "inquilino",
+    "estado": "activo",
+    "foto_perfil": "/media/fotos/carlos_alberto.jpg"
+  }
+]
+```
+
+### 💡 Información útil para seguridad:
+- **Identificación visual**: Fotos de residentes
+- **Ubicación**: Número de vivienda
+- **Contacto**: Teléfono para emergencias
+- **Estado**: Activo/inactivo
+
+---
+
+## 🚨 4. REGISTRAR INCIDENTES
+
+### Endpoint para crear registro de incidente:
+```
+POST /api/seguridad/incidentes/
+```
+
+### Datos del incidente:
+```json
+{
+  "tipo": "acceso_no_autorizado",
+  "descripcion": "Persona desconocida intentó ingresar al edificio",
+  "fecha_hora": "2025-09-26T14:30:00Z",
+  "ubicacion": "Puerta principal",
+  "nivel_gravedad": "medio",
+  "personas_involucradas": ["Desconocido"],
+  "acciones_tomadas": "Se negó el acceso y se registró en video",
+  "requiere_seguimiento": true
+}
+```
+
+### Tipos de incidentes:
+- `acceso_no_autorizado`
+- `ruido_excesivo`
+- `emergencia_medica`
+- `problema_tecnico`
+- `visitante_sospechoso`
+- `otro`
+
+---
+
+## 📹 5. ACCESO A SISTEMA DE VIGILANCIA
+
+### Endpoint para acceder a cámaras:
+```
+GET /api/seguridad/camaras/
+```
+
+### Respuesta:
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Entrada Principal",
+    "ubicacion": "Lobby",
+    "estado": "activa",
+    "url_stream": "/api/seguridad/stream/1/",
+    "grabacion_activa": true
+  },
+  {
+    "id": 2,
+    "nombre": "Parqueadero",
+    "ubicacion": "Sótano",
+    "estado": "activa", 
+    "url_stream": "/api/seguridad/stream/2/",
+    "grabacion_activa": true
+  }
+]
+```
+
+---
+
+## 📋 6. REGISTROS DE VISITAS
+
+### Endpoint para registrar visitas:
+```
+POST /api/seguridad/visitas/
+```
+
+### Datos de la visita:
+```json
+{
+  "visitante_nombre": "Juan Pérez Visitante",
+  "visitante_documento": "98765432",
+  "visitante_telefono": "74567890",
+  "residente_visitado": 5,
+  "vivienda_destino": "A-101",
+  "hora_ingreso": "2025-09-26T15:00:00Z",
+  "hora_salida": null,
+  "motivo_visita": "Visita familiar",
+  "autorizado_por": "propietario"
+}
+```
+
+### Ver registro de visitas:
+```
+GET /api/seguridad/visitas/
+```
+
+---
+
+## 🔐 7. CAMBIAR CONTRASEÑA
+
+### Endpoint para cambio de contraseña:
+```
+POST /api/authz/change-password/
+```
+
+### Datos requeridos:
+```json
+{
+  "password_actual": "contraseña_actual",
+  "password_nueva": "nueva_contraseña_segura",
+  "password_nueva_confirm": "nueva_contraseña_segura"
+}
+```
+
+---
+
+## 🚨 8. EMERGENCIAS Y CONTACTOS
+
+### Endpoint para emergencias:
+```
+POST /api/seguridad/emergencias/
+```
+
+### Datos de emergencia:
+```json
+{
+  "tipo_emergencia": "medica",
+  "ubicacion": "A-101",
+  "descripcion": "Residente necesita atención médica",
+  "nivel_urgencia": "alta",
+  "servicios_contactados": ["ambulancia", "bomberos"],
+  "estado": "en_proceso"
+}
+```
+
+---
+
+## 🎨 RECOMENDACIONES DE UI/UX PARA SEGURIDAD
+
+### Dashboard de Seguridad:
+1. **Estado del turno** (hora inicio/fin)
+2. **Cámaras en vivo** (vista rápida)
+3. **Incidentes del día** (lista reciente)
+4. **Visitantes activos** (quién está dentro)
+5. **Botones de emergencia** (acceso rápido)
+
+### Sección "Mi Perfil":
+1. **Información personal** (campos limitados)
+2. **Datos de contacto** (teléfono, email, dirección)
+3. **Información del turno** (horarios, responsabilidades)
+4. **Historial de incidentes** (reportados por él)
+
+### Interfaz especializada:
+- **Colores de alerta** (rojo, amarillo, verde)
+- **Botones grandes** para emergencias
+- **Vista nocturna** disponible
+- **Acceso rápido** a funciones críticas
+
+---
+
+## ⚠️ LIMITACIONES Y PERMISOS PARA SEGURIDAD
+
+### 🚫 Funciones NO disponibles:
+- Editar información de residentes
+- Acceder a datos financieros
+- Cambiar roles de usuarios
+- Ver información administrativa privada
+- Modificar datos personales importantes
+
+### ✅ Funciones SÍ disponibles:
+- Ver información básica de residentes (para identificación)
+- Registrar incidentes y emergencias
+- Acceder a sistema de cámaras
+- Registrar visitas
+- Ver su propia información completa
+- Contactar administración/propietarios en emergencias
+
+---
+
+## 🔒 SEGURIDAD Y CONFIDENCIALIDAD
+
+### Obligaciones del personal de seguridad:
+- **Confidencialidad**: No divulgar información de residentes
+- **Uso apropiado**: Solo usar datos para funciones de seguridad
+- **Registro preciso**: Documentar todos los incidentes
+- **Protocolo de emergencia**: Seguir procedimientos establecidos
+
+---
+
+## 🔗 ENDPOINTS ESPECÍFICOS PARA SEGURIDAD
+
+### Perfil personal:
+- `GET /api/authz/usuarios/me/` - Ver perfil propio
+- `PATCH /api/authz/usuarios/me/` - Editar perfil (limitado)
+- `POST /api/authz/change-password/` - Cambiar contraseña
+
+### Funciones de seguridad:
+- `GET /api/seguridad/residentes/` - Ver lista de residentes
+- `POST /api/seguridad/incidentes/` - Registrar incidentes
+- `GET /api/seguridad/camaras/` - Acceder a cámaras
+- `POST /api/seguridad/visitas/` - Registrar visitas
+- `GET /api/seguridad/visitas/` - Ver registro de visitas
+
+### Emergencias:
+- `POST /api/seguridad/emergencias/` - Reportar emergencias
+- `GET /api/seguridad/contactos-emergencia/` - Contactos importantes
+
+---
+
+## 📞 CONTACTOS IMPORTANTES PARA SEGURIDAD
+
+### En el sistema:
+- **Administrador**: admin@edificio.com
+- **Emergencias médicas**: 118
+- **Bomberos**: 119  
+- **Policía**: 110
+
+### Contactos internos:
+- **Administración edificio**: Ver en sistema
+- **Propietarios**: Ver en registro de residentes
+- **Mantenimiento**: contacto@mantenimiento.com
+
+---
+
+## 🕐 GESTIÓN DE TURNOS
+
+### Funciones relacionadas con turnos:
+- **Inicio de turno**: Registrar hora de entrada
+- **Log de actividades**: Registro automático de acciones
+- **Fin de turno**: Reporte de novedades del día
+- **Cambio de turno**: Comunicación con relevo
+
+---
+
+**Fecha de actualización**: 26 de septiembre de 2025
+**Estado**: ✅ FUNCIONAL - Permisos de seguridad configurados correctamente

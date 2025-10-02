@@ -1,0 +1,154 @@
+# Guía de Pruebas de Enrolamiento y Verificación Facial desde el Frontend
+
+Esta guía te ayudará a probar el enrolamiento y la verificación facial para copropietarios e inquilinos usando el frontend. Incluye ejemplos de payload, endpoints y recomendaciones para pruebas con una sola foto.
+
+---
+
+## 1. Requisitos previos
+- El usuario (copropietario o inquilino) debe estar registrado en la tabla `Copropietarios`.
+  - Si es inquilino, debe tener `tipo_residente = "Inquilino"`.
+- Debes tener una foto de rostro en formato JPG, PNG, BMP o GIF (máx. 5MB).
+- Debes estar autenticado en el frontend (token JWT o sesión activa).
+
+---
+
+## 2. Enrolamiento facial
+
+### Endpoint
+```
+POST /api/faces/enroll/
+```
+
+### Payload (form-data)
+- Para copropietario:
+  - `copropietario_id`: ID del copropietario
+  - `imagen`: archivo de imagen (foto)
+- Para inquilino:
+  - `inquilino_id`: ID del inquilino (debe estar en Copropietarios como tipo Inquilino)
+  - `imagen`: archivo de imagen (foto)
+
+**Ejemplo en Postman (form-data):**
+- `copropietario_id`: 5
+- `imagen`: [selecciona archivo]
+
+O para inquilino:
+- `inquilino_id`: 12
+- `imagen`: [selecciona archivo]
+
+### Respuesta esperada
+- 201/200 OK (enrolamiento exitoso o actualización):
+```json
+{
+  "ok": true,
+  "proveedor": "Local",
+  "face_ref": "...",
+  "imagen_url": null,
+  "timestamp": "2025-09-26T12:34:56Z",
+  "copropietario_id": 5,
+  "updated": false,
+  "confidence": 0.99
+}
+```
+- 422/400/404: error de validación, usuario no encontrado o imagen inválida.
+
+---
+
+## 3. Verificación facial
+
+### Endpoint
+```
+POST /api/faces/verify/
+```
+
+### Payload (form-data)
+- Igual que enrolamiento: usa `copropietario_id` o `inquilino_id` y la imagen a verificar.
+
+**Ejemplo:**
+- `copropietario_id`: 5
+- `imagen`: [selecciona archivo]
+
+### Respuesta esperada
+- 200 OK:
+```json
+{
+  "match": true,
+  "confianza": 0.98,
+  "proveedor": "Local",
+  "umbral": 0.6,
+  "copropietario_id": 5,
+  "timestamp": "2025-09-26T12:35:10Z",
+  "distance": 0.32
+}
+```
+- 404/422: usuario no enrolado o imagen inválida.
+
+---
+
+## 4. Estado de enrolamiento
+
+### Endpoint
+```
+GET /api/faces/status/<copropietario_id>/
+```
+- Usa el `copropietario_id` (también para inquilinos, ya que internamente es el mismo registro).
+
+### Respuesta esperada
+```json
+{
+  "copropietario_id": 5,
+  "enrolled": true,
+  "provider": "Local",
+  "enrollment_date": "2025-09-26T12:34:56Z",
+  "verification_attempts": 1,
+  "last_verification": "2025-09-26T12:35:10Z",
+  "confidence": 0.99
+}
+```
+
+---
+
+## 5. Consejos para pruebas con una sola foto
+- Puedes usar la misma foto para enrolar y luego para verificar (el resultado debe ser `match: true`).
+- Si usas otra foto distinta, el resultado debería ser `match: false` o menor confianza.
+- Si la imagen no tiene rostro o es de mala calidad, el sistema devolverá error 422.
+
+---
+
+## 6. Notas adicionales
+- Si el inquilino no está en la tabla Copropietarios, debes crearlo primero desde el backend o el panel de administración.
+- El campo `copropietario_id` y `inquilino_id` son excluyentes: solo envía uno por petición.
+- El backend unifica la lógica, así que ambos funcionan igual.
+
+---
+
+## 7. Ejemplos de payload para pruebas reales
+
+### Enrolar un propietario
+- Endpoint: POST /api/faces/enroll/
+- form-data:
+  - copropietario_id: 1
+  - imagen: [selecciona archivo]
+
+### Enrolar un inquilino
+- Endpoint: POST /api/faces/enroll/
+- form-data:
+  - inquilino_id: 2
+  - imagen: [selecciona archivo]
+
+### Verificar un propietario
+- Endpoint: POST /api/faces/verify/
+- form-data:
+  - copropietario_id: 3
+  - imagen: [selecciona archivo]
+
+### Verificar un inquilino
+- Endpoint: POST /api/faces/verify/
+- form-data:
+  - inquilino_id: 4
+  - imagen: [selecciona archivo]
+
+Puedes usar los IDs y nombres listados en la sección anterior para tus pruebas.
+
+---
+
+¿Dudas o problemas? Revisa los logs del backend o consulta con el equipo de desarrollo.

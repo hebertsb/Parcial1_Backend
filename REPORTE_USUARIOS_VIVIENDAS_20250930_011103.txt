@@ -1,0 +1,212 @@
+================================================================================
+📋 REPORTE DE USUARIOS Y VIVIENDAS - SISTEMA DE RECONOCIMIENTO FACIAL
+================================================================================
+
+📅 Fecha de generación: 30/09/2025 01:11:03
+🏠 Sistema de Condominio con Reconocimiento Facial
+🔐 Contraseña por defecto para todos los usuarios: temporal123
+
+================================================================================
+📋 ESTADÍSTICAS GENERALES
+================================================================================
+
+👥 Total de usuarios: 10
+👤 Total de personas: 10
+🏠 Total de viviendas: 5
+📄 Total de solicitudes: 2
+
+  👔 Administrador: 2 usuarios
+  👨‍💼 Propietario: 3 usuarios
+  🏠 Inquilino: 2 usuarios
+  👮‍♂️ Seguridad: 3 usuarios
+  👨‍👩‍👧‍👦 Familiar: 0 usuarios
+
+================================================================================
+📋 🔑 CREDENCIALES DE ACCESO RÁPIDO
+================================================================================
+
+🌐 URLS DEL SISTEMA:
+  📱 Sistema principal: http://127.0.0.1:8000/
+  📚 Documentación API: http://127.0.0.1:8000/api/docs/
+  👔 Panel Admin: http://127.0.0.1:8000/admin/
+  🧪 Demo básico: http://127.0.0.1:8000/api/demo/
+
+🔐 CREDENCIALES POR DEFECTO:
+  🔒 Contraseña universal: temporal123
+  📧 Email formato: [nombre]@ejemplo.com
+
+🚀 USUARIOS DE PRUEBA RECOMENDADOS:
+  👔 Admin: admin@condominio.com / temporal123
+  👨‍💼 Propietario: roberto@email.com / temporal123
+  🏠 Inquilino: sofia@email.com / temporal123
+  👮‍♂️ Seguridad: seguridad1@condominio.com / temporal123
+
+================================================================================
+📋 👔 USUARIOS ADMINISTRADOR (2 USUARIOS)
+================================================================================
+
+ 1. Juan Pérez
+    📧 Email: admin@condominio.com
+    🔐 Password: temporal123
+    🆔 Documento: 12345678
+    📱 Teléfono: 555-1234
+    🔧 Permisos: Administrador del sistema
+    🔐 ID Seguridad: 1
+    🏘️ Unidad: Administración
+    📸 Reconocimiento: Configurado (Local)
+
+ 2. María González
+    📧 Email: admin2@condominio.com
+    🔐 Password: temporal123
+    🆔 Documento: 87654321
+    📱 Teléfono: 555-8765
+    🔧 Permisos: Administrador del sistema
+    🔐 ID Seguridad: 2
+    🏘️ Unidad: Administración
+    📸 Reconocimiento: Configurado (Local)
+
+================================================================================
+📋 👨‍💼 USUARIOS PROPIETARIO (3 USUARIOS)
+================================================================================
+
+ 1. Roberto Silva
+    📧 Email: roberto@email.com
+    🔐 Password: temporal123
+    🆔 Documento: 44444444
+    📱 Teléfono: 555-4444
+    🏠 Vivienda: CASA-001
+    📐 Área: 120.00 m²
+    🏢 Tipo: Casa
+    🏗️ Bloque: A
+    🔐 ID Seguridad: 6
+    🏘️ Unidad: Casa CASA-001
+    📸 Reconocimiento: Configurado (Local)
+
+ 2. Laura Torres
+    📧 Email: laura@email.com
+    🔐 Password: temporal123
+    🆔 Documento: 55555555
+    📱 Teléfono: 555-5555
+    🏠 Vivienda: CASA-002
+    📐 Área: 100.00 m²
+    🏢 Tipo: Casa
+    🔐 ID Seguridad: 7
+    🏘️ Unidad: Casa CASA-002
+    📸 Reconocimiento: Configurado (Local)
+
+ 3. Diego Morales
+    📧 Email: diego@email.com
+    🔐 Password: temporal123
+    🆔 Documento: 66666666
+    📱 Teléfono: 555-6666
+    🏠 Vivienda: CASA-004
+    📐 Área: 150.00 m²
+    🏢 Tipo: Casa
+    🔐 ID Seguridad: 8
+    🏘️ Unidad: Casa CASA-004
+    📸 Reconocimiento: Configurado (Local)
+
+================================================================================
+📋 🏠 USUARIOS INQUILINO (2 USUARIOS)
+================================================================================
+
+ 1. Sofia Vega
+    📧 Email: sofia@email.com
+    🔐 Password: temporal123
+    🆔 Documento: 77777777
+    📱 Teléfono: 555-7777
+    🔐 ID Seguridad: 9
+    🏘️ Unidad: Casa CASA-003
+    📸 Reconocimiento: Configurado (Local)
+
+ 2. Miguel Herrera
+    📧 Email: miguel@email.com
+    🔐 Password: temporal123
+    🆔 Documento: 88888888
+    📱 Teléfono: 555-8888
+    🔐 ID Seguridad: 10
+    🏘️ Unidad: Casa CASA-005
+    📸 Reconocimiento: Configurado (Local)
+
+================================================================================
+📋 👮‍♂️ USUARIOS SEGURIDAD (3 USUARIOS)
+================================================================================
+
+ 1. Carlos Ramírez
+    📧 Email: seguridad1@condominio.com
+    🔐 Password: temporal123
+    🆔 Documento: 11111111
+    📱 Teléfono: 555-1111
+    🛡️ Área: Personal de seguridad
+    🔐 ID Seguridad: 3
+    🏘️ Unidad: Seguridad
+    📸 Reconocimiento: Configurado (Local)
+
+ 2. Ana López
+    📧 Email: seguridad2@condominio.com
+    🔐 Password: temporal123
+    🆔 Documento: 22222222
+    📱 Teléfono: 555-2222
+    🛡️ Área: Personal de seguridad
+    🔐 ID Seguridad: 4
+    🏘️ Unidad: Seguridad
+    📸 Reconocimiento: Configurado (Local)
+
+ 3. Pedro Martín
+    📧 Email: seguridad3@condominio.com
+    🔐 Password: temporal123
+    🆔 Documento: 33333333
+    📱 Teléfono: 555-3333
+    🛡️ Área: Personal de seguridad
+    🔐 ID Seguridad: 5
+    🏘️ Unidad: Seguridad
+    📸 Reconocimiento: Configurado (Local)
+
+================================================================================
+📋 🏠 ESTADO DE VIVIENDAS
+================================================================================
+
+🔴 VIVIENDAS OCUPADAS (3 de 5)
+--------------------------------------------------
+🏠 CASA-001 - Casa
+   👨‍💼 Propietario: Roberto Silva
+   🏗️ Bloque: A
+   📐 Área: 120.00 m²
+
+🏠 CASA-002 - Casa
+   👨‍💼 Propietario: Laura Torres
+   📐 Área: 100.00 m²
+
+🏠 CASA-004 - Casa
+   👨‍💼 Propietario: Diego Morales
+   📐 Área: 150.00 m²
+
+🟢 VIVIENDAS DISPONIBLES (2 de 5)
+--------------------------------------------------
+🏠 CASA-003 - Departamento
+   🏗️ Bloque: B
+   📐 Área: 80.00 m²
+   💰 Tarifa base: $180.00
+
+🏠 CASA-005 - Departamento
+   🏗️ Bloque: C
+   📐 Área: 90.00 m²
+   💰 Tarifa base: $200.00
+
+================================================================================
+📋 📄 SOLICITUDES DE REGISTRO
+================================================================================
+
+🔍 EN_REVISION (1 solicitudes)
+----------------------------------------
+  📋 Carmen Ruiz
+     🏠 Vivienda: CASA-002
+     📧 Email: carmen@email.com
+     🆔 Documento: 10101010
+
+⏳ PENDIENTE (1 solicitudes)
+----------------------------------------
+  📋 Luis Mendoza
+     🏠 Vivienda: CASA-001
+     📧 Email: luis@email.com
+     🆔 Documento: 99999999

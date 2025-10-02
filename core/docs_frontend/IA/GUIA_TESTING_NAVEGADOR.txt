@@ -1,0 +1,533 @@
+================================================================================
+🌐 GUÍA COMPLETA PARA PROBAR EL RECONOCIMIENTO FACIAL EN EL NAVEGADOR
+================================================================================
+
+📋 INSTRUCCIONES PASO A PASO PARA TESTING EN NAVEGADOR WEB
+
+================================================================================
+🚀 PASO 1: PREPARAR EL ENTORNO
+================================================================================
+
+1. ✅ VERIFICAR QUE EL BACKEND ESTÉ CORRIENDO:
+   - Abrir PowerShell en: D:\UNIVERSIDAD_AUTONOMA_GABRIEL_RENE_MORENO\MATERIAS\Sistema_de_Informacion_II\1er_Parcial\backendParcial1
+   - Ejecutar: python manage.py runserver
+   - Verificar que aparezca: "Starting development server at http://127.0.0.1:8000/"
+
+2. ✅ VERIFICAR CONEXIÓN BÁSICA:
+   - Abrir navegador (Chrome/Edge/Firefox)
+   - Ir a: http://127.0.0.1:8000/admin/
+   - Si carga la página de admin de Django = ✅ Backend OK
+
+================================================================================
+🔍 PASO 2: PRUEBAS BÁSICAS DE CONEXIÓN (CONSOLA DEL NAVEGADOR)
+================================================================================
+
+1. 📱 ABRIR CONSOLA DEL NAVEGADOR:
+   - Presionar F12 o Clic derecho → Inspeccionar
+   - Ir a la pestaña "Console" / "Consola"
+
+2. 🧪 TEST 1 - CONEXIÓN BACKEND:
+   
+   Copiar y pegar en la consola:
+   ```javascript
+   // Test básico de conexión backend (Opción 1: Admin Django)
+   fetch('http://127.0.0.1:8000/admin/')
+     .then(r => {
+       console.log('✅ Backend Status:', r.status);
+       if (r.status === 200) {
+         console.log('🎯 Backend Django funcionando correctamente!');
+         console.log('📡 Django Admin página cargada');
+       }
+       return r.text();
+     })
+     .then(html => {
+       if (html.includes('Django')) {
+         console.log('✅ Confirmado: Django está corriendo');
+       }
+     })
+     .catch(e => {
+       console.error('❌ Error conexión backend:', e);
+       console.log('💡 Verificar que Django esté corriendo');
+     });
+   ```
+
+   **🆕 OPCIÓN ALTERNATIVA - HEALTH CHECK API:**
+   ```javascript
+   // Test de conexión usando Health Check API (sin autenticación)
+   fetch('http://127.0.0.1:8000/api/seguridad/health/')
+     .then(r => {
+       console.log('🔍 Health Check Status:', r.status);
+       return r.json();
+     })
+     .then(data => {
+       if (data.success) {
+         console.log('✅ Backend funcionando correctamente!');
+         console.log('📡 Estado:', data.status);
+         console.log('🕐 Timestamp:', data.timestamp);
+         console.log('📦 Versión:', data.version);
+       }
+     })
+     .catch(e => {
+       console.error('❌ Error conexión health check:', e);
+       console.log('💡 Verificar que Django esté corriendo');
+     });
+   ```
+
+   RESULTADO ESPERADO:
+   - ✅ Backend Status: 200
+   - 🎯 Backend Django funcionando correctamente!
+   - ✅ Confirmado: Django está corriendo
+
+3. 🧪 TEST 2 - ENDPOINT RECONOCIMIENTO FACIAL:
+   
+   Copiar y pegar en la consola:
+   ```javascript
+   // Test del endpoint de reconocimiento facial
+   fetch('http://127.0.0.1:8000/seguridad/reconocimiento-facial/', {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+     },
+     body: JSON.stringify({
+       imagen: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k='
+     })
+   })
+   .then(r => {
+     console.log('📡 Endpoint Status:', r.status);
+     if (r.status === 200) {
+       console.log('✅ Endpoint funcionando correctamente');
+       console.log('🎯 Listo para recibir fotos reales');
+     } else if (r.status === 400) {
+       console.log('✅ Endpoint existe (400 = imagen inválida, normal)');
+       console.log('🎯 Listo para recibir fotos reales');
+     }
+     return r.json();
+   })
+   .then(data => {
+     console.log('📋 Response:', data);
+   })
+   .catch(e => console.error('❌ Error endpoint:', e));
+   ```
+
+   RESULTADO ESPERADO:
+   - 📡 Endpoint Status: 200 o 400
+   - ✅ Endpoint funcionando correctamente
+   - 🎯 Listo para recibir fotos reales
+
+================================================================================
+🖼️ PASO 3: PRUEBA CON IMAGEN REAL
+================================================================================
+
+1. 📷 PREPARAR UNA IMAGEN:
+   - Tener lista una foto en tu computadora
+   - Preferiblemente una foto de rostro clara
+   - Tamaño menor a 5MB
+   - Formato: JPG, PNG, WEBP
+
+2. 🧪 TEST 3 - CREAR Y PROBAR CON IMAGEN:
+   
+   Copiar y pegar en la consola:
+   ```javascript
+   // Función para probar con imagen
+   const probarReconocimientoFacial = () => {
+     // Crear input de archivo
+     const input = document.createElement('input');
+     input.type = 'file';
+     input.accept = 'image/*';
+     
+     input.onchange = (event) => {
+       const archivo = event.target.files[0];
+       if (!archivo) return;
+       
+       console.log('📂 Archivo seleccionado:', archivo.name);
+       console.log('📏 Tamaño:', (archivo.size / 1024 / 1024).toFixed(2), 'MB');
+       
+       // Crear FormData
+       const formData = new FormData();
+       formData.append('foto_verificacion', archivo);
+       formData.append('umbral_confianza', '70.0');
+       formData.append('buscar_en', 'propietarios');
+       formData.append('usar_ia_real', 'false'); // Usar simulación primero
+       
+       console.log('🚀 Enviando request...');
+       console.log('⏱️ Esto puede tomar unos segundos...');
+       
+       // Hacer request
+       fetch('http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/', {
+         method: 'POST',
+         body: formData
+       })
+       .then(response => {
+         console.log('📡 Status Code:', response.status);
+         return response.json();
+       })
+       .then(data => {
+         console.log('🎯 RESULTADO COMPLETO:', data);
+         
+         if (data.success) {
+           if (data.verificacion.resultado === 'ACEPTADO') {
+             console.log('✅ ACCESO AUTORIZADO');
+             console.log('👤 Persona:', data.verificacion.persona_identificada.nombre_completo);
+             console.log('🎯 Confianza:', data.verificacion.confianza.toFixed(1) + '%');
+           } else {
+             console.log('❌ ACCESO DENEGADO');
+             console.log('📊 Confianza:', data.verificacion.confianza.toFixed(1) + '%');
+           }
+         } else {
+           console.log('⚠️ ERROR:', data.error);
+         }
+       })
+       .catch(error => {
+         console.error('❌ Error en request:', error);
+       });
+     };
+     
+     // Abrir selector de archivos
+     input.click();
+   };
+   
+   // Ejecutar función
+   console.log('📂 Selecciona una imagen para probar...');
+   probarReconocimientoFacial();
+   ```
+
+3. 📝 QUÉ HACER:
+   - Ejecutar el código de arriba
+   - Se abrirá un selector de archivos
+   - Elegir una imagen (foto de rostro)
+   - Esperar el resultado en la consola
+
+================================================================================
+🧪 PASO 4: PRUEBA CON IA REAL
+================================================================================
+
+Si la prueba anterior funcionó, probar con IA real:
+
+```javascript
+const probarConIA = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  
+  input.onchange = (event) => {
+    const archivo = event.target.files[0];
+    if (!archivo) return;
+    
+    const formData = new FormData();
+    formData.append('foto_verificacion', archivo);
+    formData.append('umbral_confianza', '70.0');
+    formData.append('buscar_en', 'propietarios');
+    formData.append('usar_ia_real', 'true'); // IA REAL
+    
+    console.log('🤖 Probando con IA REAL...');
+    console.log('⏱️ Esto tomará más tiempo (hasta 30 segundos)...');
+    
+    const startTime = Date.now();
+    
+    fetch('http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      const tiempo = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log('⏱️ Tiempo total:', tiempo, 'segundos');
+      console.log('🤖 RESULTADO CON IA:', data);
+    })
+    .catch(error => console.error('❌ Error IA:', error));
+  };
+  
+  input.click();
+};
+
+// Ejecutar
+probarConIA();
+```
+
+================================================================================
+📊 PASO 5: INTERPRETAR RESULTADOS
+================================================================================
+
+🟢 RESULTADO EXITOSO (ACCESO AUTORIZADO):
+```json
+{
+  "success": true,
+  "verificacion": {
+    "resultado": "ACEPTADO",
+    "persona_identificada": {
+      "nombre_completo": "Luis García",
+      "documento": "12345678",
+      "unidad": "Apto 101",
+      "tipo_residente": "Propietario"
+    },
+    "confianza": 85.7,
+    "umbral_usado": "70.0"
+  },
+  "estadisticas": {
+    "total_comparaciones": 10,
+    "tiempo_procesamiento_ms": 2340.5
+  }
+}
+```
+
+🔴 RESULTADO DENEGADO:
+```json
+{
+  "success": true,
+  "verificacion": {
+    "resultado": "DENEGADO",
+    "confianza": 45.2,
+    "umbral_usado": "70.0"
+  }
+}
+```
+
+❌ ERROR:
+```json
+{
+  "success": false,
+  "error": "Descripción del error"
+}
+```
+
+================================================================================
+🔧 SOLUCIÓN A PROBLEMAS COMUNES
+================================================================================
+
+❌ ERROR: "Failed to fetch" o "Network Error"
+💡 SOLUCIÓN: 
+   - Verificar que Django esté corriendo
+   - Usar exactamente http://127.0.0.1:8000 (no localhost)
+
+❌ ERROR: "CORS policy"
+💡 SOLUCIÓN: 
+   - El backend ya tiene CORS configurado
+   - Verificar URL exacta del endpoint
+
+❌ ERROR: "400 Bad Request"
+💡 SOLUCIÓN: 
+   - Imagen muy grande (max 5MB)
+   - Formato no válido (usar JPG/PNG)
+
+❌ ERROR: "Request timeout"
+💡 SOLUCIÓN: 
+   - Normal con IA real (hasta 30 segundos)
+   - Probar primero con simulación
+
+❌ ERROR: "401 Unauthorized" en dashboard
+💡 SOLUCIÓN: 
+   - El endpoint /api/seguridad/dashboard/ requiere autenticación
+   - Usar /api/seguridad/health/ para verificar conexión (sin auth)
+   - Si necesitas dashboard, primero hacer login con /authz/login/
+
+================================================================================
+🔐 SOLUCIÓN PARA ERROR 401 - AUTENTICACIÓN
+================================================================================
+
+Si recibes **401 Unauthorized** en el dashboard, usa este código:
+
+🧪 **TEST: HEALTH CHECK SIN AUTENTICACIÓN**
+```javascript
+// Verificar backend sin autenticación
+fetch('http://127.0.0.1:8000/api/seguridad/health/')
+  .then(r => {
+    console.log('🔍 Health Status:', r.status);
+    return r.json();
+  })
+  .then(data => {
+    console.log('✅ Backend OK:', data.message);
+    console.log('📡 Status:', data.status);
+    console.log('🕐 Time:', data.timestamp);
+  })
+  .catch(e => console.error('❌ Error:', e));
+```
+
+🧪 **TEST: LOGIN Y DASHBOARD COMPLETO**
+```javascript
+// Función para hacer login y acceder al dashboard
+const loginYDashboard = async () => {
+  try {
+    // 1. Hacer login
+    console.log('🔐 Haciendo login...');
+    const loginResponse = await fetch('http://127.0.0.1:8000/authz/login/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'tu_usuario',  // ⚠️ CAMBIAR POR TU USUARIO
+        password: 'tu_password'  // ⚠️ CAMBIAR POR TU PASSWORD
+      })
+    });
+
+    if (loginResponse.ok) {
+      const loginData = await loginResponse.json();
+      console.log('✅ Login exitoso');
+      
+      // 2. Usar el token para acceder al dashboard
+      const token = loginData.access_token || loginData.access;
+      console.log('🎟️ Token obtenido');
+      
+      const dashboardResponse = await fetch('http://127.0.0.1:8000/api/seguridad/dashboard/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (dashboardResponse.ok) {
+        const dashboardData = await dashboardResponse.json();
+        console.log('✅ Dashboard accedido exitosamente');
+        console.log('📊 Datos:', dashboardData);
+      } else {
+        console.log('❌ Error dashboard:', dashboardResponse.status);
+      }
+      
+    } else {
+      console.log('❌ Error login:', loginResponse.status);
+      const errorData = await loginResponse.json();
+      console.log('🔍 Detalle error:', errorData);
+    }
+    
+  } catch (error) {
+    console.error('💥 Error completo:', error);
+  }
+};
+
+// Ejecutar (cambiar usuario y password arriba)
+loginYDashboard();
+```
+
+🧪 **TEST: VERIFICAR SOLO HEALTH CHECK**
+```javascript
+// Opción simple - solo verificar que backend funcione
+const verificarBackend = () => {
+  fetch('http://127.0.0.1:8000/api/seguridad/health/')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        console.log('✅ BACKEND FUNCIONANDO');
+        console.log('🎯 Mensaje:', data.message);
+        console.log('📡 Estado:', data.status);
+        console.log('⏰ Hora:', data.timestamp);
+        
+        // El backend está OK, ahora puedes usar reconocimiento facial
+        console.log('🎭 Reconocimiento facial disponible en:');
+        console.log('   📡 /api/seguridad/verificacion-tiempo-real/');
+      }
+    })
+    .catch(e => {
+      console.error('❌ Backend no disponible:', e);
+    });
+};
+
+// Ejecutar verificación simple
+verificarBackend();
+```
+
+================================================================================
+🎯 TESTING AVANZADO
+================================================================================
+
+🧪 TEST DE DIFERENTES CONFIGURACIONES:
+
+```javascript
+const testCompleto = () => {
+  const configuraciones = [
+    { umbral: '60.0', ia: 'false', nombre: 'Simulación Flexible' },
+    { umbral: '70.0', ia: 'false', nombre: 'Simulación Normal' },
+    { umbral: '80.0', ia: 'false', nombre: 'Simulación Estricta' },
+    { umbral: '70.0', ia: 'true', nombre: 'IA Real' }
+  ];
+  
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  
+  input.onchange = async (event) => {
+    const archivo = event.target.files[0];
+    if (!archivo) return;
+    
+    console.log('🧪 Probando todas las configuraciones...');
+    
+    for (const config of configuraciones) {
+      const formData = new FormData();
+      formData.append('foto_verificacion', archivo);
+      formData.append('umbral_confianza', config.umbral);
+      formData.append('buscar_en', 'propietarios');
+      formData.append('usar_ia_real', config.ia);
+      
+      console.log(`🔄 Probando: ${config.nombre}`);
+      
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        console.log(`✅ ${config.nombre}:`, data.verificacion.resultado, `(${data.verificacion.confianza.toFixed(1)}%)`);
+      } catch (error) {
+        console.log(`❌ ${config.nombre}: Error`);
+      }
+    }
+  };
+  
+  input.click();
+};
+
+// Ejecutar test completo
+testCompleto();
+```
+
+================================================================================
+📁 ARCHIVOS DE LOG
+================================================================================
+
+Para guardar resultados de pruebas:
+
+```javascript
+const guardarResultados = (data) => {
+  const resultado = {
+    timestamp: new Date().toISOString(),
+    resultado: data
+  };
+  
+  const blob = new Blob([JSON.stringify(resultado, null, 2)], 
+    { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `prueba_reconocimiento_${Date.now()}.json`;
+  a.click();
+  
+  console.log('💾 Resultado guardado en archivo JSON');
+};
+```
+
+================================================================================
+✅ CHECKLIST DE PRUEBAS
+================================================================================
+
+☑️ Backend Django corriendo en puerto 8000
+☑️ Test 1: Conexión básica (dashboard) - Status 200
+☑️ Test 2: Endpoint reconocimiento - Status 405 para GET
+☑️ Test 3: Prueba con imagen (simulación) - Resultado exitoso
+☑️ Test 4: Prueba con IA real - Funciona (más lento)
+☑️ Test 5: Diferentes configuraciones - Todos funcionan
+☑️ Test 6: Manejo de errores - Respuestas correctas
+
+🎯 SI TODOS LOS TESTS PASAN = SISTEMA LISTO PARA PRODUCCIÓN
+
+================================================================================
+📞 AYUDA ADICIONAL
+================================================================================
+
+Si algún test falla:
+
+1. 🔍 Revisar consola del navegador para errores detallados
+2. 📋 Verificar que el mensaje de error coincida con las soluciones
+3. 🔄 Reiniciar el servidor Django si es necesario
+4. 🌐 Probar en modo incógnito del navegador
+5. 📱 Probar en diferente navegador (Chrome, Edge, Firefox)
+
+🔥 ¡LISTO PARA PROBAR EL SISTEMA COMPLETO! 🔥

@@ -1067,7 +1067,7 @@ class RegistroInquilinoSerializer(serializers.Serializer):
         if foto_perfil_file:
             from core.utils.dropbox_upload import upload_image_to_dropbox
             filename = f"{persona_data['documento_identidad']}_perfil.jpg"
-            folder = f"/Aplicaciones/FotoVisita/Inquilinos/{persona_data['documento_identidad']}"
+            folder = f"/Aplicaciones/ParcialSI2/Inquilinos/{persona_data['documento_identidad']}"
             dropbox_result = upload_image_to_dropbox(foto_perfil_file, filename, folder=folder)
             persona_data['foto_perfil'] = dropbox_result['url']
         relacion_data = validated_data

@@ -1,0 +1,70 @@
+# ===================================================================
+# CONFIGURACIÓN PARA NETLIFY - VARIABLES DE ENTORNO
+# ===================================================================
+# 
+# Copia estas variables en la configuración de Netlify:
+# 1. Ve a tu dashboard de Netlify
+# 2. Selecciona tu proyecto "stellular-dasik-aa1890"
+# 3. Ve a Site settings > Environment variables
+# 4. Agrega cada una de estas variables:
+
+# Backend URL - Tu IP local + puerto 8000
+NEXT_PUBLIC_API_BASE_URL=http://192.168.56.1:8000/api
+
+# Alternativamente, también puedes usar:
+REACT_APP_API_BASE_URL=http://192.168.56.1:8000/api
+
+# URL del backend para autenticación
+NEXT_PUBLIC_AUTH_URL=http://192.168.56.1:8000/api/auth
+
+# Alternativamente:
+REACT_APP_AUTH_URL=http://192.168.56.1:8000/api/auth
+
+# ===================================================================
+# NOTAS IMPORTANTES:
+# ===================================================================
+# 
+# 1. Tu backend ahora está disponible en: http://192.168.56.1:8000
+# 2. Los endpoints correctos son:
+#    - http://192.168.56.1:8000/api/viviendas/
+#    - http://192.168.56.1:8000/api/viviendas/estadisticas-frontend/
+#    - http://192.168.56.1:8000/api/auth/login/
+# 
+# 3. CORS ya está configurado para permitir:
+#    - https://stellular-dasik-aa1890.netlify.app
+# 
+# 4. Para desarrollo local puedes seguir usando:
+#    - http://127.0.0.1:8000
+# 
+# ===================================================================
+# PASOS PARA CONFIGURAR EN NETLIFY:
+# ===================================================================
+# 
+# 1. Ve a: https://app.netlify.com/sites/stellular-dasik-aa1890/settings/env
+# 
+# 2. Haz clic en "Add a variable" y agrega:
+#    Key: NEXT_PUBLIC_API_BASE_URL
+#    Value: http://192.168.56.1:8000/api
+# 
+# 3. (Opcional) También agrega:
+#    Key: REACT_APP_API_BASE_URL  
+#    Value: http://192.168.56.1:8000/api
+# 
+# 4. Haz clic en "Save"
+# 
+# 5. Ve a "Site overview" y haz clic en "Trigger deploy" para rebuildar
+# 
+# ===================================================================
+# VERIFICACIÓN:
+# ===================================================================
+# 
+# Después de configurar, tu frontend en Netlify debería poder:
+# - Conectarse a tu backend local
+# - Mostrar las 81 viviendas correctamente
+# - Realizar login con admin@condominio.com / temporal123
+# 
+# ===================================================================
+
+# Variables adicionales por si usas otro framework:
+VITE_API_BASE_URL=http://192.168.56.1:8000/api
+VUE_APP_API_BASE_URL=http://192.168.56.1:8000/api

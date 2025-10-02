@@ -1,0 +1,349 @@
+# VERIFICACIÓN FRONTEND: SINCRONIZACIÓN AUTOMÁTICA DE ROLES
+# =======================================================
+
+## 🔍 ENDPOINTS PARA VERIFICAR SINCRONIZACIÓN
+
+### 1. VERIFICAR ESTADO ACTUAL DE USUARIOS
+```
+GET /api/authz/usuarios/
+Headers: Authorization: Bearer JWT_TOKEN
+
+Response: [
+  {
+    "id": 4,
+    "email": "maria.gonzalez@facial.com",
+    "estado": "ACTIVO",
+    "persona": {
+      "id": 2,
+      "tipo_persona": "inquilino",  // ← VERIFICAR ESTO
+      "nombre_completo": "María Elena González López"
+    },
+    "roles": [
+      {"id": 4, "nombre": "Inquilino"}  // ← Y ESTO
+    ]
+  }
+]
+
+✅ CORRECTO: tipo_persona="inquilino" + rol="Inquilino"
+❌ ERROR: tipo_persona="propietario" + rol="Inquilino"
+```
+
+### 2. PROBAR LOGIN CON ROLES ACTUALIZADOS
+```
+POST /api/authz/login/
+Body: {
+  "email": "maria.gonzalez@facial.com",
+  "password": "test123"
+}
+
+Response: {
+  "access": "JWT_TOKEN",
+  "refresh": "REFRESH_TOKEN",
+  "user": { ... },
+  "roles": [{"id": 4, "nombre": "Inquilino"}],
+  "primary_role": "Inquilino"  // ← VERIFICAR QUE SEA CORRECTO
+}
+
+✅ CORRECTO: primary_role redirige al panel correcto
+```
+
+## 🧪 SCRIPT DE PRUEBA PARA FRONTEND
+
+### JavaScript para verificar sincronización:
+```javascript
+// SCRIPT DE VERIFICACIÓN COMPLETA
+async function verificarSincronizacionCompleta() {
+  const token = localStorage.getItem('access_token');
+  
+  console.log('🔍 VERIFICANDO SINCRONIZACIÓN DE ROLES...');
+  
+  try {
+    // 1. Obtener todos los usuarios
+    const response = await fetch('/api/authz/usuarios/', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    const usuarios = await response.json();
+    
+    // 2. Verificar cada usuario
+    usuarios.forEach((usuario, index) => {
+      console.log(`\n👤 USUARIO ${index + 1}: ${usuario.email}`);
+      
+      const tipoPersona = usuario.persona?.tipo_persona;
+      const roles = usuario.roles.map(r => r.nombre);
+      
+      console.log(`   Tipo persona: ${tipoPersona}`);
+      console.log(`   Roles: [${roles.join(', ')}]`);
+      
+      // Verificar sincronización
+      let sincronizado = false;
+      
+      if (tipoPersona === 'propietario' && roles.includes('Propietario')) {
+        sincronizado = true;
+      } else if (tipoPersona === 'inquilino' && roles.includes('Inquilino')) {
+        sincronizado = true;
+      } else if (tipoPersona === 'administrador' && roles.includes('Administrador')) {
+        sincronizado = true;
+      } else if (tipoPersona === 'seguridad' && roles.includes('Seguridad')) {
+        sincronizado = true;
+      }
+      
+      if (sincronizado) {
+        console.log('   ✅ SINCRONIZADO CORRECTAMENTE');
+      } else {
+        console.log('   ❌ DESINCRONIZADO - REQUIERE ATENCIÓN');
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error al verificar sincronización:', error);
+  }
+}
+
+// Ejecutar verificación
+verificarSincronizacionCompleta();
+```
+
+## 🎯 CASOS ESPECÍFICOS A VERIFICAR
+
+### CASO 1: Verificar que María cambió de propietario a inquilino
+```javascript
+async function verificarCambioMaria() {
+  const response = await fetch('/api/authz/usuarios/', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  const usuarios = await response.json();
+  const maria = usuarios.find(u => u.email === 'maria.gonzalez@facial.com');
+  
+  console.log('👤 MARÍA:');
+  console.log('Tipo persona:', maria.persona?.tipo_persona);
+  console.log('Roles:', maria.roles.map(r => r.nombre));
+  
+  if (maria.persona?.tipo_persona === 'inquilino' && 
+      maria.roles.some(r => r.nombre === 'Inquilino')) {
+    console.log('✅ María cambió correctamente a inquilino');
+  } else {
+    console.log('❌ María no cambió correctamente');
+  }
+}
+```
+
+### CASO 2: Verificar que Carlos cambió de inquilino a propietario
+```javascript
+async function verificarCambioCarlos() {
+  const response = await fetch('/api/authz/usuarios/', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  const usuarios = await response.json();
+  const carlos = usuarios.find(u => u.email === 'carlos.rodriguez@facial.com');
+  
+  console.log('👤 CARLOS:');
+  console.log('Tipo persona:', carlos.persona?.tipo_persona);
+  console.log('Roles:', carlos.roles.map(r => r.nombre));
+  
+  if (carlos.persona?.tipo_persona === 'propietario' && 
+      carlos.roles.some(r => r.nombre === 'Propietario')) {
+    console.log('✅ Carlos cambió correctamente a propietario');
+  } else {
+    console.log('❌ Carlos no cambió correctamente');
+  }
+}
+```
+
+### CASO 3: Verificar que otros usuarios NO cambiaron
+```javascript
+async function verificarUsuariosNoAfectados() {
+  const response = await fetch('/api/authz/usuarios/', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  const usuarios = await response.json();
+  
+  // Excluir María y Carlos
+  const otrosUsuarios = usuarios.filter(u => 
+    u.email !== 'maria.gonzalez@facial.com' && 
+    u.email !== 'carlos.rodriguez@facial.com'
+  );
+  
+  console.log(`👥 VERIFICANDO ${otrosUsuarios.length} OTROS USUARIOS:`);
+  
+  let todosCorrectos = true;
+  
+  otrosUsuarios.forEach(usuario => {
+    const tipoPersona = usuario.persona?.tipo_persona;
+    const roles = usuario.roles.map(r => r.nombre);
+    
+    // Verificar que mantienen coherencia
+    let coherente = false;
+    if ((tipoPersona === 'propietario' && roles.includes('Propietario')) ||
+        (tipoPersona === 'inquilino' && roles.includes('Inquilino')) ||
+        (tipoPersona === 'administrador' && roles.includes('Administrador')) ||
+        (tipoPersona === 'seguridad' && roles.includes('Seguridad'))) {
+      coherente = true;
+    }
+    
+    if (!coherente) {
+      console.log(`❌ ${usuario.email}: tipo=${tipoPersona}, roles=[${roles.join(',')}]`);
+      todosCorrectos = false;
+    }
+  });
+  
+  if (todosCorrectos) {
+    console.log('✅ Todos los otros usuarios mantienen sus roles correctos');
+  }
+}
+```
+
+## 🔐 VERIFICAR LOGIN Y PRIMARY_ROLE
+
+### Probar login de usuarios modificados:
+```javascript
+async function probarLoginUsuarioModificado(email, password) {
+  try {
+    const response = await fetch('/api/authz/login/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      console.log(`🔐 LOGIN ${email}:`);
+      console.log('   Primary role:', data.primary_role);
+      console.log('   Roles:', data.roles.map(r => r.nombre));
+      
+      // Verificar redirección correcta
+      if (data.primary_role === 'Inquilino') {
+        console.log('   🎯 Redirigirá al panel de inquilinos');
+      } else if (data.primary_role === 'Propietario') {
+        console.log('   🎯 Redirigirá al panel de propietarios');
+      }
+      
+      return data;
+    } else {
+      console.log(`❌ Error en login: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Probar logins
+probarLoginUsuarioModificado('maria.gonzalez@facial.com', 'test123');
+probarLoginUsuarioModificado('carlos.rodriguez@facial.com', 'test123');
+```
+
+## 🎨 COMPONENTE REACT PARA VERIFICACIÓN
+
+```jsx
+import React, { useState, useEffect } from 'react';
+
+function VerificacionSincronizacion() {
+  const [usuarios, setUsuarios] = useState([]);
+  const [resultado, setResultado] = useState(null);
+  
+  const verificarSincronizacion = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('/api/authz/usuarios/', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await response.json();
+      setUsuarios(data);
+      
+      // Analizar resultados
+      let sincronizados = 0;
+      let desincronizados = 0;
+      
+      data.forEach(usuario => {
+        const tipo = usuario.persona?.tipo_persona;
+        const roles = usuario.roles.map(r => r.nombre);
+        
+        const coherente = 
+          (tipo === 'propietario' && roles.includes('Propietario')) ||
+          (tipo === 'inquilino' && roles.includes('Inquilino')) ||
+          (tipo === 'administrador' && roles.includes('Administrador')) ||
+          (tipo === 'seguridad' && roles.includes('Seguridad'));
+        
+        if (coherente) {
+          sincronizados++;
+        } else {
+          desincronizados++;
+        }
+      });
+      
+      setResultado({ sincronizados, desincronizados, total: data.length });
+      
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  
+  useEffect(() => {
+    verificarSincronizacion();
+  }, []);
+  
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2>🔍 Verificación de Sincronización de Roles</h2>
+      
+      {resultado && (
+        <div style={{ marginBottom: '20px' }}>
+          <h3>📊 Resultado:</h3>
+          <p>✅ Usuarios sincronizados: {resultado.sincronizados}</p>
+          <p>❌ Usuarios desincronizados: {resultado.desincronizados}</p>
+          <p>📋 Total: {resultado.total}</p>
+        </div>
+      )}
+      
+      <button onClick={verificarSincronizacion}>
+        🔄 Verificar Nuevamente
+      </button>
+      
+      <div style={{ marginTop: '20px' }}>
+        <h3>👥 Detalles por Usuario:</h3>
+        {usuarios.map(usuario => {
+          const tipo = usuario.persona?.tipo_persona;
+          const roles = usuario.roles.map(r => r.nombre);
+          
+          const coherente = 
+            (tipo === 'propietario' && roles.includes('Propietario')) ||
+            (tipo === 'inquilino' && roles.includes('Inquilino')) ||
+            (tipo === 'administrador' && roles.includes('Administrador')) ||
+            (tipo === 'seguridad' && roles.includes('Seguridad'));
+          
+          return (
+            <div key={usuario.id} style={{ 
+              margin: '10px 0', 
+              padding: '10px', 
+              border: `1px solid ${coherente ? 'green' : 'red'}`,
+              borderRadius: '5px'
+            }}>
+              <strong>{usuario.email}</strong>
+              <br />
+              Tipo: {tipo} | Roles: [{roles.join(', ')}]
+              <br />
+              {coherente ? '✅ Sincronizado' : '❌ Desincronizado'}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default VerificacionSincronizacion;
+```
+
+## 🚀 INSTRUCCIONES PARA IMPLEMENTAR
+
+1. **Agrega el token de admin** en localStorage
+2. **Ejecuta los scripts de verificación** en la consola del navegador
+3. **Implementa el componente React** en tu panel de admin
+4. **Verifica que la sincronización funciona** después de cada cambio
+
+¡El sistema está funcionando correctamente! Solo necesitas implementar la verificación en el frontend.

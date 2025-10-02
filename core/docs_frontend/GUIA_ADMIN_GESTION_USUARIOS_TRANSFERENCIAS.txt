@@ -1,0 +1,337 @@
+# GUÍA COMPLETA: GESTIÓN DE USUARIOS Y TRANSFERENCIAS PARA FRONTEND
+# ================================================================
+
+## 📋 ENDPOINTS DISPONIBLES PARA EL ADMIN
+
+### 🔐 1. AUTENTICACIÓN
+```
+POST /api/authz/login/
+Body: {
+  "email": "admin@condominio.com",
+  "password": "admin123"
+}
+
+Response: {
+  "access": "JWT_TOKEN",
+  "refresh": "REFRESH_TOKEN",
+  "user": { ... },
+  "roles": [{"id": 1, "nombre": "Administrador"}],
+  "primary_role": "Administrador"
+}
+```
+
+### 👥 2. GESTIÓN DE USUARIOS
+```
+# Listar todos los usuarios
+GET /api/authz/usuarios/
+Headers: Authorization: Bearer JWT_TOKEN
+
+# Obtener usuario específico
+GET /api/authz/usuarios/{user_id}/
+Headers: Authorization: Bearer JWT_TOKEN
+
+# Actualizar usuario (incluyendo roles)
+PUT /api/authz/usuarios/{user_id}/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "email": "usuario@email.com",
+  "estado": "ACTIVO",
+  "roles": [3, 4]  // IDs de roles
+}
+
+# Actualizar parcialmente
+PATCH /api/authz/usuarios/{user_id}/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "roles": [3]  // Solo cambiar roles
+}
+```
+
+### 🏠 3. GESTIÓN DE PERSONAS Y TIPOS
+```
+# Listar personas
+GET /api/viviendas/personas/
+Headers: Authorization: Bearer JWT_TOKEN
+
+# Cambiar tipo de persona
+PUT /api/viviendas/personas/{persona_id}/cambiar-tipo/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "nuevo_tipo": "propietario"  // o "inquilino"
+}
+```
+
+### 🔄 4. TRANSFERENCIA DE PROPIEDADES
+```
+# Transferir propiedad específica
+POST /api/viviendas/viviendas/{vivienda_id}/transferir-propiedad/
+Headers: Authorization: Bearer JWT_TOKEN
+Body: {
+  "nuevo_propietario_id": 123,
+  "motivo_transferencia": "Venta de propiedad"
+}
+```
+
+### 📊 5. ROLES DISPONIBLES
+```
+# Listar todos los roles
+GET /api/authz/roles/
+Headers: Authorization: Bearer JWT_TOKEN
+
+Response: [
+  {"id": 1, "nombre": "Administrador"},
+  {"id": 2, "nombre": "Seguridad"},
+  {"id": 3, "nombre": "Propietario"},
+  {"id": 4, "nombre": "Inquilino"}
+]
+```
+
+## 🎯 CASOS DE USO PARA EL FRONTEND
+
+### CASO 1: ADMIN CAMBIA MANUALMENTE EL ROL DE UN USUARIO
+```javascript
+// Ejemplo: Cambiar inquilino a propietario manualmente
+async function cambiarRolUsuario(userId, nuevoRolId) {
+  const response = await fetch(`/api/authz/usuarios/${userId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      roles: [nuevoRolId]
+    })
+  });
+  
+  if (response.ok) {
+    alert('Rol actualizado exitosamente');
+    // ✅ AUTOMÁTICO: El sistema sincronizará tipo_persona
+  }
+}
+```
+
+### CASO 2: TRANSFERENCIA DE PROPIEDAD COMPLETA
+```javascript
+// Ejemplo: Propietario vende casa a inquilino
+async function transferirPropiedad(viviendaId, nuevoPropietarioId, motivo) {
+  const response = await fetch(`/api/viviendas/viviendas/${viviendaId}/transferir-propiedad/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      nuevo_propietario_id: nuevoPropietarioId,
+      motivo_transferencia: motivo
+    })
+  });
+  
+  if (response.ok) {
+    alert('Propiedad transferida exitosamente');
+    // ✅ AUTOMÁTICO: Roles se actualizan automáticamente
+    // ✅ Ex-propietario → inquilino
+    // ✅ Ex-inquilino → propietario
+  }
+}
+```
+
+### CASO 3: CAMBIO DIRECTO DE TIPO DE PERSONA
+```javascript
+// Ejemplo: Admin cambia tipo de persona directamente
+async function cambiarTipoPersona(personaId, nuevoTipo) {
+  const response = await fetch(`/api/viviendas/personas/${personaId}/cambiar-tipo/`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      nuevo_tipo: nuevoTipo  // "propietario" o "inquilino"
+    })
+  });
+  
+  if (response.ok) {
+    alert(`Tipo cambiado a ${nuevoTipo} exitosamente`);
+    // ✅ AUTOMÁTICO: Roles del usuario se sincronizan
+  }
+}
+```
+
+## 🛡️ SINCRONIZACIÓN AUTOMÁTICA
+
+### ⚡ QUE HACE EL BACKEND AUTOMÁTICAMENTE:
+
+1. **Cuando cambias roles de usuario:**
+   - ✅ Se actualiza tipo_persona automáticamente
+   - ✅ Inquilino → Propietario sincroniza tipo_persona = "propietario"
+
+2. **Cuando cambias tipo_persona:**
+   - ✅ Se actualizan roles automáticamente
+   - ✅ tipo_persona = "propietario" → rol "Propietario"
+
+3. **Cuando transfieres propiedad:**
+   - ✅ Se actualizan AMBOS usuarios automáticamente
+   - ✅ Ex-propietario: tipo="inquilino", rol="Inquilino"
+   - ✅ Ex-inquilino: tipo="propietario", rol="Propietario"
+
+## 🎨 COMPONENTES REACT SUGERIDOS
+
+### 1. PANEL DE GESTIÓN DE USUARIOS
+```jsx
+function GestionUsuarios() {
+  const [usuarios, setUsuarios] = useState([]);
+  const [roles, setRoles] = useState([]);
+  
+  // Cargar datos
+  useEffect(() => {
+    cargarUsuarios();
+    cargarRoles();
+  }, []);
+  
+  const cambiarRol = async (userId, nuevoRolId) => {
+    await cambiarRolUsuario(userId, nuevoRolId);
+    cargarUsuarios(); // Recargar lista
+  };
+  
+  return (
+    <div>
+      <h2>Gestión de Usuarios</h2>
+      {usuarios.map(usuario => (
+        <div key={usuario.id}>
+          <span>{usuario.email}</span>
+          <span>Tipo: {usuario.persona?.tipo_persona}</span>
+          <span>Roles: {usuario.roles.map(r => r.nombre).join(', ')}</span>
+          <select onChange={(e) => cambiarRol(usuario.id, e.target.value)}>
+            {roles.map(rol => (
+              <option key={rol.id} value={rol.id}>{rol.nombre}</option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### 2. PANEL DE TRANSFERENCIA DE PROPIEDADES
+```jsx
+function TransferenciaPropiedades() {
+  const [viviendas, setViviendas] = useState([]);
+  const [personas, setPersonas] = useState([]);
+  
+  const transferir = async (viviendaId, nuevoPropietarioId) => {
+    await transferirPropiedad(
+      viviendaId, 
+      nuevoPropietarioId, 
+      "Transferencia administrativa"
+    );
+    cargarViviendas(); // Recargar
+  };
+  
+  return (
+    <div>
+      <h2>Transferir Propiedades</h2>
+      {viviendas.map(vivienda => (
+        <div key={vivienda.id}>
+          <span>Vivienda: {vivienda.numero}</span>
+          <span>Propietario: {vivienda.propietario?.nombre_completo}</span>
+          <select onChange={(e) => transferir(vivienda.id, e.target.value)}>
+            <option value="">Transferir a...</option>
+            {personas.map(persona => (
+              <option key={persona.id} value={persona.id}>
+                {persona.nombre_completo}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## 🔍 VERIFICACIÓN EN TIEMPO REAL
+
+### COMPROBAR SI LA SINCRONIZACIÓN FUNCIONA:
+```javascript
+// Después de cualquier cambio, verificar estado
+async function verificarSincronizacion(userId) {
+  const response = await fetch(`/api/authz/usuarios/${userId}/`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  const usuario = await response.json();
+  
+  console.log('Estado actual:');
+  console.log('- Tipo persona:', usuario.persona?.tipo_persona);
+  console.log('- Roles:', usuario.roles.map(r => r.nombre));
+  
+  // Verificar coherencia
+  const tipoPersona = usuario.persona?.tipo_persona;
+  const roles = usuario.roles.map(r => r.nombre);
+  
+  if (tipoPersona === 'propietario' && roles.includes('Propietario')) {
+    console.log('✅ Sincronizado correctamente');
+  } else if (tipoPersona === 'inquilino' && roles.includes('Inquilino')) {
+    console.log('✅ Sincronizado correctamente');
+  } else {
+    console.log('❌ Posible desincronización');
+  }
+}
+```
+
+## 🚨 MANEJO DE ERRORES
+
+### ERRORES COMUNES Y SOLUCIONES:
+```javascript
+async function manejarCambioRol(userId, nuevoRolId) {
+  try {
+    const response = await cambiarRolUsuario(userId, nuevoRolId);
+    
+    if (!response.ok) {
+      if (response.status === 403) {
+        alert('No tienes permisos para realizar esta acción');
+      } else if (response.status === 404) {
+        alert('Usuario no encontrado');
+      } else {
+        alert('Error al cambiar rol');
+      }
+      return;
+    }
+    
+    alert('Rol cambiado exitosamente');
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error de conexión');
+  }
+}
+```
+
+## 🎯 FLUJO COMPLETO RECOMENDADO
+
+### PARA TRANSFERENCIA DE PROPIEDAD:
+1. **Admin selecciona vivienda** → GET /api/viviendas/viviendas/
+2. **Admin selecciona nuevo propietario** → GET /api/viviendas/personas/
+3. **Admin confirma transferencia** → POST /api/viviendas/viviendas/{id}/transferir-propiedad/
+4. **Sistema actualiza automáticamente:**
+   - ✅ Propietario anterior → tipo_persona="inquilino", rol="Inquilino"
+   - ✅ Nuevo propietario → tipo_persona="propietario", rol="Propietario"
+5. **Frontend muestra confirmación** y actualiza listas
+
+### PARA CAMBIO MANUAL DE ROLES:
+1. **Admin ve lista de usuarios** → GET /api/authz/usuarios/
+2. **Admin cambia rol** → PATCH /api/authz/usuarios/{id}/
+3. **Sistema sincroniza tipo_persona automáticamente**
+4. **Frontend verifica resultado** → GET /api/authz/usuarios/{id}/
+
+## ✅ VERIFICACIÓN FINAL
+
+El sistema garantiza que:
+- ✅ Cambios de roles actualizan tipo_persona
+- ✅ Cambios de tipo_persona actualizan roles
+- ✅ Transferencias actualizan ambos usuarios
+- ✅ Solo usuarios específicos se ven afectados
+- ✅ Login redirige al panel correcto
+
+¡El frontend solo necesita llamar los endpoints, la sincronización es automática!

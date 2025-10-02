@@ -1,0 +1,393 @@
+================================================================================
+EJEMPLOS DE PAYLOADS Y RESPUESTAS - RECONOCIMIENTO FACIAL
+================================================================================
+
+🎯 Este archivo contiene ejemplos exactos de requests y responses para facilitar
+   la implementación en el frontend del panel de seguridad.
+
+================================================================================
+📤 EJEMPLO 1: REQUEST BÁSICO (SIMULACIÓN)
+================================================================================
+
+MÉTODO: POST
+URL: http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/
+CONTENT-TYPE: multipart/form-data
+
+FORM DATA:
+----------
+foto_verificacion: [archivo JPEG/PNG]
+umbral_confianza: "70.0"
+buscar_en: "propietarios"
+usar_ia_real: "false"
+
+CURL EQUIVALENTE:
+-----------------
+curl -X POST http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/ \
+  -F "foto_verificacion=@test_photo.jpg" \
+  -F "umbral_confianza=70.0" \
+  -F "buscar_en=propietarios" \
+  -F "usar_ia_real=false"
+
+JAVASCRIPT FETCH:
+-----------------
+const formData = new FormData();
+formData.append('foto_verificacion', fotoFile);
+formData.append('umbral_confianza', '70.0');
+formData.append('buscar_en', 'propietarios');
+formData.append('usar_ia_real', 'false');
+
+fetch('http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/', {
+    method: 'POST',
+    body: formData
+})
+
+================================================================================
+📥 EJEMPLO 1: RESPONSE ÉXITO - PERSONA IDENTIFICADA
+================================================================================
+
+STATUS: 200 OK
+CONTENT-TYPE: application/json
+
+{
+    "success": true,
+    "verificacion": {
+        "persona_identificada": {
+            "copropietario_id": 19,
+            "nombre_completo": "Luis Delgadillo",
+            "documento": "87654321",
+            "unidad": "Depto 301",
+            "tipo_residente": "Propietario",
+            "foto_perfil": null
+        },
+        "confianza": 89.3,
+        "umbral_usado": 70.0,
+        "resultado": "ACEPTADO",
+        "timestamp": "2025-09-29T14:30:15.123456Z",
+        "foto_comparada": "https://dl.dropboxusercontent.com/scl/fi/u681kzg98d4vt26cqqb6j/propietario_19_20250929_152030.png"
+    },
+    "estadisticas": {
+        "total_comparaciones": 10,
+        "sobre_umbral": 3,
+        "umbral_usado": 70.0,
+        "tiempo_procesamiento_ms": 245.8,
+        "personas_analizadas": 10,
+        "mejor_coincidencia": 89.3
+    }
+}
+
+INTERPRETACIÓN:
+- ✅ ACCESO AUTORIZADO para Luis Delgadillo
+- Confianza: 89.3% (supera umbral 70%)
+- Se comparó con 10 personas
+- 3 personas superaron el umbral
+- Procesamiento: 245ms
+
+================================================================================
+📥 EJEMPLO 2: RESPONSE ÉXITO - PERSONA NO IDENTIFICADA
+================================================================================
+
+STATUS: 200 OK
+
+{
+    "success": true,
+    "verificacion": {
+        "persona_identificada": null,
+        "confianza": 45.2,
+        "umbral_usado": 70.0,
+        "resultado": "RECHAZADO",
+        "timestamp": "2025-09-29T14:35:22.789012Z",
+        "foto_comparada": null
+    },
+    "estadisticas": {
+        "total_comparaciones": 10,
+        "sobre_umbral": 0,
+        "umbral_usado": 70.0,
+        "tiempo_procesamiento_ms": 198.4,
+        "personas_analizadas": 10,
+        "mejor_coincidencia": 45.2
+    }
+}
+
+INTERPRETACIÓN:
+- ❌ ACCESO DENEGADO
+- Mejor confianza: 45.2% (no supera umbral 70%)
+- Ninguna persona superó el umbral
+- Persona no está registrada o foto no coincide
+
+================================================================================
+📤 EJEMPLO 3: REQUEST IA REAL
+================================================================================
+
+FORM DATA:
+----------
+foto_verificacion: [archivo JPEG/PNG]
+umbral_confianza: "75.0"
+buscar_en: "todos"
+usar_ia_real: "true"  ← DIFERENCIA CLAVE
+
+JAVASCRIPT:
+-----------
+const formData = new FormData();
+formData.append('foto_verificacion', fotoFile);
+formData.append('umbral_confianza', '75.0');
+formData.append('buscar_en', 'todos');
+formData.append('usar_ia_real', 'true');  // IA REAL
+
+fetch('http://127.0.0.1:8000/api/seguridad/verificacion-tiempo-real/', {
+    method: 'POST',
+    body: formData
+})
+
+================================================================================
+📥 EJEMPLO 3: RESPONSE IA REAL
+================================================================================
+
+{
+    "success": true,
+    "verificacion": {
+        "persona_identificada": {
+            "copropietario_id": 7,
+            "nombre_completo": "Ana María Pérez González",
+            "documento": "11223344",
+            "unidad": "Depto 205",
+            "tipo_residente": "Propietario",
+            "foto_perfil": null
+        },
+        "confianza": 92.7,
+        "umbral_usado": 75.0,
+        "resultado": "ACEPTADO",
+        "timestamp": "2025-09-29T14:40:10.456789Z",
+        "foto_comparada": "https://dl.dropboxusercontent.com/scl/fi/..."
+    },
+    "estadisticas": {
+        "total_comparaciones": 17,  ← Más comparaciones (todos)
+        "sobre_umbral": 2,
+        "umbral_usado": 75.0,
+        "tiempo_procesamiento_ms": 1847.3,  ← Más tiempo (IA real)
+        "personas_analizadas": 17,
+        "mejor_coincidencia": 92.7
+    }
+}
+
+DIFERENCIAS IA REAL:
+- Más tiempo procesamiento (1.8 segundos vs 245ms)
+- Confianza más realista basada en encodings faciales
+- Compara con todas las personas (17 vs 10)
+
+================================================================================
+❌ EJEMPLO 4: ERROR - SIN FOTO
+================================================================================
+
+REQUEST:
+--------
+// Sin archivo foto_verificacion
+
+RESPONSE:
+---------
+STATUS: 400 Bad Request
+
+{
+    "success": false,
+    "error": "Se requiere subir una foto para verificación"
+}
+
+================================================================================
+❌ EJEMPLO 5: ERROR - NO HAY REGISTROS
+================================================================================
+
+REQUEST:
+--------
+buscar_en: "inquilinos"  // Si no hay inquilinos registrados
+
+RESPONSE:
+---------
+STATUS: 404 Not Found
+
+{
+    "success": false,
+    "error": "No hay personas registradas con reconocimiento facial en la categoría \"inquilinos\"",
+    "debug": {
+        "personas_filtradas": 3,
+        "reconocimientos_totales": 10,
+        "filtro_aplicado": "inquilinos"
+    }
+}
+
+================================================================================
+❌ EJEMPLO 6: ERROR - FORMATO IMAGEN INVÁLIDO
+================================================================================
+
+RESPONSE:
+---------
+STATUS: 400 Bad Request
+
+{
+    "success": false,
+    "error": "Formato de imagen no soportado. Use JPEG o PNG"
+}
+
+================================================================================
+❌ EJEMPLO 7: ERROR - IA NO DISPONIBLE
+================================================================================
+
+REQUEST:
+--------
+usar_ia_real: "true"  // Pero OpenCV no instalado
+
+RESPONSE:
+---------
+STATUS: 200 OK (Fallback a simulación)
+
+{
+    "success": true,
+    "verificacion": {
+        // ... respuesta normal con simulación
+    }
+}
+
+NOTA: El sistema automáticamente usa simulación si IA falla
+
+================================================================================
+🎯 CASOS DE USO TÍPICOS PARA PANEL DE SEGURIDAD
+================================================================================
+
+CASO 1: VERIFICACIÓN RÁPIDA (GUARDIA DIURNO)
+---------------------------------------------
+- umbral_confianza: "70.0"
+- buscar_en: "propietarios"
+- usar_ia_real: "false"
+- Tiempo respuesta: <300ms
+- Uso: Acceso rápido durante horas pico
+
+CASO 2: VERIFICACIÓN SEGURA (GUARDIA NOCTURNO)
+-----------------------------------------------
+- umbral_confianza: "80.0"
+- buscar_en: "todos"
+- usar_ia_real: "true"
+- Tiempo respuesta: 1-3 segundos
+- Uso: Mayor seguridad en horario nocturno
+
+CASO 3: VERIFICACIÓN VISITANTES
+--------------------------------
+- umbral_confianza: "85.0"
+- buscar_en: "todos"  
+- usar_ia_real: "true"
+- Uso: Verificar si visitante es residente no identificado
+
+================================================================================
+💻 CÓDIGO JAVASCRIPT COMPLETO PARA MANEJAR RESPUESTAS
+================================================================================
+
+async function procesarVerificacionFacial(fotoFile, configuracion = {}) {
+    const {
+        umbral = '70.0',
+        buscarEn = 'propietarios',
+        usarIA = false
+    } = configuracion;
+    
+    try {
+        const formData = new FormData();
+        formData.append('foto_verificacion', fotoFile);
+        formData.append('umbral_confianza', umbral);
+        formData.append('buscar_en', buscarEn);
+        formData.append('usar_ia_real', usarIA ? 'true' : 'false');
+        
+        const response = await fetch('/api/seguridad/verificacion-tiempo-real/', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        // Manejar diferentes casos
+        if (response.status === 200 && data.success) {
+            if (data.verificacion.resultado === 'ACEPTADO') {
+                return {
+                    tipo: 'ACCESO_AUTORIZADO',
+                    persona: data.verificacion.persona_identificada,
+                    confianza: data.verificacion.confianza,
+                    estadisticas: data.estadisticas
+                };
+            } else {
+                return {
+                    tipo: 'ACCESO_DENEGADO',
+                    confianza: data.verificacion.confianza,
+                    umbral: data.verificacion.umbral_usado,
+                    estadisticas: data.estadisticas
+                };
+            }
+        } else if (response.status === 400) {
+            return {
+                tipo: 'ERROR_PARAMETROS',
+                mensaje: data.error
+            };
+        } else if (response.status === 404) {
+            return {
+                tipo: 'ERROR_NO_REGISTROS',
+                mensaje: data.error,
+                debug: data.debug
+            };
+        } else {
+            return {
+                tipo: 'ERROR_SERVIDOR',
+                mensaje: data.error || 'Error desconocido'
+            };
+        }
+        
+    } catch (error) {
+        return {
+            tipo: 'ERROR_CONEXION',
+            mensaje: error.message
+        };
+    }
+}
+
+// USO:
+const resultado = await procesarVerificacionFacial(fotoFile, {
+    umbral: '75.0',
+    buscarEn: 'todos',
+    usarIA: true
+});
+
+switch (resultado.tipo) {
+    case 'ACCESO_AUTORIZADO':
+        console.log(`✅ Bienvenido ${resultado.persona.nombre_completo}`);
+        break;
+    case 'ACCESO_DENEGADO':
+        console.log(`❌ Acceso denegado (${resultado.confianza}%)`);
+        break;
+    case 'ERROR_PARAMETROS':
+        console.log(`⚠️ Error: ${resultado.mensaje}`);
+        break;
+    // ... otros casos
+}
+
+================================================================================
+🔧 CONFIGURACIONES RECOMENDADAS POR ESCENARIO
+================================================================================
+
+DESARROLLO:
+-----------
+{
+    "umbral_confianza": "60.0",
+    "buscar_en": "propietarios", 
+    "usar_ia_real": "false"
+}
+
+PRODUCCIÓN NORMAL:
+------------------
+{
+    "umbral_confianza": "70.0",
+    "buscar_en": "todos",
+    "usar_ia_real": "true"
+}
+
+SEGURIDAD ALTA:
+---------------
+{
+    "umbral_confianza": "85.0",
+    "buscar_en": "propietarios",
+    "usar_ia_real": "true"
+}
+
+¡READY TO IMPLEMENT! 🚀

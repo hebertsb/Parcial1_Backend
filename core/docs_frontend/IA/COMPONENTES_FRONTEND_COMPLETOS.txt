@@ -1,0 +1,775 @@
+================================================================================
+COMPONENTE FRONTEND LISTO PARA USAR - PANEL DE RECONOCIMIENTO FACIAL
+================================================================================
+
+🎯 Este archivo contiene componentes completos en diferentes frameworks
+   para implementar el reconocimiento facial en el panel de seguridad.
+
+================================================================================
+⚛️ COMPONENTE REACT
+================================================================================
+
+// ReconocimientoFacial.jsx
+import React, { useState, useRef } from 'react';
+import './ReconocimientoFacial.css';
+
+const ReconocimientoFacial = () => {
+  const [foto, setFoto] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [configuracion, setConfiguracion] = useState({
+    umbral: '70.0',
+    buscarEn: 'propietarios',
+    usarIA: true
+  });
+  const [resultado, setResultado] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const fotoInputRef = useRef(null);
+
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+
+  const handleFotoChange = (event) => {
+    const archivo = event.target.files[0];
+    if (archivo) {
+      if (!archivo.type.startsWith('image/')) {
+        alert('Por favor selecciona un archivo de imagen válido');
+        return;
+      }
+      
+      if (archivo.size > 5 * 1024 * 1024) {
+        alert('La imagen es muy grande. Máximo 5MB');
+        return;
+      }
+
+      setFoto(archivo);
+      
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (e) => setPreviewUrl(e.target.result);
+      reader.readAsDataURL(archivo);
+    }
+  };
+
+  const verificarIdentidad = async () => {
+    if (!foto) {
+      alert('Por favor selecciona una foto primero');
+      return;
+    }
+
+    setCargando(true);
+    setResultado(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('foto_verificacion', foto);
+      formData.append('umbral_confianza', configuracion.umbral);
+      formData.append('buscar_en', configuracion.buscarEn);
+      formData.append('usar_ia_real', configuracion.usarIA ? 'true' : 'false');
+
+      const response = await fetch(`${API_BASE}/api/seguridad/verificacion-tiempo-real/`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setResultado({
+          tipo: data.verificacion.resultado === 'ACEPTADO' ? 'exito' : 'denegado',
+          data: data
+        });
+      } else {
+        setResultado({
+          tipo: 'error',
+          mensaje: data.error || `Error ${response.status}`
+        });
+      }
+    } catch (error) {
+      setResultado({
+        tipo: 'error',
+        mensaje: `Error de conexión: ${error.message}`
+      });
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const limpiarFormulario = () => {
+    setFoto(null);
+    setPreviewUrl('');
+    setResultado(null);
+    if (fotoInputRef.current) {
+      fotoInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="reconocimiento-facial-panel">
+      <div className="panel-header">
+        <h2>🔍 Verificación Facial</h2>
+        <p>Sistema de reconocimiento para panel de seguridad</p>
+      </div>
+
+      {/* Captura de foto */}
+      <div className="seccion-foto">
+        <div className="input-foto">
+          <input
+            ref={fotoInputRef}
+            type="file"
+            accept="image/*"
+            capture="camera"
+            onChange={handleFotoChange}
+            className="foto-input"
+          />
+          <button 
+            onClick={() => fotoInputRef.current?.click()}
+            className="btn-capturar"
+          >
+            📷 Capturar/Seleccionar Foto
+          </button>
+        </div>
+        
+        {previewUrl && (
+          <div className="foto-preview">
+            <img src={previewUrl} alt="Preview" className="preview-imagen" />
+          </div>
+        )}
+      </div>
+
+      {/* Configuración */}
+      <div className="seccion-configuracion">
+        <div className="config-group">
+          <label>
+            Umbral de Confianza:
+            <select 
+              value={configuracion.umbral}
+              onChange={(e) => setConfiguracion(prev => ({...prev, umbral: e.target.value}))}
+            >
+              <option value="60.0">60% - Flexible</option>
+              <option value="70.0">70% - Recomendado</option>
+              <option value="80.0">80% - Estricto</option>
+              <option value="90.0">90% - Muy estricto</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="config-group">
+          <label>
+            Buscar en:
+            <select 
+              value={configuracion.buscarEn}
+              onChange={(e) => setConfiguracion(prev => ({...prev, buscarEn: e.target.value}))}
+            >
+              <option value="todos">Todos los residentes</option>
+              <option value="propietarios">Solo propietarios</option>
+              <option value="inquilinos">Solo inquilinos</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="config-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={configuracion.usarIA}
+              onChange={(e) => setConfiguracion(prev => ({...prev, usarIA: e.target.checked}))}
+            />
+            Usar IA Real (más preciso, toma más tiempo)
+          </label>
+        </div>
+      </div>
+
+      {/* Botón de verificación */}
+      <div className="seccion-accion">
+        <button 
+          onClick={verificarIdentidad}
+          disabled={!foto || cargando}
+          className={`btn-verificar ${cargando ? 'cargando' : ''}`}
+        >
+          {cargando ? '🔄 Procesando...' : '🤖 Verificar Identidad'}
+        </button>
+        
+        <button 
+          onClick={limpiarFormulario}
+          className="btn-limpiar"
+        >
+          🗑️ Limpiar
+        </button>
+      </div>
+
+      {/* Resultado */}
+      {resultado && (
+        <div className={`resultado resultado-${resultado.tipo}`}>
+          {resultado.tipo === 'exito' && (
+            <div className="resultado-exito">
+              <h3>✅ ACCESO AUTORIZADO</h3>
+              <div className="info-persona">
+                <p><strong>Nombre:</strong> {resultado.data.verificacion.persona_identificada.nombre_completo}</p>
+                <p><strong>Documento:</strong> {resultado.data.verificacion.persona_identificada.documento}</p>
+                <p><strong>Unidad:</strong> {resultado.data.verificacion.persona_identificada.unidad}</p>
+                <p><strong>Tipo:</strong> {resultado.data.verificacion.persona_identificada.tipo_residente}</p>
+                <p><strong>Confianza:</strong> {resultado.data.verificacion.confianza.toFixed(1)}%</p>
+              </div>
+              <div className="estadisticas">
+                <small>
+                  Comparaciones: {resultado.data.estadisticas.total_comparaciones} | 
+                  Tiempo: {resultado.data.estadisticas.tiempo_procesamiento_ms.toFixed(0)}ms
+                </small>
+              </div>
+            </div>
+          )}
+
+          {resultado.tipo === 'denegado' && (
+            <div className="resultado-denegado">
+              <h3>❌ ACCESO DENEGADO</h3>
+              <p>No se pudo identificar a la persona en el sistema.</p>
+              <div className="estadisticas">
+                <p><strong>Mejor coincidencia:</strong> {resultado.data.verificacion.confianza.toFixed(1)}%</p>
+                <p><strong>Umbral requerido:</strong> {resultado.data.verificacion.umbral_usado}%</p>
+                <small>
+                  Se comparó con {resultado.data.estadisticas.total_comparaciones} personas registradas
+                </small>
+              </div>
+            </div>
+          )}
+
+          {resultado.tipo === 'error' && (
+            <div className="resultado-error">
+              <h3>⚠️ ERROR</h3>
+              <p>{resultado.mensaje}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ReconocimientoFacial;
+
+================================================================================
+🎨 CSS PARA EL COMPONENTE
+================================================================================
+
+/* ReconocimientoFacial.css */
+.reconocimiento-facial-panel {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.panel-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.panel-header h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.panel-header p {
+  color: #7f8c8d;
+}
+
+.seccion-foto {
+  margin-bottom: 25px;
+  padding: 20px;
+  border: 2px dashed #bdc3c7;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.foto-input {
+  display: none;
+}
+
+.btn-capturar {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-capturar:hover {
+  background: #2980b9;
+}
+
+.foto-preview {
+  margin-top: 20px;
+}
+
+.preview-imagen {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.seccion-configuracion {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 25px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.config-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.config-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.config-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto !important;
+}
+
+.seccion-accion {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 25px;
+}
+
+.btn-verificar {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-verificar:hover:not(:disabled) {
+  background: #2ecc71;
+  transform: translateY(-2px);
+}
+
+.btn-verificar:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-verificar.cargando {
+  background: #f39c12;
+}
+
+.btn-limpiar {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-limpiar:hover {
+  background: #c0392b;
+}
+
+.resultado {
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.resultado-exito {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.resultado-denegado {
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+.resultado-error {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.info-persona {
+  margin: 15px 0;
+}
+
+.info-persona p {
+  margin: 8px 0;
+}
+
+.estadisticas {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.estadisticas small {
+  color: #6c757d;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .seccion-configuracion {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .seccion-accion {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-verificar, .btn-limpiar {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+================================================================================
+🟢 COMPONENTE VUE.JS
+================================================================================
+
+<!-- ReconocimientoFacial.vue -->
+<template>
+  <div class="reconocimiento-facial-panel">
+    <div class="panel-header">
+      <h2>🔍 Verificación Facial</h2>
+      <p>Sistema de reconocimiento para panel de seguridad</p>
+    </div>
+
+    <!-- Captura de foto -->
+    <div class="seccion-foto">
+      <input
+        ref="fotoInput"
+        type="file"
+        accept="image/*"
+        capture="camera"
+        @change="handleFotoChange"
+        class="foto-input"
+      >
+      <button @click="$refs.fotoInput.click()" class="btn-capturar">
+        📷 Capturar/Seleccionar Foto
+      </button>
+      
+      <div v-if="previewUrl" class="foto-preview">
+        <img :src="previewUrl" alt="Preview" class="preview-imagen">
+      </div>
+    </div>
+
+    <!-- Configuración -->
+    <div class="seccion-configuracion">
+      <div class="config-group">
+        <label>
+          Umbral de Confianza:
+          <select v-model="configuracion.umbral">
+            <option value="60.0">60% - Flexible</option>
+            <option value="70.0">70% - Recomendado</option>
+            <option value="80.0">80% - Estricto</option>
+            <option value="90.0">90% - Muy estricto</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="config-group">
+        <label>
+          Buscar en:
+          <select v-model="configuracion.buscarEn">
+            <option value="todos">Todos los residentes</option>
+            <option value="propietarios">Solo propietarios</option>
+            <option value="inquilinos">Solo inquilinos</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="config-group">
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            v-model="configuracion.usarIA"
+          >
+          Usar IA Real (más preciso, toma más tiempo)
+        </label>
+      </div>
+    </div>
+
+    <!-- Botones -->
+    <div class="seccion-accion">
+      <button 
+        @click="verificarIdentidad"
+        :disabled="!foto || cargando"
+        :class="['btn-verificar', { cargando }]"
+      >
+        {{ cargando ? '🔄 Procesando...' : '🤖 Verificar Identidad' }}
+      </button>
+      
+      <button @click="limpiarFormulario" class="btn-limpiar">
+        🗑️ Limpiar
+      </button>
+    </div>
+
+    <!-- Resultado -->
+    <div v-if="resultado" :class="['resultado', `resultado-${resultado.tipo}`]">
+      <!-- Éxito -->
+      <div v-if="resultado.tipo === 'exito'" class="resultado-exito">
+        <h3>✅ ACCESO AUTORIZADO</h3>
+        <div class="info-persona">
+          <p><strong>Nombre:</strong> {{ resultado.data.verificacion.persona_identificada.nombre_completo }}</p>
+          <p><strong>Documento:</strong> {{ resultado.data.verificacion.persona_identificada.documento }}</p>
+          <p><strong>Unidad:</strong> {{ resultado.data.verificacion.persona_identificada.unidad }}</p>
+          <p><strong>Tipo:</strong> {{ resultado.data.verificacion.persona_identificada.tipo_residente }}</p>
+          <p><strong>Confianza:</strong> {{ resultado.data.verificacion.confianza.toFixed(1) }}%</p>
+        </div>
+      </div>
+
+      <!-- Denegado -->
+      <div v-else-if="resultado.tipo === 'denegado'" class="resultado-denegado">
+        <h3>❌ ACCESO DENEGADO</h3>
+        <p>No se pudo identificar a la persona en el sistema.</p>
+        <p><strong>Mejor coincidencia:</strong> {{ resultado.data.verificacion.confianza.toFixed(1) }}%</p>
+      </div>
+
+      <!-- Error -->
+      <div v-else class="resultado-error">
+        <h3>⚠️ ERROR</h3>
+        <p>{{ resultado.mensaje }}</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'ReconocimientoFacial',
+  data() {
+    return {
+      foto: null,
+      previewUrl: '',
+      configuracion: {
+        umbral: '70.0',
+        buscarEn: 'propietarios',
+        usarIA: true
+      },
+      resultado: null,
+      cargando: false
+    }
+  },
+  methods: {
+    handleFotoChange(event) {
+      const archivo = event.target.files[0];
+      if (!archivo) return;
+
+      if (!archivo.type.startsWith('image/')) {
+        alert('Por favor selecciona un archivo de imagen válido');
+        return;
+      }
+      
+      if (archivo.size > 5 * 1024 * 1024) {
+        alert('La imagen es muy grande. Máximo 5MB');
+        return;
+      }
+
+      this.foto = archivo;
+      
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (e) => this.previewUrl = e.target.result;
+      reader.readAsDataURL(archivo);
+    },
+
+    async verificarIdentidad() {
+      if (!this.foto) {
+        alert('Por favor selecciona una foto primero');
+        return;
+      }
+
+      this.cargando = true;
+      this.resultado = null;
+
+      try {
+        const formData = new FormData();
+        formData.append('foto_verificacion', this.foto);
+        formData.append('umbral_confianza', this.configuracion.umbral);
+        formData.append('buscar_en', this.configuracion.buscarEn);
+        formData.append('usar_ia_real', this.configuracion.usarIA ? 'true' : 'false');
+
+        const response = await fetch('/api/seguridad/verificacion-tiempo-real/', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          this.resultado = {
+            tipo: data.verificacion.resultado === 'ACEPTADO' ? 'exito' : 'denegado',
+            data: data
+          };
+        } else {
+          this.resultado = {
+            tipo: 'error',
+            mensaje: data.error || `Error ${response.status}`
+          };
+        }
+      } catch (error) {
+        this.resultado = {
+          tipo: 'error',
+          mensaje: `Error de conexión: ${error.message}`
+        };
+      } finally {
+        this.cargando = false;
+      }
+    },
+
+    limpiarFormulario() {
+      this.foto = null;
+      this.previewUrl = '';
+      this.resultado = null;
+      this.$refs.fotoInput.value = '';
+    }
+  }
+}
+</script>
+
+<style scoped>
+/* Usar el mismo CSS de arriba */
+</style>
+
+================================================================================
+📱 COMPONENTE VANILLA JAVASCRIPT
+================================================================================
+
+<!-- panel-reconocimiento.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Reconocimiento Facial</title>
+    <link rel="stylesheet" href="reconocimiento-facial.css">
+</head>
+<body>
+    <div id="panelReconocimiento" class="reconocimiento-facial-panel">
+        <!-- HTML igual que en React -->
+    </div>
+
+    <script src="reconocimiento-facial.js"></script>
+</body>
+</html>
+
+// reconocimiento-facial.js
+class PanelReconocimientoFacial {
+    constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.foto = null;
+        this.configuracion = {
+            umbral: '70.0',
+            buscarEn: 'propietarios',
+            usarIA: true
+        };
+        this.apiBase = 'http://127.0.0.1:8000';
+        this.init();
+    }
+
+    init() {
+        this.render();
+        this.bindEvents();
+    }
+
+    render() {
+        this.container.innerHTML = `
+            <div class="panel-header">
+                <h2>🔍 Verificación Facial</h2>
+                <p>Sistema de reconocimiento para panel de seguridad</p>
+            </div>
+            
+            <div class="seccion-foto">
+                <input type="file" id="fotoInput" accept="image/*" capture="camera" style="display: none;">
+                <button id="btnCapturar" class="btn-capturar">📷 Capturar/Seleccionar Foto</button>
+                <div id="previewContainer" style="display: none;">
+                    <img id="previewImagen" class="preview-imagen" alt="Preview">
+                </div>
+            </div>
+            
+            <!-- Resto del HTML igual -->
+        `;
+    }
+
+    bindEvents() {
+        const fotoInput = this.container.querySelector('#fotoInput');
+        const btnCapturar = this.container.querySelector('#btnCapturar');
+        const btnVerificar = this.container.querySelector('#btnVerificar');
+        
+        btnCapturar.addEventListener('click', () => fotoInput.click());
+        fotoInput.addEventListener('change', (e) => this.handleFotoChange(e));
+        btnVerificar.addEventListener('click', () => this.verificarIdentidad());
+    }
+
+    async verificarIdentidad() {
+        // Implementación igual que en React/Vue
+    }
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => {
+    new PanelReconocimientoFacial('panelReconocimiento');
+});
+
+================================================================================
+🚀 INSTRUCCIONES DE USO
+================================================================================
+
+1. REACT:
+   - Copia el componente ReconocimientoFacial.jsx
+   - Copia el CSS ReconocimientoFacial.css  
+   - Importa: import ReconocimientoFacial from './ReconocimientoFacial'
+   - Usa: <ReconocimientoFacial />
+
+2. VUE:
+   - Copia ReconocimientoFacial.vue
+   - Registra el componente
+   - Usa: <ReconocimientoFacial />
+
+3. VANILLA JS:
+   - Copia los archivos HTML, CSS y JS
+   - Incluye en tu panel de seguridad
+
+4. CONFIGURAR API_URL:
+   - Desarrollo: http://127.0.0.1:8000
+   - Producción: https://tu-dominio.com
+
+¡LISTO PARA IMPLEMENTAR EN CUALQUIER FRAMEWORK! 🔥

@@ -34,7 +34,10 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "testserver",
-    "192.168.0.11"
+    "192.168.0.11",
+    "https://parcialgrupo8.netlify.app/",
+    "192.168.56.1",  # IP local para Netlify
+    
 ]
 
 
@@ -269,6 +272,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8080",
+    "https://stellar-dasik-aa1890.netlify.app",  # Tu frontend en Netlify (URL corregida)
 ]
 
 # Permitir todas las cabeceras en desarrollo (más flexible)

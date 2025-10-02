@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 WebRTC Reconocimiento Facial Profesional</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-section {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .control-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(250, 112, 154, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .status-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        #video {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .video-overlay.active {
+            display: block;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .result-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .result-success {
+            border-left: 5px solid #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .result-error {
+            border-left: 5px solid #dc3545;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-icon {
+            font-size: 2em;
+        }
+
+        .result-title {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .result-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .result-item {
+            background: rgba(255,255,255,0.8);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .result-item-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .result-item-value {
+            font-size: 1.1em;
+            color: #007bff;
+        }
+
+        .settings-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .setting-item {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .setting-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            margin-bottom: 10px;
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+        }
+
+        .error-container {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #dc3545;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .settings-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 WebRTC Reconocimiento Facial</h1>
+            <p>Sistema profesional de reconocimiento facial en tiempo real</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-grid">
+                <div class="control-section">
+                    <h3>🔗 Conexión WebRTC</h3>
+                    <button id="connectBtn" class="btn btn-primary">
+                        <span>🔴</span> Conectar
+                    </button>
+                    <button id="disconnectBtn" class="btn btn-danger" disabled>
+                        Desconectar
+                    </button>
+                </div>
+
+                <div class="control-section">
+                    <h3>📹 Control de Cámara</h3>
+                    <button id="startCameraBtn" class="btn btn-success" disabled>
+                        <span>📹</span> Iniciar Cámara
+                    </button>
+                    <button id="stopCameraBtn" class="btn btn-danger" disabled>
+                        Detener Cámara
+                    </button>
+                </div>
+
+                <div class="control-section">
+                    <h3>👁️ Reconocimiento</h3>
+                    <button id="startStreamingBtn" class="btn btn-primary" disabled>
+                        <span>▶️</span> Iniciar Streaming
+                    </button>
+                    <button id="stopStreamingBtn" class="btn btn-danger" disabled>
+                        <span>⏹️</span> Detener Streaming
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Cards -->
+            <div class="status-grid">
+                <div class="status-card">
+                    <div class="status-icon" id="connectionIcon">🔴</div>
+                    <div class="status-label">Conexión</div>
+                    <div class="status-value" id="connectionStatus">Desconectado</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-icon">📹</div>
+                    <div class="status-label">Cámara</div>
+                    <div class="status-value" id="cameraStatus">Inactiva</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-icon">⚡</div>
+                    <div class="status-label">Streaming</div>
+                    <div class="status-value" id="streamingStatus">Detenido</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-icon">👥</div>
+                    <div class="status-label">Clientes</div>
+                    <div class="status-value" id="clientsCount">0</div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="settings-container">
+                <div class="setting-item">
+                    <div class="setting-label">FPS: <span id="fpsValue">5</span></div>
+                    <input type="range" id="fpsSlider" class="slider" min="1" max="10" value="5">
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">Calidad: <span id="qualityValue">70</span>%</div>
+                    <input type="range" id="qualitySlider" class="slider" min="30" max="100" value="70">
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Video Container -->
+            <div class="video-container">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+                <div id="videoOverlay" class="video-overlay">
+                    <span class="pulse">🔴</span> Procesando a <span id="currentFps">5</span> FPS
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalFrames">0</div>
+                    <div class="stat-label">Frames Procesados</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="successCount">0</div>
+                    <div class="stat-label">Reconocimientos Exitosos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="failedCount">0</div>
+                    <div class="stat-label">Reconocimientos Fallidos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgTime">0</div>
+                    <div class="stat-label">Tiempo Promedio (ms)</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">Tasa de Éxito</span>
+                    <span id="successRate">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Error Container -->
+            <div id="errorContainer" class="error-container" style="display: none;">
+                <strong>❌ Error:</strong> <span id="errorMessage"></span>
+            </div>
+
+            <!-- Loading Container -->
+            <div id="loadingContainer" class="loading-container" style="display: none;">
+                <div class="spinner"></div>
+                <p>Conectando al servidor WebRTC...</p>
+            </div>
+
+            <!-- Result Container -->
+            <div id="resultContainer" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let socket = null;
+        let stream = null;
+        let streamingInterval = null;
+        let frameId = 0;
+        
+        // Configuración
+        const WEBRTC_URL = 'http://localhost:8001';
+        let currentFPS = 5;
+        let currentQuality = 0.7;
+        
+        // Estadísticas
+        let stats = {
+            totalFrames: 0,
+            successCount: 0,
+            failedCount: 0,
+            avgTime: 0
+        };
+
+        // Elementos DOM
+        const elements = {
+            connectBtn: document.getElementById('connectBtn'),
+            disconnectBtn: document.getElementById('disconnectBtn'),
+            startCameraBtn: document.getElementById('startCameraBtn'),
+            stopCameraBtn: document.getElementById('stopCameraBtn'),
+            startStreamingBtn: document.getElementById('startStreamingBtn'),
+            stopStreamingBtn: document.getElementById('stopStreamingBtn'),
+            video: document.getElementById('video'),
+            canvas: document.getElementById('canvas'),
+            videoOverlay: document.getElementById('videoOverlay'),
+            fpsSlider: document.getElementById('fpsSlider'),
+            qualitySlider: document.getElementById('qualitySlider'),
+            fpsValue: document.getElementById('fpsValue'),
+            qualityValue: document.getElementById('qualityValue'),
+            currentFps: document.getElementById('currentFps'),
+            connectionIcon: document.getElementById('connectionIcon'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            cameraStatus: document.getElementById('cameraStatus'),
+            streamingStatus: document.getElementById('streamingStatus'),
+            clientsCount: document.getElementById('clientsCount'),
+            totalFrames: document.getElementById('totalFrames'),
+            successCount: document.getElementById('successCount'),
+            failedCount: document.getElementById('failedCount'),
+            avgTime: document.getElementById('avgTime'),
+            successRate: document.getElementById('successRate'),
+            progressFill: document.getElementById('progressFill'),
+            errorContainer: document.getElementById('errorContainer'),
+            errorMessage: document.getElementById('errorMessage'),
+            loadingContainer: document.getElementById('loadingContainer'),
+            resultContainer: document.getElementById('resultContainer')
+        };
+
+        // Event Listeners
+        elements.connectBtn.addEventListener('click', connectWebRTC);
+        elements.disconnectBtn.addEventListener('click', disconnectWebRTC);
+        elements.startCameraBtn.addEventListener('click', startCamera);
+        elements.stopCameraBtn.addEventListener('click', stopCamera);
+        elements.startStreamingBtn.addEventListener('click', startStreaming);
+        elements.stopStreamingBtn.addEventListener('click', stopStreaming);
+
+        // Sliders
+        elements.fpsSlider.addEventListener('input', (e) => {
+            currentFPS = parseInt(e.target.value);
+            elements.fpsValue.textContent = currentFPS;
+            elements.currentFps.textContent = currentFPS;
+            
+            // Reiniciar streaming si está activo
+            if (streamingInterval) {
+                stopStreaming();
+                setTimeout(startStreaming, 500);
+            }
+        });
+
+        elements.qualitySlider.addEventListener('input', (e) => {
+            currentQuality = parseInt(e.target.value) / 100;
+            elements.qualityValue.textContent = e.target.value;
+        });
+
+        // Funciones principales
+        function connectWebRTC() {
+            showLoading(true);
+            hideError();
+            
+            socket = io(WEBRTC_URL, {
+                transports: ['websocket', 'polling'],
+                timeout: 10000
+            });
+
+            socket.on('connect', () => {
+                console.log('✅ Conectado al servidor WebRTC');
+                updateConnectionStatus(true);
+                showLoading(false);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Desconectado del servidor WebRTC');
+                updateConnectionStatus(false);
+                updateButtons();
+            });
+
+            socket.on('config', (config) => {
+                console.log('📋 Configuración recibida:', config);
+                // Ajustar FPS máximo según servidor
+                if (config.max_fps && config.max_fps < currentFPS) {
+                    currentFPS = config.max_fps;
+                    elements.fpsSlider.value = currentFPS;
+                    elements.fpsValue.textContent = currentFPS;
+                }
+            });
+
+            socket.on('recognition_result', (result) => {
+                console.log('🎯 Resultado:', result);
+                handleRecognitionResult(result);
+            });
+
+            socket.on('stats', (serverStats) => {
+                updateStats(serverStats);
+            });
+
+            socket.on('error', (error) => {
+                console.error('❌ Error del servidor:', error);
+                showError(`Error del servidor: ${error.message}`);
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('❌ Error de conexión:', error);
+                showError(`Error de conexión: ${error.message || 'No se pudo conectar'}`);
+                showLoading(false);
+                updateConnectionStatus(false);
+            });
+        }
+
+        function disconnectWebRTC() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            stopStreaming();
+            stopCamera();
+            updateConnectionStatus(false);
+        }
+
+        async function startCamera() {
+            try {
+                hideError();
+                
+                const constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user',
+                        frameRate: { ideal: currentFPS }
+                    }
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                elements.video.srcObject = stream;
+                
+                elements.video.addEventListener('loadedmetadata', () => {
+                    console.log(`📹 Video iniciado: ${elements.video.videoWidth}x${elements.video.videoHeight}`);
+                });
+                
+                updateCameraStatus(true);
+                updateButtons();
+
+            } catch (error) {
+                console.error('Error iniciando cámara:', error);
+                showError('Error al acceder a la cámara. Verifica los permisos.');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                elements.video.srcObject = null;
+            }
+            stopStreaming();
+            updateCameraStatus(false);
+            updateButtons();
+        }
+
+        function startStreaming() {
+            if (!socket || !stream || !elements.video.videoWidth) {
+                showError('Cámara no activa o no conectado al servidor');
+                return;
+            }
+
+            elements.videoOverlay.classList.add('active');
+            updateStreamingStatus(true);
+            updateButtons();
+
+            streamingInterval = setInterval(() => {
+                processFrame();
+            }, 1000 / currentFPS);
+
+            console.log(`🎬 Streaming iniciado a ${currentFPS} FPS`);
+        }
+
+        function stopStreaming() {
+            if (streamingInterval) {
+                clearInterval(streamingInterval);
+                streamingInterval = null;
+            }
+            
+            elements.videoOverlay.classList.remove('active');
+            updateStreamingStatus(false);
+            updateButtons();
+            console.log('⏹️ Streaming detenido');
+        }
+
+        function processFrame() {
+            if (!elements.video || !elements.canvas || !socket) return;
+
+            const video = elements.video;
+            const canvas = elements.canvas;
+            const ctx = canvas.getContext('2d');
+
+            if (video.readyState !== 4) return;
+
+            try {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                const imageData = canvas.toDataURL('image/jpeg', currentQuality);
+                frameId++;
+
+                socket.emit('process_frame', {
+                    image: imageData,
+                    frame_id: frameId,
+                    quality: currentQuality,
+                    timestamp: Date.now()
+                });
+
+            } catch (error) {
+                console.error('Error procesando frame:', error);
+            }
+        }
+
+        function handleRecognitionResult(result) {
+            const container = elements.resultContainer;
+            container.style.display = 'block';
+            
+            if (result.reconocido) {
+                container.className = 'result-container result-success';
+                container.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-icon">✅</div>
+                        <div class="result-title">ACCESO AUTORIZADO</div>
+                        <div style="margin-left: auto; background: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 15px; font-size: 0.9em;">
+                            Frame #${result.frame_id || frameId}
+                        </div>
+                    </div>
+                    <div class="result-details">
+                        <div class="result-item">
+                            <div class="result-item-label">👤 Persona</div>
+                            <div class="result-item-value">${result.persona.nombre}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-item-label">🏠 Vivienda</div>
+                            <div class="result-item-value">${result.persona.vivienda || 'N/A'}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-item-label">📊 Confianza</div>
+                            <div class="result-item-value">${Math.round((result.confianza || 0) * 100)}%</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-item-label">⚡ Tiempo</div>
+                            <div class="result-item-value">${(result.processing_time || 0).toFixed(1)}ms</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-item-label">🤖 Proveedor</div>
+                            <div class="result-item-value">${result.proveedor || 'OpenCV'}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-item-label">📋 Tipo</div>
+                            <div class="result-item-value">${result.persona.tipo_residente || 'N/A'}</div>
+                        </div>
+                    </div>
+                `;
+                stats.successCount++;
+            } else {
+                container.className = 'result-container result-error';
+                container.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-icon">❌</div>
+                        <div class="result-title">ACCESO DENEGADO</div>
+                        <div style="margin-left: auto; background: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 15px; font-size: 0.9em;">
+                            Frame #${result.frame_id || frameId}
+                        </div>
+                    </div>
+                    <div style="text-align: center; padding: 20px;">
+                        <p style="font-size: 1.2em; margin-bottom: 10px;">Persona no reconocida en el sistema</p>
+                        <p style="color: #6c757d;">${result.mensaje || result.error || 'Acceso denegado por seguridad'}</p>
+                        ${result.processing_time ? `<div style="margin-top: 15px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px; display: inline-block;">Procesado en ${result.processing_time.toFixed(1)}ms</div>` : ''}
+                    </div>
+                `;
+                stats.failedCount++;
+            }
+            
+            stats.totalFrames++;
+            updateLocalStats();
+        }
+
+        function updateStats(serverStats) {
+            elements.totalFrames.textContent = serverStats.total_frames_processed || 0;
+            elements.successCount.textContent = serverStats.successful_recognitions || 0;
+            elements.failedCount.textContent = serverStats.failed_recognitions || 0;
+            elements.avgTime.textContent = Math.round((serverStats.average_processing_time || 0) * 1000);
+            elements.clientsCount.textContent = serverStats.connected_clients || 0;
+            
+            // Calcular tasa de éxito
+            const total = serverStats.total_frames_processed || 0;
+            const success = serverStats.successful_recognitions || 0;
+            const rate = total > 0 ? (success / total * 100) : 0;
+            
+            elements.successRate.textContent = `${rate.toFixed(1)}%`;
+            elements.progressFill.style.width = `${rate}%`;
+        }
+
+        function updateLocalStats() {
+            const total = stats.totalFrames;
+            const success = stats.successCount;
+            const rate = total > 0 ? (success / total * 100) : 0;
+            
+            elements.successRate.textContent = `${rate.toFixed(1)}%`;
+            elements.progressFill.style.width = `${rate}%`;
+        }
+
+        function updateConnectionStatus(connected) {
+            elements.connectionIcon.textContent = connected ? '🟢' : '🔴';
+            elements.connectionStatus.textContent = connected ? 'Conectado' : 'Desconectado';
+            updateButtons();
+        }
+
+        function updateCameraStatus(active) {
+            elements.cameraStatus.textContent = active ? 'Activa' : 'Inactiva';
+        }
+
+        function updateStreamingStatus(active) {
+            elements.streamingStatus.textContent = active ? `${currentFPS} FPS` : 'Detenido';
+        }
+
+        function updateButtons() {
+            const connected = socket && socket.connected;
+            const cameraActive = stream && elements.video.srcObject;
+            const streaming = streamingInterval !== null;
+
+            elements.connectBtn.disabled = connected;
+            elements.disconnectBtn.disabled = !connected;
+            elements.startCameraBtn.disabled = !connected || cameraActive;
+            elements.stopCameraBtn.disabled = !cameraActive;
+            elements.startStreamingBtn.disabled = !connected || !cameraActive || streaming;
+            elements.stopStreamingBtn.disabled = !streaming;
+
+            // Actualizar texto del botón conectar
+            elements.connectBtn.innerHTML = connected ? 
+                '<span>🟢</span> Conectado' : 
+                '<span>🔴</span> Conectar';
+        }
+
+        function showError(message) {
+            elements.errorMessage.textContent = message;
+            elements.errorContainer.style.display = 'block';
+        }
+
+        function hideError() {
+            elements.errorContainer.style.display = 'none';
+        }
+
+        function showLoading(show) {
+            elements.loadingContainer.style.display = show ? 'block' : 'none';
+        }
+
+        // Cleanup al cerrar la página
+        window.addEventListener('beforeunload', () => {
+            disconnectWebRTC();
+        });
+
+        // Inicialización
+        console.log('🚀 WebRTC Face Recognition iniciado');
+        console.log('📡 URL del servidor:', WEBRTC_URL);
+    </script>
+</body>
+</html>

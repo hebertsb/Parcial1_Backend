@@ -1,0 +1,103 @@
+📋 NÚMEROS DE VIVIENDAS DISPONIBLES PARA PRUEBAS FRONTEND
+================================================================================
+Generado: 30/09/2025 01:55:00
+Total disponibles: 73 viviendas
+
+🏠 CASAS DISPONIBLES (31 unidades):
+202B, CASA-012, CASA-013, CASA-015, CASA-017, CASA-018, CASA-019, CASA-021, 
+CASA-026, CASA-029, CASA-030, CASA-031, CASA-032, CASA-033, CASA-034, CASA-035, 
+CASA-036, CASA-037, CASA-038, CASA-039, CASA-040, CASA-041, CASA-042, CASA-043, 
+CASA-044, CASA-045, CASA-046, CASA-047, CASA-048, CASA-049, CASA-050
+
+🏢 DEPARTAMENTOS DISPONIBLES (36 unidades):
+CASA-003, CASA-005, DEPT-011, DEPT-014, DEPT-016, DEPT-020, DEPT-022, DEPT-023, 
+DEPT-024, DEPT-027, DEPT-028, DEPT-051, DEPT-052, DEPT-053, DEPT-054, DEPT-055, 
+DEPT-056, DEPT-057, DEPT-058, DEPT-059, DEPT-060, DEPT-061, DEPT-062, DEPT-063, 
+DEPT-064, DEPT-065, DEPT-066, DEPT-067, DEPT-068, DEPT-069, DEPT-070, DEPT-071, 
+DEPT-072, DEPT-073, DEPT-074, DEPT-075
+
+🏪 LOCALES DISPONIBLES (6 unidades):
+LOCAL-025, LOCAL-076, LOCAL-077, LOCAL-078, LOCAL-079, LOCAL-080
+
+================================================================================
+🎯 TOP 10 PARA PRUEBAS RÁPIDAS:
+================================================================================
+1.  202B      (Casa - 110.25m²)
+2.  CASA-012  (Casa - 110.03m²) 
+3.  CASA-013  (Casa - 140.35m²)
+4.  CASA-015  (Casa - 179.63m²)
+5.  CASA-017  (Casa - 117.66m²)
+6.  CASA-018  (Casa - 196.11m²)
+7.  CASA-019  (Casa - 116.55m²)
+8.  CASA-021  (Casa - 171.78m²)
+9.  CASA-026  (Casa - 105.62m²)
+10. CASA-029  (Casa - 181.02m²)
+
+================================================================================
+📱 CÓDIGO JAVASCRIPT PARA FRONTEND:
+================================================================================
+
+// Array completo de viviendas disponibles
+const viviendasDisponibles = [
+  "202B", "CASA-012", "CASA-013", "CASA-015", "CASA-017", "CASA-018", 
+  "CASA-019", "CASA-021", "CASA-026", "CASA-029", "CASA-030", "CASA-031", 
+  "CASA-032", "CASA-033", "CASA-034", "CASA-035", "CASA-036", "CASA-037", 
+  "CASA-038", "CASA-039", "CASA-040", "CASA-041", "CASA-042", "CASA-043", 
+  "CASA-044", "CASA-045", "CASA-046", "CASA-047", "CASA-048", "CASA-049", 
+  "CASA-050", "CASA-003", "CASA-005", "DEPT-011", "DEPT-014", "DEPT-016", 
+  "DEPT-020", "DEPT-022", "DEPT-023", "DEPT-024", "DEPT-027", "DEPT-028", 
+  "DEPT-051", "DEPT-052", "DEPT-053", "DEPT-054", "DEPT-055", "DEPT-056", 
+  "DEPT-057", "DEPT-058", "DEPT-059", "DEPT-060", "DEPT-061", "DEPT-062", 
+  "DEPT-063", "DEPT-064", "DEPT-065", "DEPT-066", "DEPT-067", "DEPT-068", 
+  "DEPT-069", "DEPT-070", "DEPT-071", "DEPT-072", "DEPT-073", "DEPT-074", 
+  "DEPT-075", "LOCAL-025", "LOCAL-076", "LOCAL-077", "LOCAL-078", 
+  "LOCAL-079", "LOCAL-080"
+];
+
+// Para selector de tipo específico
+const viviendasPorTipo = {
+  casas: ["202B", "CASA-012", "CASA-013", "CASA-015", "CASA-017", "CASA-018", 
+          "CASA-019", "CASA-021", "CASA-026", "CASA-029", "CASA-030", "CASA-031", 
+          "CASA-032", "CASA-033", "CASA-034", "CASA-035", "CASA-036", "CASA-037", 
+          "CASA-038", "CASA-039", "CASA-040", "CASA-041", "CASA-042", "CASA-043", 
+          "CASA-044", "CASA-045", "CASA-046", "CASA-047", "CASA-048", "CASA-049", 
+          "CASA-050"],
+  
+  departamentos: ["CASA-003", "CASA-005", "DEPT-011", "DEPT-014", "DEPT-016", 
+                  "DEPT-020", "DEPT-022", "DEPT-023", "DEPT-024", "DEPT-027", 
+                  "DEPT-028", "DEPT-051", "DEPT-052", "DEPT-053", "DEPT-054", 
+                  "DEPT-055", "DEPT-056", "DEPT-057", "DEPT-058", "DEPT-059", 
+                  "DEPT-060", "DEPT-061", "DEPT-062", "DEPT-063", "DEPT-064", 
+                  "DEPT-065", "DEPT-066", "DEPT-067", "DEPT-068", "DEPT-069", 
+                  "DEPT-070", "DEPT-071", "DEPT-072", "DEPT-073", "DEPT-074", 
+                  "DEPT-075"],
+  
+  locales: ["LOCAL-025", "LOCAL-076", "LOCAL-077", "LOCAL-078", 
+            "LOCAL-079", "LOCAL-080"]
+};
+
+================================================================================
+🚀 INSTRUCCIONES PARA PRUEBAS:
+================================================================================
+
+1. REGISTRO DE PROPIETARIO:
+   - Usar cualquier número de la lista de disponibles
+   - Email: cualquier@test.com (debe ser único)
+   - Documento: 12345679 (incrementar último dígito)
+   - Password: temporal123
+
+2. REGISTRO DE INQUILINO:
+   - Usar viviendas ya ocupadas con propietarios existentes
+   - Viviendas ocupadas: 201B, CASA-001, CASA-002, CASA-004, 101A, 102A, L01
+
+3. VALIDACIÓN:
+   - Sistema valida que la vivienda exista
+   - Sistema previene duplicados
+   - Sistema diferencia entre propietarios e inquilinos
+
+4. ENDPOINTS ÚTILES:
+   GET /api/viviendas/ - Ver todas las viviendas
+   GET /api/viviendas/disponibles/ - Solo disponibles
+   POST /api/authz/registro/propietario/ - Registrar propietario
+
+================================================================================
