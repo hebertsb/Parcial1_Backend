@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-gekczkfvw9q$26(8quj^v(7!3^tel@f^17r(0(f2crak9^y_%k'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -37,7 +37,9 @@ ALLOWED_HOSTS = [
     "192.168.0.11",
     "https://parcialgrupo8.netlify.app/",
     "192.168.56.1",  # IP local para Netlify
-    
+    "parcial1backend-production.up.railway.app",  # Railway dominio
+    "*.up.railway.app",  # Todos los dominios de Railway
+    "*",  # Temporal para desarrollo - QUITAR EN PRODUCCIÓN FINAL
 ]
 
 

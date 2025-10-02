@@ -45,7 +45,7 @@ RUN pip install --upgrade pip wheel setuptools \
 # Imagen de producción basada en Ubuntu 24.04 (más segura)
 FROM ubuntu:24.04 AS production
 
-# Instalar solo Python runtime necesario
+# Instalar solo Python runtime necesario + dependencias para face_recognition
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     python3.12 \
     python3-pip \
@@ -68,13 +68,19 @@ RUN groupadd --gid 1000 app \
 
 # Instalar solo dependencias runtime necesarias (sin herramientas de build)
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    # Runtime necesario para OpenCV y dlib
+    # Runtime necesario para OpenCV y dlib y face_recognition
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    libx11-6 \
+    libxcb1 \
+    libfontconfig1 \
+    libfreetype6 \
+    libopenblas0 \
+    liblapack3 \
     # Runtime para OCR - Tesseract
     tesseract-ocr \
     tesseract-ocr-spa \
