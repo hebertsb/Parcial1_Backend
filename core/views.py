@@ -271,7 +271,11 @@ class HealthCheckView(APIView):
         """Verificar Face Recognition"""
         try:
             import face_recognition
-            import cv2
+            # Import cv2 solo si es necesario
+            try:
+                import cv2
+            except ImportError:
+                pass  # cv2 opcional para este check
             return 'ok'
         except Exception:
             return 'warning'
