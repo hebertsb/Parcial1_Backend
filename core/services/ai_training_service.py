@@ -1,18 +1,44 @@
 # core/services/ai_training_service.py - Entrenamiento automático de IA
 import os
 import pickle
-import numpy as np
 from typing import List, Dict, Tuple
-import face_recognition
-from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
-import joblib
 import logging
-from datetime import datetime
+import random
 
 logger = logging.getLogger('ai_training')
+
+# === IMPORTACIONES SEGURAS AL INICIO ===
+# Importar dependencias ML de forma segura
+try:
+    import face_recognition
+    import numpy as np
+    from sklearn.svm import SVC
+    FACE_RECOGNITION_AVAILABLE = True
+    logger.info("✅ face_recognition disponible en ai_training_service - usando IA real")
+except ImportError as e:
+    # Crear objetos mock para evitar errores
+    face_recognition = None
+    np = None
+    SVC = None
+    FACE_RECOGNITION_AVAILABLE = False
+    logger.warning(f"⚠️ face_recognition no disponible en ai_training_service: {e} - usando simulación")
+
+# Importar sklearn siempre
+try:
+    from sklearn.svm import SVC
+    from sklearn.preprocessing import LabelEncoder
+    from sklearn.model_selection import train_test_split
+    from sklearn.metrics import accuracy_score, classification_report
+    import joblib
+except ImportError:
+    SVC = None
+    LabelEncoder = None
+    train_test_split = None
+    accuracy_score = None
+    classification_report = None
+    joblib = None
+    
+from datetime import datetime
 
 class AITrainingService:
     """
@@ -33,6 +59,13 @@ class AITrainingService:
         """
         Entrena el modelo automáticamente usando datos de la BD
         """
+        if not FACE_RECOGNITION_AVAILABLE:
+            return {
+                'success': False,
+                'error': 'Dependencias de ML no disponibles',
+                'message': 'face_recognition y sklearn no están instalados'
+            }
+        
         logger.info("🧠 Iniciando entrenamiento automático de IA...")
         
         try:
@@ -46,6 +79,8 @@ class AITrainingService:
                 }
             
             # 2. Dividir datos para entrenamiento y validación
+            if train_test_split is None:
+                raise Exception("sklearn no disponible")
             X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
                 X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
             )
@@ -53,6 +88,8 @@ class AITrainingService:
             # 3. Entrenar clasificador SVM
             logger.info(f"📊 Entrenando con {len(X_train_split)} muestras...")
             
+            if SVC is None:
+                raise Exception("SVC no disponible")
             self.face_classifier = SVC(
                 kernel='linear',  # Rápido y eficiente
                 probability=True,  # Para obtener confianza
@@ -65,6 +102,8 @@ class AITrainingService:
             
             # 4. Validar precisión
             y_pred = self.face_classifier.predict(X_val_split)
+            if accuracy_score is None:
+                raise Exception("accuracy_score no disponible")
             accuracy = accuracy_score(y_val_split, y_pred)
             
             # 5. Guardar modelo entrenado
@@ -82,7 +121,7 @@ class AITrainingService:
                 'people_count': len(personas_map),
                 'training_time': datetime.now().isoformat(),
                 'model_path': self.model_path,
-                'classification_report': classification_report(y_val_split, y_pred, output_dict=True)
+                'classification_report': classification_report(y_val_split, y_pred, output_dict=True) if classification_report else {}
             }
             
         except Exception as e:
@@ -142,12 +181,21 @@ class AITrainingService:
                     response = requests.get(foto_url, timeout=10)
                     if response.status_code == 200:
                         imagen = Image.open(io.BytesIO(response.content))
-                        imagen_rgb = np.array(imagen)
+                        
+                        # Convertir imagen a array numpy
+                        if np is not None:
+                            imagen_rgb = np.array(imagen)
+                        else:
+                            logger.warning("numpy no disponible, saltando procesamiento de imagen")
+                            continue
                         
                         # Extraer encoding facial
-                        encodings = face_recognition.face_encodings(imagen_rgb)
-                        if encodings:
-                            encodings_persona.append(encodings[0])
+                        if face_recognition is not None:
+                            encodings = face_recognition.face_encodings(imagen_rgb)
+                            if encodings:
+                                encodings_persona.append(encodings[0])
+                        else:
+                            logger.warning("face_recognition no disponible, saltando encodings")
                 
                 except Exception as e:
                     logger.warning(f"⚠️ Error procesando foto de {persona_nombre}: {e}")
@@ -169,7 +217,10 @@ class AITrainingService:
         
         # Guardar clasificador
         model_file = os.path.join(self.model_path, f'face_classifier_{timestamp}.pkl')
-        joblib.dump(self.face_classifier, model_file)
+        if joblib is not None:
+            joblib.dump(self.face_classifier, model_file)
+        else:
+            logger.warning("joblib no disponible, no se puede guardar el modelo")
         
         # Guardar mapa de personas
         personas_file = os.path.join(self.model_path, f'personas_map_{timestamp}.pkl')
@@ -202,7 +253,11 @@ class AITrainingService:
                 model_info = pickle.load(f)
             
             # Cargar clasificador
-            self.face_classifier = joblib.load(model_info['classifier_path'])
+            if joblib is not None:
+                self.face_classifier = joblib.load(model_info['classifier_path'])
+            else:
+                logger.warning("joblib no disponible, no se puede cargar el modelo")
+                return False
             
             # Cargar mapa de personas
             with open(model_info['personas_path'], 'rb') as f:
@@ -218,7 +273,7 @@ class AITrainingService:
             logger.error(f"❌ Error cargando modelo: {e}")
             return False
     
-    def predecir_con_modelo_entrenado(self, face_encoding: np.ndarray) -> Dict:
+    def predecir_con_modelo_entrenado(self, face_encoding) -> Dict:
         """
         Usa el modelo entrenado para hacer predicciones
         """
@@ -238,14 +293,17 @@ class AITrainingService:
                 }
             
             # Convertir a formato correcto para scikit-learn
-            face_encoding_array = np.array([face_encoding])
-            
-            # Predecir persona
-            prediction = self.face_classifier.predict(face_encoding_array)[0]
-            
-            # Obtener probabilidades
-            probabilities = self.face_classifier.predict_proba(face_encoding_array)[0]
-            confidence = max(probabilities) * 100
+            if np is not None and self.face_classifier is not None:
+                face_encoding_array = np.array([face_encoding])
+                # Predecir persona
+                prediction = self.face_classifier.predict(face_encoding_array)[0]
+                # Obtener probabilidades
+                probabilities = self.face_classifier.predict_proba(face_encoding_array)[0]
+                confidence = max(probabilities) * 100
+            else:
+                logger.warning("numpy o clasificador no disponible, usando fallback")
+                prediction = 'unknown'
+                confidence = 0
             
             # Obtener nombre de la persona
             persona_nombre = getattr(self, 'personas_map', {}).get(prediction, 'Desconocido')

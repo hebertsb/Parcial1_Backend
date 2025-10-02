@@ -6,7 +6,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 import logging
 
-from core.services.ai_training_service import AITrainingService
+# Importación segura del servicio de AI
+try:
+    from core.services.ai_training_service import AITrainingService
+    AI_TRAINING_AVAILABLE = True
+except ImportError as e:
+    AITrainingService = None
+    AI_TRAINING_AVAILABLE = False
+    logger = logging.getLogger('ai_training')
+    logger.warning(f"⚠️ AITrainingService no disponible: {e} - funciones deshabilitadas")
+
 from .models import fn_bitacora_log
 
 logger = logging.getLogger('ai_training')
@@ -22,7 +31,20 @@ def entrenar_ia_automatico(request):
     Entrena el modelo de IA automáticamente usando todos los datos disponibles
     POST /api/seguridad/ia/entrenar/
     """
+    if not AI_TRAINING_AVAILABLE:
+        return Response({
+            'success': False,
+            'error': 'Servicio de entrenamiento de IA no disponible',
+            'message': 'Las dependencias de ML no están instaladas'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    
     try:
+        if AITrainingService is None:
+            return JsonResponse({
+                'success': False,
+                'error': 'Servicio de AI Training no disponible'
+            }, status=503)
+            
         training_service = AITrainingService()
         resultado = training_service.entrenar_modelo_automatico()
         
@@ -74,6 +96,12 @@ def re_entrenar_ia(request):
     POST /api/seguridad/ia/re-entrenar/
     """
     try:
+        if AITrainingService is None:
+            return Response({
+                'success': False,
+                'error': 'Servicio de AI Training no disponible'
+            }, status=503)
+            
         training_service = AITrainingService()
         resultado = training_service.re_entrenar_automatico()
         
@@ -102,6 +130,12 @@ def estadisticas_modelo_ia(request):
     GET /api/seguridad/ia/estadisticas/
     """
     try:
+        if AITrainingService is None:
+            return Response({
+                'success': False,
+                'error': 'Servicio de AI Training no disponible'
+            }, status=503)
+            
         training_service = AITrainingService()
         estadisticas = training_service.obtener_estadisticas_modelo()
         
@@ -155,6 +189,12 @@ def probar_modelo_entrenado(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Usar modelo entrenado para predecir
+        if AITrainingService is None:
+            return Response({
+                'success': False,
+                'error': 'Servicio de AI Training no disponible'
+            }, status=503)
+            
         training_service = AITrainingService()
         resultado_prediccion = training_service.predecir_con_modelo_entrenado(encodings[0])
         
@@ -199,6 +239,12 @@ def dashboard_entrenamiento_ia(request):
     GET /api/seguridad/ia/dashboard/
     """
     try:
+        if AITrainingService is None:
+            return Response({
+                'success': False,
+                'error': 'Servicio de AI Training no disponible'
+            }, status=503)
+            
         training_service = AITrainingService()
         estadisticas = training_service.obtener_estadisticas_modelo()
         

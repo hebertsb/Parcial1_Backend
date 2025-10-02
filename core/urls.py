@@ -88,7 +88,8 @@ urlpatterns = [
     path('api/seguridad/', include('seguridad.urls_actividad')),  # URL alternativa
     
     # Entrenamiento de IA - Endpoints para gestión de modelos
-    path('api/seguridad/', include('seguridad.urls_ai_training')),
+    # TEMPORALMENTE COMENTADO PARA RAILWAY - Requiere dependencias ML
+    # path('api/seguridad/', include('seguridad.urls_ai_training')),
 
     # #expensas
     # path('api/expensas/', include('expensas_multas.urls')),
