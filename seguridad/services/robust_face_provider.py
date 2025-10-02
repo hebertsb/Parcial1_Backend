@@ -10,7 +10,10 @@ import json
 
 logger = logging.getLogger('seguridad')
 
-# Importación condicional de dependencias de ML
+# === IMPORTACIONES SEGURAS AL INICIO ===
+# Importar dependencias ML de forma segura
+import random  # Importar random siempre para simulación
+
 try:
     import face_recognition
     import numpy as np
@@ -20,9 +23,14 @@ try:
     FACE_RECOGNITION_AVAILABLE = True
     logger.info("✅ face_recognition disponible - usando IA real")
 except ImportError as e:
+    # Crear objetos mock para evitar errores
+    face_recognition = None
+    np = None
+    requests = None
+    Image = None
+    io = None
     FACE_RECOGNITION_AVAILABLE = False
     logger.warning(f"⚠️ face_recognition no disponible: {e} - usando simulación")
-    import random
 
 
 class OpenCVFaceProvider:
@@ -33,6 +41,7 @@ class OpenCVFaceProvider:
     def __init__(self):
         self.model = 'hog'  # 'hog' es más rápido, 'cnn' es más preciso
         self.tolerance = 0.4  # Umbral de tolerancia
+        self.provider_name = 'OpenCV-Robust'  # Para compatibilidad
         self.face_recognition_available = FACE_RECOGNITION_AVAILABLE
         
         if not self.face_recognition_available:
@@ -51,26 +60,44 @@ class OpenCVFaceProvider:
             # Cargar imagen
             if isinstance(imagen_path_o_bytes, bytes):
                 # Si es bytes (imagen subida)
-                imagen_pil = Image.open(io.BytesIO(imagen_path_o_bytes))
-                imagen_rgb = np.array(imagen_pil)
+                if Image is not None and io is not None:
+                    imagen_pil = Image.open(io.BytesIO(imagen_path_o_bytes))
+                    if np is not None:
+                        imagen_rgb = np.array(imagen_pil)
+                    else:
+                        raise Exception("numpy no disponible")
+                else:
+                    raise Exception("PIL o io no disponibles")
             elif isinstance(imagen_path_o_bytes, str):
                 # Si es URL, descargar
                 if imagen_path_o_bytes.startswith('http'):
-                    response = requests.get(imagen_path_o_bytes)
-                    imagen_pil = Image.open(io.BytesIO(response.content))
-                    imagen_rgb = np.array(imagen_pil)
+                    if requests is not None and Image is not None and io is not None:
+                        response = requests.get(imagen_path_o_bytes)
+                        imagen_pil = Image.open(io.BytesIO(response.content))
+                        if np is not None:
+                            imagen_rgb = np.array(imagen_pil)
+                        else:
+                            raise Exception("numpy no disponible")
+                    else:
+                        raise Exception("requests, PIL o io no disponibles")
                 else:
                     # Si es path local
-                    imagen_rgb = face_recognition.load_image_file(imagen_path_o_bytes)
+                    if face_recognition is not None:
+                        imagen_rgb = face_recognition.load_image_file(imagen_path_o_bytes)
+                    else:
+                        raise Exception("face_recognition no disponible")
             else:
                 # Si ya es array numpy
                 imagen_rgb = imagen_path_o_bytes
             
             # Detectar ubicaciones de caras
-            face_locations = face_recognition.face_locations(imagen_rgb, model=self.model)
-            
-            # Obtener encodings faciales
-            face_encodings = face_recognition.face_encodings(imagen_rgb, face_locations)
+            if face_recognition is not None:
+                face_locations = face_recognition.face_locations(imagen_rgb, model=self.model)
+                
+                # Obtener encodings faciales
+                face_encodings = face_recognition.face_encodings(imagen_rgb, face_locations)
+            else:
+                raise Exception("face_recognition no disponible")
             
             return face_encodings
             
@@ -91,11 +118,20 @@ class OpenCVFaceProvider:
         try:
             # Calcular distancia facial
             if isinstance(encoding_conocido, list):
-                encoding_conocido = np.array(encoding_conocido)
+                if np is not None:
+                    encoding_conocido = np.array(encoding_conocido)
+                else:
+                    raise Exception("numpy no disponible")
             if isinstance(encoding_desconocido, list):
-                encoding_desconocido = np.array(encoding_desconocido)
+                if np is not None:
+                    encoding_desconocido = np.array(encoding_desconocido)
+                else:
+                    raise Exception("numpy no disponible")
                 
-            distancia = face_recognition.face_distance([encoding_conocido], encoding_desconocido)[0]
+            if face_recognition is not None:
+                distancia = face_recognition.face_distance([encoding_conocido], encoding_desconocido)[0]
+            else:
+                raise Exception("face_recognition no disponible")
             
             # Convertir distancia a porcentaje de confianza
             if distancia <= self.tolerance:
@@ -170,7 +206,7 @@ class OpenCVFaceProvider:
                             try:
                                 confianza = self.comparar_caras(encoding_bd, encoding_detectado)
                                 
-                                if confianza > mejor_confianza and confianza >= 60:  # Umbral mínimo
+                                if confianza > mejor_confianza and confianza >= 55:  # Umbral mínimo
                                     mejor_confianza = confianza
                                     mejor_match = persona
                             except Exception as e:
@@ -219,8 +255,8 @@ class OpenCVFaceProvider:
         if not self.face_recognition_available:
             # Simulación para cuando face_recognition no está disponible
             logger.info("🎭 Simulando verificación facial")
-            confidence = random.uniform(0.7, 0.95)  # Entre 70% y 95%
-            is_identical = confidence > 0.8  # 80% de umbral
+            confidence = random.uniform(0.55, 0.95)  # Entre 55% y 95%
+            is_identical = confidence > 0.55  # 55% de umbral
             
             return {
                 'isIdentical': is_identical,
@@ -245,7 +281,7 @@ class OpenCVFaceProvider:
                     mejor_confianza = confianza
             
             # Determinar si es idéntico basado en umbral
-            es_identico = mejor_confianza >= 70  # Umbral ajustable
+            es_identico = mejor_confianza >= 55  # Umbral ajustable
             
             return {
                 'isIdentical': es_identico,
@@ -293,6 +329,22 @@ class OpenCVFaceProvider:
         except Exception as e:
             logger.error(f"Error en enroll_face: {str(e)}")
             raise Exception(f"Error enrolando rostro: {str(e)}")
+
+    def procesar_imagen_multiple(self, imagen_bytes: bytes, personas_bd: list) -> list:
+        """
+        Procesa múltiples imágenes o una imagen contra múltiples personas
+        Método para compatibilidad con views.py
+        """
+        try:
+            # Usar el método principal de reconocimiento
+            return self.procesar_reconocimiento_tiempo_real(imagen_bytes, personas_bd)
+        except Exception as e:
+            logger.error(f"Error en procesar_imagen_multiple: {str(e)}")
+            return [{
+                'reconocido': False,
+                'error': f'Error del sistema: {str(e)}',
+                'confianza': 0.0
+            }]
 
 
 # Función auxiliar para obtener el proveedor

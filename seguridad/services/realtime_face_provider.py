@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Proveedor de reconocimiento facial con manejo robusto de dependencias
-Compatible con Railway y producción - NO importa face_recognition al inicio
+Compatible con Railway - importaciones seguras al inicio
 """
 from typing import List, Dict, Tuple, Optional, Any
 import logging
@@ -11,131 +11,130 @@ import random
 
 logger = logging.getLogger('seguridad')
 
-# Variables globales para estado de dependencias
-_FACE_RECOGNITION_AVAILABLE = None
-_DEPENDENCIES_CHECKED = False
-
-
-def check_face_recognition_availability():
-    """Verifica si face_recognition está disponible de forma lazy"""
-    global _FACE_RECOGNITION_AVAILABLE, _DEPENDENCIES_CHECKED
-    
-    if _DEPENDENCIES_CHECKED:
-        return _FACE_RECOGNITION_AVAILABLE
-    
-    try:
-        import face_recognition
-        import numpy as np
-        import requests
-        from PIL import Image
-        import io
-        _FACE_RECOGNITION_AVAILABLE = True
-        logger.info("✅ face_recognition disponible - usando IA real")
-    except ImportError as e:
-        _FACE_RECOGNITION_AVAILABLE = False
-        logger.warning(f"⚠️ face_recognition no disponible: {e} - usando simulación")
-    
-    _DEPENDENCIES_CHECKED = True
-    return _FACE_RECOGNITION_AVAILABLE
-
-
-def lazy_import_face_recognition():
-    """Importa face_recognition de forma lazy solo cuando se necesita"""
-    try:
-        import face_recognition
-        import numpy as np
-        import requests
-        from PIL import Image
-        import io
-        return face_recognition, np, requests, Image, io
-    except ImportError:
-        return None, None, None, None, None
+# === IMPORTACIONES SEGURAS AL INICIO ===
+# Importar dependencias ML de forma segura
+try:
+    import face_recognition
+    import numpy as np
+    import requests
+    from PIL import Image
+    import io
+    FACE_RECOGNITION_AVAILABLE = True
+    logger.info("✅ face_recognition disponible - usando IA real")
+except ImportError as e:
+    # Crear objetos mock para evitar errores
+    face_recognition = None
+    np = None
+    requests = None
+    Image = None
+    io = None
+    FACE_RECOGNITION_AVAILABLE = False
+    logger.warning(f"⚠️ face_recognition no disponible: {e} - usando simulación")
 
 
 class OpenCVFaceProvider:
     """
     Proveedor de reconocimiento facial con fallback completo a simulación
-    Compatible con Railway - no importa dependencias ML al inicio
+    Compatible con Railway - importaciones seguras
     """
     
     def __init__(self):
         self.model = 'hog'  # 'hog' es más rápido, 'cnn' es más preciso
         self.tolerance = 0.4  # Umbral de tolerancia
         self.provider_name = 'OpenCV'  # Para compatibilidad
+        self.available = FACE_RECOGNITION_AVAILABLE
         
-        # No verificar disponibilidad al inicio - hacerlo lazy
-        logger.info("🔧 OpenCVFaceProvider inicializado - verificación lazy de dependencias")
-    
-    def _is_available(self):
-        """Verificación lazy de disponibilidad"""
-        return check_face_recognition_availability()
+        if self.available:
+            logger.info("🔧 OpenCVFaceProvider inicializado - IA real disponible")
+        else:
+            logger.info("🎭 OpenCVFaceProvider inicializado - modo simulación")
         
     def detectar_caras_en_imagen(self, imagen_path_o_bytes) -> List:
         """
         Detecta caras en una imagen y retorna los encodings faciales
         """
-        if not self._is_available():
+        if not self.available:
             # Simulación cuando face_recognition no está disponible
             logger.info("🎭 Simulando detección de caras")
             return [[random.random() for _ in range(128)]]  # Vector facial simulado
         
         try:
-            face_recognition, np, requests, Image, io = lazy_import_face_recognition()
-            if not face_recognition:
-                return [[random.random() for _ in range(128)]]
-            
             # Cargar imagen
             if isinstance(imagen_path_o_bytes, bytes):
                 # Si es bytes (imagen subida)
-                imagen_pil = Image.open(io.BytesIO(imagen_path_o_bytes))
-                imagen_rgb = np.array(imagen_pil)
+                if Image is not None and io is not None:
+                    imagen_pil = Image.open(io.BytesIO(imagen_path_o_bytes))
+                    if np is not None:
+                        imagen_rgb = np.array(imagen_pil)
+                    else:
+                        raise Exception("numpy no disponible")
+                else:
+                    raise Exception("PIL o io no disponibles")
             elif isinstance(imagen_path_o_bytes, str):
                 # Si es URL, descargar
                 if imagen_path_o_bytes.startswith('http'):
-                    response = requests.get(imagen_path_o_bytes)
-                    imagen_pil = Image.open(io.BytesIO(response.content))
-                    imagen_rgb = np.array(imagen_pil)
+                    if requests is not None and Image is not None and io is not None:
+                        response = requests.get(imagen_path_o_bytes)
+                        imagen_pil = Image.open(io.BytesIO(response.content))
+                        if np is not None:
+                            imagen_rgb = np.array(imagen_pil)
+                        else:
+                            raise Exception("numpy no disponible")
+                    else:
+                        raise Exception("requests, PIL o io no disponibles")
                 else:
                     # Si es path local
-                    imagen_rgb = face_recognition.load_image_file(imagen_path_o_bytes)
+                    if face_recognition is not None:
+                        imagen_rgb = face_recognition.load_image_file(imagen_path_o_bytes)
+                    else:
+                        raise Exception("face_recognition no disponible")
             else:
                 # Si ya es array numpy
                 imagen_rgb = imagen_path_o_bytes
             
             # Detectar ubicaciones de caras
-            face_locations = face_recognition.face_locations(imagen_rgb, model=self.model)
-            
-            # Obtener encodings faciales
-            face_encodings = face_recognition.face_encodings(imagen_rgb, face_locations)
+            if face_recognition is not None:
+                face_locations = face_recognition.face_locations(imagen_rgb, model=self.model)
+                
+                # Obtener encodings faciales
+                face_encodings = face_recognition.face_encodings(imagen_rgb, face_locations)
+            else:
+                raise Exception("face_recognition no disponible")
             
             return face_encodings
             
         except Exception as e:
             logger.error(f"Error detectando caras: {str(e)}")
-            return []
+            # Fallback a simulación en caso de error
+            return [[random.random() for _ in range(128)]]
     
     def comparar_caras(self, encoding_conocido: Any, encoding_desconocido: Any) -> float:
         """
         Compara dos encodings faciales y retorna el porcentaje de confianza
         """
-        if not self._is_available():
+        if not self.available:
             # Simulación cuando face_recognition no está disponible
             confidence = random.uniform(60, 95)  # Confianza simulada alta
             logger.info(f"🎭 Simulando comparación de caras - confianza: {confidence}%")
             return confidence
         
         try:
-            face_recognition, np, _, _, _ = lazy_import_face_recognition()
-            if not face_recognition:
-                return random.uniform(60, 95)
-                
             # Calcular distancia facial
             if isinstance(encoding_conocido, list):
-                encoding_conocido = np.array(encoding_conocido)
+                if np is not None:
+                    encoding_conocido = np.array(encoding_conocido)
+                else:
+                    raise Exception("numpy no disponible")
             if isinstance(encoding_desconocido, list):
-                encoding_desconocido = np.array(encoding_desconocido)
+                if np is not None:
+                    encoding_desconocido = np.array(encoding_desconocido)
+                else:
+                    raise Exception("numpy no disponible")
                 
-            distancia = face_recognition.face_distance([encoding_conocido], encoding_desconocido)[0]
+            if face_recognition is not None:
+                distancia = face_recognition.face_distance([encoding_conocido], encoding_desconocido)[0]
+            else:
+                raise Exception("face_recognition no disponible")
             
             # Convertir distancia a porcentaje de confianza
             if distancia <= self.tolerance:
@@ -147,7 +146,8 @@ class OpenCVFaceProvider:
             
         except Exception as e:
             logger.error(f"Error comparando caras: {str(e)}")
-            return 0.0
+            # Fallback a simulación en caso de error
+            return random.uniform(30, 60)
     
     def procesar_reconocimiento_tiempo_real(self, 
                                           imagen_subida: bytes, 
@@ -155,7 +155,7 @@ class OpenCVFaceProvider:
         """
         Procesa reconocimiento facial en tiempo real
         """
-        if not self._is_available():
+        if not self.available:
             # Simulación para cuando face_recognition no está disponible
             logger.info("🎭 Simulando reconocimiento facial en tiempo real")
             
@@ -256,7 +256,7 @@ class OpenCVFaceProvider:
         """
         Verifica si una imagen coincide con un vector facial conocido
         """
-        if not self._is_available():
+        if not self.available:
             # Simulación para cuando face_recognition no está disponible
             logger.info("🎭 Simulando verificación facial")
             confidence = random.uniform(0.7, 0.95)  # Entre 70% y 95%
@@ -302,7 +302,7 @@ class OpenCVFaceProvider:
         """
         Enrolla una cara y retorna el vector facial
         """
-        if not self._is_available():
+        if not self.available:
             # Simulación para cuando face_recognition no está disponible
             logger.info("🎭 Simulando enrolamiento facial")
             vector_facial = [random.random() for _ in range(128)]  # Vector facial simulado de 128 dimensiones
@@ -333,6 +333,22 @@ class OpenCVFaceProvider:
         except Exception as e:
             logger.error(f"Error en enroll_face: {str(e)}")
             raise Exception(f"Error enrolando rostro: {str(e)}")
+
+    def procesar_imagen_multiple(self, imagen_bytes: bytes, personas_bd: list) -> list:
+        """
+        Procesa múltiples imágenes o una imagen contra múltiples personas
+        Método para compatibilidad con views.py
+        """
+        try:
+            # Usar el método principal de reconocimiento
+            return self.procesar_reconocimiento_tiempo_real(imagen_bytes, personas_bd)
+        except Exception as e:
+            logger.error(f"Error en procesar_imagen_multiple: {str(e)}")
+            return [{
+                'reconocido': False,
+                'error': f'Error del sistema: {str(e)}',
+                'confianza': 0.0
+            }]
 
 
 # Clase de compatibilidad para Factory

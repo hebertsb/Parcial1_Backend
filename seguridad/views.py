@@ -20,14 +20,24 @@ from .serializers import (
     FaceEnrollResponseSerializer, FaceVerifyResponseSerializer,
     ErrorResponseSerializer, ReconocimientoFacialSerializer
 )
-try:
-    from .services.face_provider import (
-        FaceProviderFactory, FaceDetectionError, FaceVerificationError, 
-        FaceEnrollmentError
-    )
-except ImportError:
-    # Fallback cuando face_provider no está disponible
-    from .services.robust_face_provider import OpenCVFaceProvider
+# Importar directamente desde el proveedor que funciona
+from .services.realtime_face_provider import OpenCVFaceProvider, get_face_provider
+
+# Definir excepciones localmente para compatibilidad
+class FaceDetectionError(Exception):
+    pass
+
+class FaceVerificationError(Exception):
+    pass
+
+class FaceEnrollmentError(Exception):
+    pass
+
+# Factory simple
+class FaceProviderFactory:
+    @staticmethod
+    def create_provider():
+        return get_face_provider()
     FaceProviderFactory = None
     
     class FaceDetectionError(Exception):
